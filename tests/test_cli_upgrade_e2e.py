@@ -391,6 +391,7 @@ def test_embedded_mode_starts_lifespan_and_exits_cleanly() -> None:
     os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
     os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
+    from library import __version__
     from library.config import get_settings
     get_settings.cache_clear()  # type: ignore[attr-defined]
 
@@ -422,7 +423,7 @@ def test_embedded_mode_starts_lifespan_and_exits_cleanly() -> None:
     out = asyncio.run(_go())
     assert out["health"] == {
         "status": "ok",
-        "version": "0.3.3",
+        "version": __version__,
         "git_sha": "unknown",
         "build_id": "local",
         "environment": "dev",
