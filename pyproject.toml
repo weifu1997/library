@@ -1,0 +1,155 @@
+[project]
+name = "library"
+version = "0.3.6"
+description = "A library-science-inspired personal knowledge management system with LLM agents."
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "weifu1997" },
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "alembic>=1.14",
+    "aiosqlite>=0.20",
+    "asyncpg>=0.30",
+    "greenlet>=3.1",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "python-multipart>=0.0.20",
+    "aiofiles>=24.1",
+    "aioboto3>=13.2",
+    "openai>=1.55",
+    "anthropic>=0.40",
+    "tiktoken>=0.7",
+    "pypdf>=5.0",
+    "pypdfium2>=4.30",
+    "Pillow>=10.0",
+    "duckdb>=1.0",
+    "prompt_toolkit>=3.0",
+    "httpx>=0.27",
+    "asgi-lifespan>=2.1",
+    "sse-starlette>=2.1",
+    "python-docx>=1.1",
+    "python-pptx>=1.0",
+    "openpyxl>=3.1",
+    "py7zz>=1.3.1",
+    "markitdown[xls,outlook] @ git+https://github.com/weifu1997/markitdown.git@f48c7dd2e34d3c2fb25194d14347186f052aae6d#subdirectory=packages/markitdown",
+    "glowpy @ git+https://github.com/weifu1997/glowpy.git@57f07158c6bbeb3d24d6939df705388f9839a4b9",
+]
+
+[project.scripts]
+library = "library.cli.repl:main"
+library-worker = "library.worker:main"
+library-mcp = "library.mcp_server:main"
+library-db-prepare = "library.db.cli:main"
+
+[project.optional-dependencies]
+semantic = [
+    "sqlite-vec>=0.1.6",
+]
+
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "fpdf2>=2.8",
+    "moto[s3]>=5.0",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/library"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.venv",
+    "/.pytest_cache",
+    "/desktop/node_modules",
+    "/desktop/src-tauri/target",
+    "/dist",
+    "/runtime",
+    "/tests/_*_e2e_data",
+    "/tests/_e2e_data",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    ".venv",
+    ".codex-pycache",
+    ".codex-run",
+    "desktop/node_modules",
+    "desktop/src-tauri/target",
+    "dist",
+    "runtime",
+    "tests/_*_e2e_data",
+    "tests/_*_e2e_*",
+    "tests/_e2e_data",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "BLE", "ASYNC"]
+ignore = [
+    # Existing code predates the lint gate and uses long literals/prompts.
+    # Keep line-length advisory until the mechanical cleanup is worth doing.
+    "E501",
+    # FastAPI dependency injection intentionally calls Depends()/Query() in
+    # signatures; B008 is noisy for this framework style.
+    "B008",
+    # Existing HTTP handlers raise framework exceptions directly in except
+    # blocks. Narrowing the chaining policy is separate cleanup work.
+    "B904",
+    # The existing codebase commonly zips same-length in-memory lists in
+    # evaluation and embedding code. Enforcing strict= everywhere is a larger
+    # mechanical cleanup than this lint baseline needs.
+    "B905",
+    # Broad exception cleanup is tracked as a separate upgrade-plan item.
+    "BLE001",
+    # The project uses asyncio plus pathlib in request/setup code. Keep
+    # flake8-async's stricter anyio/trio path guidance out of the baseline.
+    "ASYNC109",
+    "ASYNC230",
+    "ASYNC240",
+    "ASYNC250",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = [
+    # Legacy e2e modules set environment variables before importing the app.
+    "E402",
+    # Script-style e2e setup often uses compact semicolon sequencing.
+    "E702",
+    "B007",
+    "B011",
+    # Historical tests carry a few unused imports/locals and f-string prints.
+    "F401",
+    "F541",
+    "F841",
+    # Tests poll external async state (in-flight tasks, received frames) with a
+    # sleep loop; a real asyncio.Event rarely maps cleanly onto that, and the
+    # loops are bounded by asyncio.wait_for timeouts.
+    "ASYNC110",
+]

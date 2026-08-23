@@ -1,0 +1,312 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from library.agent import read_compression as mod
+from library.agent.read_compression import (
+    CompressionSettings,
+    compress_read_text,
+)
+from library.pipelines import resolve_pipeline
+
+
+@dataclass(slots=True)
+class FakeCompressed:
+    text: str = "compact compression view"
+    strategy: str = "library.fake"
+    lossy: bool = True
+
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "strategy": self.strategy,
+            "original_chars": 1000,
+            "compressed_chars": len(self.text),
+            "tokens_saved_estimate": 100,
+            "lossy": self.lossy,
+        }
+
+
+def _cfg(**overrides: Any) -> CompressionSettings:
+    values = dict(
+        enabled=True,
+        min_chars=10,
+        target_chars=100,
+        context_chars=40,
+        max_ratio=0.85,
+    )
+    values.update(overrides)
+    return CompressionSettings(**values)
+
+
+def test_disabled_or_small_reads_are_not_compressed(monkeypatch) -> None:
+    def fail_if_called(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("compression should not be called")
+
+    monkeypatch.setattr(mod, "maybe_compress_read_view", fail_if_called)
+
+    disabled = compress_read_text(
+        "x" * 100,
+        entry_id="entry-text",
+        args={"max_chars": 1000},
+        settings=_cfg(enabled=False),
+    )
+    small = compress_read_text(
+        "x" * 9,
+        entry_id="entry-text",
+        args={"max_chars": 1000},
+        settings=_cfg(min_chars=10),
+    )
+
+    assert disabled.compressed is False
+    assert small.compressed is False
+
+
+def test_precision_reads_are_not_compressed(monkeypatch) -> None:
+    def fail_if_called(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("compression should not be called")
+
+    monkeypatch.setattr(mod, "maybe_compress_read_view", fail_if_called)
+    text = "needle\n" + ("large context\n" * 20)
+
+    result = compress_read_text(
+        text,
+        entry_id="entry-pattern",
+        args={"pattern": "needle"},
+        extras={"hits": [{"line": 1}]},
+        pipeline="text",
+        query="needle",
+        settings=_cfg(),
+    )
+
+    assert result.compressed is False
+    assert result.text == text
+
+
+def test_explicit_uncompressed_read_is_not_recompressed(monkeypatch) -> None:
+    def fail_if_called(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("compression should not be called")
+
+    monkeypatch.setattr(mod, "maybe_compress_read_view", fail_if_called)
+    text = "x" * 100
+
+    result = compress_read_text(
+        text,
+        entry_id="entry-text",
+        args={"compress": False, "max_chars": 1000},
+        settings=_cfg(),
+    )
+
+    assert result.compressed is False
+    assert result.text == text
+
+
+def test_successful_compression_returns_reopen_args(monkeypatch) -> None:
+    calls: list[dict[str, Any]] = []
+
+    def fake_compress(
+        body: str,
+        *,
+        pipeline: str,
+        kind: str,
+        context: str,
+        target_ratio: float,
+        source_name: str,
+        source_ext: str,
+        member_path: str,
+        allow_code: bool,
+    ) -> FakeCompressed:
+        calls.append({
+            "body": body,
+            "pipeline": pipeline,
+            "kind": kind,
+            "context": context,
+            "target_ratio": target_ratio,
+            "source_name": source_name,
+            "source_ext": source_ext,
+            "member_path": member_path,
+            "allow_code": allow_code,
+        })
+        return FakeCompressed()
+
+    monkeypatch.setattr(mod, "maybe_compress_read_view", fake_compress)
+    text = "0123456789" * 100
+
+    result = compress_read_text(
+        text,
+        entry_id="entry-text",
+        args={"member_path": "chapter.md", "max_chars": 12000, "offset": 200},
+        pipeline="text",
+        kind="text",
+        query="target signal",
+        settings=_cfg(target_chars=250),
+    )
+
+    assert result.compressed is True
+    assert result.text == "compact compression view"
+    assert result.strategy == "library.fake"
+    assert calls == [
+        {
+            "body": text,
+            "pipeline": "text",
+            "kind": "text",
+            "context": "target signal",
+            "target_ratio": 0.25,
+            "source_name": "",
+            "source_ext": "",
+            "member_path": "chapter.md",
+            "allow_code": False,
+        }
+    ]
+    assert result.omitted == [
+        {
+            "kind": "original_read",
+            "entry_id": "entry-text",
+            "read_files_args": {
+                "member_path": "chapter.md",
+                "offset": 200,
+                "max_chars": 12000,
+                "compress": False,
+            },
+            "original_chars": len(text),
+        }
+    ]
+    meta = result.metadata()
+    assert meta["compressed"] is True
+    assert meta["lossy"] is True
+    assert meta["quote_safe"]
+
+
+def test_granular_reopen_args_include_line_page_and_member_anchors(monkeypatch) -> None:
+    monkeypatch.setattr(mod, "maybe_compress_read_view", lambda *args, **kwargs: FakeCompressed())
+    text = "0123456789" * 100
+
+    result = compress_read_text(
+        text,
+        entry_id="entry-text",
+        args={"member_path": "notes.md", "offset": 200, "max_chars": 12000},
+        extras={"line_start": 14, "line_end": 29},
+        pipeline="text",
+        kind="text",
+        settings=_cfg(target_chars=250),
+    )
+
+    assert result.compressed is True
+    assert result.omitted[0]["kind"] == "original_read"
+    assert result.omitted[1] == {
+        "kind": "line_window",
+        "entry_id": "entry-text",
+        "read_files_args": {
+            "member_path": "notes.md",
+            "line_start": 14,
+            "line_end": 29,
+            "compress": False,
+        },
+        "original_chars": len(text),
+    }
+
+
+def test_code_reads_are_not_compressed_by_default(monkeypatch) -> None:
+    def fail_if_called(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("compression should not be called for default code reads")
+
+    monkeypatch.setattr(mod, "maybe_compress_read_view", fail_if_called)
+    text = "def fn():\n    return 1\n" * 20
+
+    result = compress_read_text(
+        text,
+        entry_id="entry-code",
+        args={"max_chars": 12000},
+        pipeline="text",
+        kind="text",
+        source_name="worker.py",
+        settings=_cfg(),
+    )
+
+    assert result.compressed is False
+    assert result.text == text
+
+
+def test_explicit_code_reads_can_be_compressed(monkeypatch) -> None:
+    calls: list[dict[str, Any]] = []
+
+    def fake_compress(
+        body: str,
+        *,
+        pipeline: str,
+        kind: str,
+        context: str,
+        target_ratio: float,
+        source_name: str,
+        source_ext: str,
+        member_path: str,
+        allow_code: bool,
+    ) -> FakeCompressed:
+        calls.append({
+            "source_name": source_name,
+            "source_ext": source_ext,
+            "member_path": member_path,
+            "allow_code": allow_code,
+        })
+        return FakeCompressed(text="compact code view")
+
+    monkeypatch.setattr(mod, "maybe_compress_read_view", fake_compress)
+    text = "def fn():\n    return 1\n" * 20
+
+    result = compress_read_text(
+        text,
+        entry_id="entry-code",
+        args={"compress": True, "max_chars": 12000},
+        pipeline="text",
+        kind="text",
+        source_name="worker.py",
+        settings=_cfg(),
+    )
+
+    assert result.compressed is True
+    assert result.text == "compact code view"
+    assert calls == [{
+        "source_name": "worker.py",
+        "source_ext": "",
+        "member_path": "",
+        "allow_code": True,
+    }]
+
+
+def test_weak_compression_is_rejected(monkeypatch) -> None:
+    monkeypatch.setattr(
+        mod,
+        "maybe_compress_read_view",
+        lambda *args, **kwargs: FakeCompressed(text="y" * 90),
+    )
+    text = "x" * 100
+
+    result = compress_read_text(
+        text,
+        entry_id="entry-text",
+        args={"max_chars": 1000},
+        settings=_cfg(max_ratio=0.85),
+    )
+
+    assert result.compressed is False
+    assert result.text == text
+
+
+def test_compressor_none_fails_open(monkeypatch) -> None:
+    monkeypatch.setattr(mod, "maybe_compress_read_view", lambda *args, **kwargs: None)
+    text = "x" * 100
+
+    result = compress_read_text(
+        text,
+        entry_id="entry-text",
+        args={"max_chars": 1000},
+        settings=_cfg(),
+    )
+
+    assert result.compressed is False
+    assert result.text == text
+
+
+def test_text_pipeline_routes_json_and_code_extensions() -> None:
+    assert resolve_pipeline("application/json", ".json", filename="data.json").name == "text"
+    assert resolve_pipeline(None, ".py", filename="worker.py").name == "text"

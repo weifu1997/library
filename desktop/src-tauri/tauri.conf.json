@@ -1,0 +1,82 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Library",
+  "version": "0.3.6",
+  "identifier": "io.library.desktop",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Library",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http://127.0.0.1:* http://localhost:*; font-src 'self' data:; connect-src 'self' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:* https://api.github.com; frame-src http://127.0.0.1:* http://localhost:* blob: data:; object-src 'none'; base-uri 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "resources": [
+      "resources/backend/**/*",
+      "package/windows/*.cmd"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/bin/library": "package/linux/library",
+          "/usr/bin/library-mcp": "package/linux/library-mcp",
+          "/usr/bin/library-worker": "package/linux/library-worker"
+        }
+      },
+      "rpm": {
+        "files": {
+          "/usr/bin/library": "package/linux/library",
+          "/usr/bin/library-mcp": "package/linux/library-mcp",
+          "/usr/bin/library-worker": "package/linux/library-worker"
+        }
+      },
+      "appimage": {
+        "files": {
+          "usr/bin/library": "package/linux/library",
+          "usr/bin/library-mcp": "package/linux/library-mcp",
+          "usr/bin/library-worker": "package/linux/library-worker"
+        }
+      }
+    },
+    "macOS": {
+      "files": {
+        "MacOS/library": "package/macos/library",
+        "MacOS/library-mcp": "package/macos/library-mcp",
+        "MacOS/library-worker": "package/macos/library-worker"
+      }
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "package/windows/nsis-hooks.nsh"
+      }
+    },
+    "android": {
+      "debugApplicationIdSuffix": ".debug"
+    }
+  }
+}
