@@ -6,11 +6,11 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from marginalia.db.bootstrap import _reconcile_dead_ingest_files
-from marginalia.db.models import AuditEvent, Base, File, Task
-from marginalia.services.ingest_status import mark_file_failed_for_dead_ingest_task
-from marginalia.tasks.kinds import KIND_INGEST_FILE
-from marginalia.utils.ids import new_id
+from library.db.bootstrap import _reconcile_dead_ingest_files
+from library.db.models import AuditEvent, Base, File, Task
+from library.services.ingest_status import mark_file_failed_for_dead_ingest_task
+from library.tasks.kinds import KIND_INGEST_FILE
+from library.utils.ids import new_id
 
 
 def _now() -> datetime:

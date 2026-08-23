@@ -17,8 +17,8 @@ async def _one_chunk(body: bytes) -> AsyncIterator[bytes]:
 
 
 def _make_test_root() -> Path:
-    base = Path(os.environ.get("MARGINALIA_TEST_TMP", Path.cwd() / ".codex-run"))
-    return base / f"marginalia_supplemental_e2e_{os.getpid()}_{uuid4().hex[:8]}"
+    base = Path(os.environ.get("LIBRARY_TEST_TMP", Path.cwd() / ".codex-run"))
+    return base / f"library_supplemental_e2e_{os.getpid()}_{uuid4().hex[:8]}"
 
 
 def _sample_eml() -> bytes:
@@ -70,7 +70,7 @@ class _FakeIngestClient:
     model = "fake-ingest"
 
     async def complete(self, request):
-        from marginalia.llm.types import ChatResponse, TokenUsage
+        from library.llm.types import ChatResponse, TokenUsage
 
         return ChatResponse(
             text="""<summary>
@@ -107,26 +107,26 @@ async def test_supplemental_formats_upload_ingest_and_read_segment(
     root = _make_test_root()
     root.mkdir(parents=True, exist_ok=False)
     try:
-        monkeypatch.setenv("MARGINALIA_HOME", str(root))
+        monkeypatch.setenv("LIBRARY_HOME", str(root))
         monkeypatch.setenv("STORAGE_BACKEND", "local")
         monkeypatch.setenv("WORKER_ENABLED", "false")
         monkeypatch.setenv("LLM_DEFAULT_API_KEY", "sk-fake")
         monkeypatch.setenv("LLM_DEFAULT_MODEL", "fake-model")
         monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "false")
 
-        from marginalia.config import get_settings
+        from library.config import get_settings
         from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
         from sqlalchemy.pool import StaticPool
 
-        import marginalia.db.engine as engine_module
-        from marginalia.db.engine import dispose_engine, get_session_factory
-        from marginalia.db.models import Base, File
-        from marginalia.pipelines.registry import resolve_pipeline
-        from marginalia.services.user_files import open_extracted_text_preview
-        from marginalia.services.upload import upload
-        from marginalia.storage import reset_storage_cache
-        import marginalia.tasks.handlers.ingest_file as ingest_module
-        from marginalia.tasks.handlers.ingest_file import handle_ingest_file
+        import library.db.engine as engine_module
+        from library.db.engine import dispose_engine, get_session_factory
+        from library.db.models import Base, File
+        from library.pipelines.registry import resolve_pipeline
+        from library.services.user_files import open_extracted_text_preview
+        from library.services.upload import upload
+        from library.storage import reset_storage_cache
+        import library.tasks.handlers.ingest_file as ingest_module
+        from library.tasks.handlers.ingest_file import handle_ingest_file
 
         get_settings.cache_clear()  # type: ignore[attr-defined]
         reset_storage_cache()
@@ -145,8 +145,8 @@ async def test_supplemental_formats_upload_ingest_and_read_segment(
         async with engine_module._engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-        import marginalia.pipelines._text_indexer as text_indexer
-        import marginalia.pipelines.markitdown as markitdown_pipeline
+        import library.pipelines._text_indexer as text_indexer
+        import library.pipelines.markitdown as markitdown_pipeline
 
         text_indexer.get_chat_client = lambda profile="ingest": _FakeIngestClient()  # type: ignore[assignment]
 
@@ -252,18 +252,18 @@ async def test_supplemental_formats_upload_ingest_and_read_segment(
                     assert case["token"] in preview.text
     finally:
         try:
-            from marginalia.db.engine import dispose_engine
-            from marginalia.storage import reset_storage_cache
+            from library.db.engine import dispose_engine
+            from library.storage import reset_storage_cache
 
             reset_storage_cache()
             await dispose_engine()
         finally:
-            if root.name.startswith("marginalia_supplemental_e2e_"):
+            if root.name.startswith("library_supplemental_e2e_"):
                 shutil.rmtree(root, ignore_errors=True)
 
 
 def test_files_kind_check_migration_allows_supplemental_kinds() -> None:
-    from marginalia.db.bootstrap import _relax_files_kind_check
+    from library.db.bootstrap import _relax_files_kind_check
 
     engine = sa.create_engine("sqlite:///:memory:")
     try:
@@ -337,7 +337,7 @@ def test_bootstrap_migrates_files_kind_with_live_file_entries(
 ) -> None:
     home = tmp_path / "home"
     home.mkdir()
-    db_path = home / "marginalia.db"
+    db_path = home / "library.db"
     seed_engine = sa.create_engine(f"sqlite:///{db_path}")
     try:
         with seed_engine.begin() as conn:
@@ -417,14 +417,14 @@ def test_bootstrap_migrates_files_kind_with_live_file_entries(
     finally:
         seed_engine.dispose()
 
-    monkeypatch.setenv("MARGINALIA_HOME", str(home))
+    monkeypatch.setenv("LIBRARY_HOME", str(home))
     monkeypatch.setenv("DB_BACKEND", "sqlite")
     monkeypatch.setenv("STORAGE_BACKEND", "mirror")
 
-    from marginalia.config import get_settings
-    from marginalia.db.bootstrap import bootstrap_schema
-    from marginalia.db.engine import dispose_engine
-    from marginalia.storage import reset_storage_cache
+    from library.config import get_settings
+    from library.db.bootstrap import bootstrap_schema
+    from library.db.engine import dispose_engine
+    from library.storage import reset_storage_cache
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
     reset_storage_cache()

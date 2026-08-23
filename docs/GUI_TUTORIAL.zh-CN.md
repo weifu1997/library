@@ -1,11 +1,11 @@
-# Marginalia 桌面 GUI 使用教程
+# Library 桌面 GUI 使用教程
 
 这份教程面向没有编程经验的非技术用户。目标是：安装后知道先配置什么、每个设置项是什么意思、哪些保持默认即可、什么时候才需要本地模型、嵌入模型和重排模型。
 
 ## 先说结论
 
 1. 第一次使用必须先配置“提问模型”。默认安装后没有 API Key，所以导入文档后直接提问，通常会表现为没有回答、任务失败或一直等待。
-2. 不需要手动给 Markdown、PDF、Word 等文档分块。导入后，Marginalia 会按文件类型自动读取、拆分、摘要、打标签和建立可检索信息。
+2. 不需要手动给 Markdown、PDF、Word 等文档分块。导入后，Library 会按文件类型自动读取、拆分、摘要、打标签和建立可检索信息。
 3. 嵌入模型不是必需项。不开“语义召回”也能导入文档、搜索、提问；嵌入模型只是增强“意思相近但字面不一样”的召回能力。
 4. 本地模型可以接入，只要它提供 OpenAI-compatible 接口，例如 Ollama、LM Studio、vLLM 等。
 5. 普通用户最少只需要配置 `Default` 这一个 LLM 配置。`chat`、`reflect`、`ingest` 留空即可继承 `Default`。
@@ -85,7 +85,7 @@
 | Model | Ollama 中的模型名，例如你本机实际安装的 `qwen...`、`llama...` 等 |
 | API Key | `local` |
 
-Ollama 可以执行 ingest，但前提是模型上下文能容纳当前文件分析请求。Marginalia 会自动分块长文档，但单个分块仍然可能比较大，所以短上下文本地模型更适合小文件和中等长度文件。大型 PDF 或很长的 Markdown，建议换更长上下文的本地模型，或先用少量文件测试。
+Ollama 可以执行 ingest，但前提是模型上下文能容纳当前文件分析请求。Library 会自动分块长文档，但单个分块仍然可能比较大，所以短上下文本地模型更适合小文件和中等长度文件。大型 PDF 或很长的 Markdown，建议换更长上下文的本地模型，或先用少量文件测试。
 
 本地模型建议把这些并发项调低：
 
@@ -129,10 +129,10 @@ Ollama 可以执行 ingest，但前提是模型上下文能容纳当前文件分
 | 设置项 | 含义 | 推荐值 |
 | --- | --- | --- |
 | API base URL | GUI 请求后端 API 的地址。 | 打包版桌面应用留空；浏览器开发模式通常也留空；连接远程服务器时填 `http://host:8000`。 |
-| API bearer token | 如果后端设置了 `MARGINALIA_API_TOKEN`，这里填写对应 token。 | 单机桌面版留空。 |
+| API bearer token | 如果后端设置了 `LIBRARY_API_TOKEN`，这里填写对应 token。 | 单机桌面版留空。 |
 
 只有在“前端和后端分开跑”或“连接另一台服务器”时，才需要改这里。API base URL
-必须是 **Marginalia 后端**地址，不能填写 Ollama 或 LM Studio 模型服务地址；
+必须是 **Library 后端**地址，不能填写 Ollama 或 LM Studio 模型服务地址；
 本地模型 URL 应在 **LLM 配置**中设置。
 
 ### Preferences：偏好
@@ -191,7 +191,7 @@ Ollama 可以执行 ingest，但前提是模型上下文能容纳当前文件分
 | 项目 | 含义 | 推荐 |
 | --- | --- | --- |
 | App env | 当前运行环境。 | 桌面使用无需修改。 |
-| Home | Marginalia 数据根目录，包含数据库、资料库、日志、配置覆盖文件。 | 默认 `%USERPROFILE%\Marginalia`。 |
+| Home | Library 数据根目录，包含数据库、资料库、日志、配置覆盖文件。 | 默认 `%USERPROFILE%\LibraryData`。 |
 | DB | 数据库类型。 | 单机桌面版用 `sqlite`。 |
 | Storage | 文件存储方式。 | `mirror`，文件夹结构更直观，方便备份。 |
 | Worker | 后台任务是否启用。 | 启用。 |
@@ -270,7 +270,7 @@ LM Studio 可测试：
 Invoke-RestMethod http://127.0.0.1:1234/v1/models
 ```
 
-如果这里都不通，Marginalia 也无法连接本地模型。
+如果这里都不通，Library 也无法连接本地模型。
 
 ### 5. 端口是否被占用
 
@@ -283,17 +283,17 @@ Invoke-RestMethod http://127.0.0.1:1234/v1/models
 说明 `8000` 端口已被占用。可以换 `8001`：
 
 ```powershell
-cd "D:\AI Platform\marginalia"
+cd "D:\AI Platform\library"
 $env:PYTHONPATH="src"
-$env:MARGINALIA_DESKTOP="1"
-$env:MARGINALIA_API_PORT="8001"
-& ".\.venv\Scripts\python.exe" -m marginalia
+$env:LIBRARY_DESKTOP="1"
+$env:LIBRARY_API_PORT="8001"
+& ".\.venv\Scripts\python.exe" -m library
 ```
 
 前端开发模式也要指向同一个端口：
 
 ```powershell
-cd "D:\AI Platform\marginalia\desktop"
+cd "D:\AI Platform\library\desktop"
 $env:VITE_API_TARGET="http://127.0.0.1:8001"
 npm run dev
 ```
@@ -305,7 +305,7 @@ Get-NetTCPConnection -LocalPort 8000 | Select-Object LocalAddress,LocalPort,Stat
 Get-Process -Id <上一步看到的 OwningProcess>
 ```
 
-确认是旧的 Python/Marginalia 进程后再关闭：
+确认是旧的 Python/Library 进程后再关闭：
 
 ```powershell
 Stop-Process -Id <PID> -Force
@@ -313,38 +313,38 @@ Stop-Process -Id <PID> -Force
 
 ## 开发模式启动命令
 
-不要在 `src\marginalia` 里执行 `python .\main.py`。这个文件只是 FastAPI 应用定义，不会自己启动服务器。
+不要在 `src\library` 里执行 `python .\main.py`。这个文件只是 FastAPI 应用定义，不会自己启动服务器。
 
 正确后端启动方式：
 
 ```powershell
-cd "D:\AI Platform\marginalia"
+cd "D:\AI Platform\library"
 $env:PYTHONPATH="src"
-$env:MARGINALIA_DESKTOP="1"
-& ".\.venv\Scripts\python.exe" -m marginalia
+$env:LIBRARY_DESKTOP="1"
+& ".\.venv\Scripts\python.exe" -m library
 ```
 
 如果 `8000` 被占用：
 
 ```powershell
-cd "D:\AI Platform\marginalia"
+cd "D:\AI Platform\library"
 $env:PYTHONPATH="src"
-$env:MARGINALIA_DESKTOP="1"
-$env:MARGINALIA_API_PORT="8001"
-& ".\.venv\Scripts\python.exe" -m marginalia
+$env:LIBRARY_DESKTOP="1"
+$env:LIBRARY_API_PORT="8001"
+& ".\.venv\Scripts\python.exe" -m library
 ```
 
 前端开发界面：
 
 ```powershell
-cd "D:\AI Platform\marginalia\desktop"
+cd "D:\AI Platform\library\desktop"
 npm run dev
 ```
 
 如果后端用了 `8001`：
 
 ```powershell
-cd "D:\AI Platform\marginalia\desktop"
+cd "D:\AI Platform\library\desktop"
 $env:VITE_API_TARGET="http://127.0.0.1:8001"
 npm run dev
 ```
@@ -360,7 +360,7 @@ http://localhost:5173
 在仓库根目录执行：
 
 ```powershell
-cd "D:\AI Platform\marginalia"
+cd "D:\AI Platform\library"
 node scripts\prepare-backend.mjs
 cd desktop
 npm run tauri:build
@@ -371,33 +371,33 @@ node scripts\package-windows-portable.mjs
 常见输出位置：
 
 ```text
-desktop\src-tauri\target\release\marginalia-tauri.exe
+desktop\src-tauri\target\release\library-tauri.exe
 desktop\src-tauri\target\release\bundle\
-desktop\src-tauri\target\release\bundle\nsis\marginalia-v0.2.6-windows-x64-portable.zip
+desktop\src-tauri\target\release\bundle\nsis\library-v0.2.6-windows-x64-portable.zip
 ```
 
-打包版启动后会自动拉起后端，不需要你手动运行 `python -m marginalia`。
+打包版启动后会自动拉起后端，不需要你手动运行 `python -m library`。
 
 ## 数据、配置和日志在哪里
 
 默认数据目录：
 
 ```text
-%USERPROFILE%\Marginalia
+%USERPROFILE%\LibraryData
 ```
 
 里面通常包含：
 
 | 路径 | 作用 |
 | --- | --- |
-| `marginalia.db` | SQLite 数据库。 |
+| `library.db` | SQLite 数据库。 |
 | `library\` | 默认 mirror 存储下的资料库文件。 |
 | `objects\` | local 存储模式下的对象文件。 |
 | `config_overlay.json` | GUI 保存的设置覆盖项。 |
 | `logs\backend.log` | 打包版后端日志。 |
 | `semantic-index\` | 语义索引文件。 |
 
-不要在程序运行时用 OneDrive、Dropbox、Syncthing、iCloud Drive 等同步整个 `MARGINALIA_HOME`。SQLite 数据库在并发同步下可能损坏。需要备份时，先退出程序，再复制整个目录。
+不要在程序运行时用 OneDrive、Dropbox、Syncthing、iCloud Drive 等同步整个 `LIBRARY_HOME`。SQLite 数据库在并发同步下可能损坏。需要备份时，先退出程序，再复制整个目录。
 
 ## 更新和 About 页面
 

@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from marginalia.agent.tools.search_journal import run_search_journal
-from marginalia.db.bootstrap import bootstrap_schema_sync
-from marginalia.db.models import Conversation, File, FileEntry, Journal, Session
-from marginalia.utils.ids import new_id
+from library.agent.tools.search_journal import run_search_journal
+from library.db.bootstrap import bootstrap_schema_sync
+from library.db.models import Conversation, File, FileEntry, Journal, Session
+from library.utils.ids import new_id
 
 
 def _now() -> datetime:

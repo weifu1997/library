@@ -8,9 +8,9 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from marginalia.llm import factory
-from marginalia.llm.factory import _UsageRecordingChatClient
-from marginalia.llm.types import ChatMessage, ChatRequest, ChatResponse, TokenUsage
+from library.llm import factory
+from library.llm.factory import _UsageRecordingChatClient
+from library.llm.types import ChatMessage, ChatRequest, ChatResponse, TokenUsage
 
 _REQUEST = ChatRequest(
     system=None,

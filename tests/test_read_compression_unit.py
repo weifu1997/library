@@ -3,18 +3,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from marginalia.agent import read_compression as mod
-from marginalia.agent.read_compression import (
+from library.agent import read_compression as mod
+from library.agent.read_compression import (
     CompressionSettings,
     compress_read_text,
 )
-from marginalia.pipelines import resolve_pipeline
+from library.pipelines import resolve_pipeline
 
 
 @dataclass(slots=True)
 class FakeCompressed:
     text: str = "compact compression view"
-    strategy: str = "marginalia.fake"
+    strategy: str = "library.fake"
     lossy: bool = True
 
     def metadata(self) -> dict[str, Any]:
@@ -144,7 +144,7 @@ def test_successful_compression_returns_reopen_args(monkeypatch) -> None:
 
     assert result.compressed is True
     assert result.text == "compact compression view"
-    assert result.strategy == "marginalia.fake"
+    assert result.strategy == "library.fake"
     assert calls == [
         {
             "body": text,

@@ -1,14 +1,14 @@
 ---
 name: ingest-vault
-description: Bulk-admit files from a Marginalia mirror vault into the database, then let the LLM pipeline catch up in the background. Use when the user has dropped a stack of PDFs / markdown / notes into their vault directory and wants them indexed and searchable.
-compatibility: Requires the `marginalia` CLI (Python 3.11+), a configured LLM ingest profile, and STORAGE_BACKEND=mirror for bulk ingest. For STORAGE_BACKEND=local, use `marginalia upload` per file instead.
+description: Bulk-admit files from a Library mirror vault into the database, then let the LLM pipeline catch up in the background. Use when the user has dropped a stack of PDFs / markdown / notes into their vault directory and wants them indexed and searchable.
+compatibility: Requires the `library` CLI (Python 3.11+), a configured LLM ingest profile, and STORAGE_BACKEND=mirror for bulk ingest. For STORAGE_BACKEND=local, use `library upload` per file instead.
 allowed-tools: bash read
 ---
 
-# Ingest a vault into Marginalia
+# Ingest a vault into Library
 
-Marginalia is a personal knowledge base. The user keeps the canonical
-files on disk (the "mirror vault") and Marginalia tracks each file with
+Library is a personal knowledge base. The user keeps the canonical
+files on disk (the "mirror vault") and Library tracks each file with
 a database entry plus AI-extracted metadata. This skill walks through
 the bulk-ingest path: admit fast, run LLM extraction async.
 
@@ -20,7 +20,7 @@ the bulk-ingest path: admit fast, run LLM extraction async.
 
 ## Prerequisites
 
-- The vault root is configured (`MARGINALIA_HOME` env or `marginalia init`).
+- The vault root is configured (`LIBRARY_HOME` env or `library init`).
 - `STORAGE_BACKEND=mirror` (the default). For `local`, the user must use
   `/upload` per file instead — bulk ingest is mirror-only.
 - Files are already in the vault directory. Bulk ingest does not COPY
@@ -31,10 +31,10 @@ the bulk-ingest path: admit fast, run LLM extraction async.
 1. **Start the REPL.** From the vault directory:
 
    ```
-   marginalia
+   library
    ```
 
-   The prompt looks like `marginalia[mirror />` once connected. The
+   The prompt looks like `library[mirror />` once connected. The
    bracket shows backend + cwd + queue depth.
 
 2. **See what's new on disk.** `/check` runs a scan and reports four
@@ -90,18 +90,18 @@ These accept relative paths from cwd. Same admission + queue flow as
 - **Storage backend mismatch.** If the user previously ran with
   `STORAGE_BACKEND=local` and switched, lifespan startup raises
   `StorageBackendMismatchError`. Tell them to run
-  `marginalia storage migrate --from local --to mirror` (or revert).
+  `library storage migrate --from local --to mirror` (or revert).
 
 - **Long queue, no apparent progress.** The `N busy` count reflects the
   task queue. If it's stuck above zero with no decrease over several
   minutes, the LLM provider may be unconfigured or throttled. Check
-  `MARGINALIA_LLM_*` env settings.
+  `LIBRARY_LLM_*` env settings.
 
 ## After ingest
 
 Once `N busy` settles back near zero, the corpus is ready for:
 
-- **search-by-question** → see `research-with-marginalia` skill
+- **search-by-question** → see `research-with-library` skill
 - **discovery / related-entries** → see `discover-and-curate` skill
 
 ## One-shot commands
@@ -109,13 +109,13 @@ Once `N busy` settles back near zero, the corpus is ready for:
 All of the above can be driven non-interactively by an external agent:
 
 ```bash
-marginalia check --json
-marginalia ingest --all --yes --json
-marginalia ingest path/to/folder --yes --json
-marginalia background --json
-marginalia reprocess failed --json
-marginalia reprocess folder <full_folder_id> failed --json
-marginalia upload ./somewhere/paper.pdf /papers/
+library check --json
+library ingest --all --yes --json
+library ingest path/to/folder --yes --json
+library background --json
+library reprocess failed --json
+library reprocess folder <full_folder_id> failed --json
+library upload ./somewhere/paper.pdf /papers/
 ```
 
 Add `--json` for machine-parseable output. `--yes` skips confirmation prompts.

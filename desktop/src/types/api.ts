@@ -1,5 +1,5 @@
 /** Shared types mirroring the /v1/ JSON shapes. Keep in lockstep with
- *  src/marginalia/api/routes_*.py. When the backend changes a payload,
+ *  src/library/api/routes_*.py. When the backend changes a payload,
  *  update both — the typed client is the only thing keeping them honest.
  */
 
@@ -398,7 +398,7 @@ export interface ApiErrorBody {
 
 export interface ServerSettings {
   app_env: string;
-  marginalia_home: string;
+  library_home: string;
   db_backend: string;
   postgres_pool_size: number;
   postgres_max_overflow: number;

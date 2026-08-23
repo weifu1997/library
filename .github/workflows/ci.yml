@@ -152,7 +152,7 @@ jobs:
           context: .
           push: false
           load: true
-          tags: marginalia:ci
+          tags: library:ci
           build-args: |
             APT_MIRROR=
             PIP_INDEX_URL=https://pypi.org/simple

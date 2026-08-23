@@ -4,13 +4,13 @@ import asyncio
 import io
 from types import SimpleNamespace
 
-from marginalia.pipelines.pdf import PdfPipeline
-from marginalia.pipelines.pdf_text import (
+from library.pipelines.pdf import PdfPipeline
+from library.pipelines.pdf_text import (
     extract_pdf_page_labels,
     extract_pdf_text_range,
     resolve_page_label,
 )
-from marginalia.pipelines.text import TextPipeline
+from library.pipelines.text import TextPipeline
 
 
 class _FakeStorage:

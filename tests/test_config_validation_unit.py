@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from marginalia.config import LlmConfigError, Settings, validate_llm_config
+from library.config import LlmConfigError, Settings, validate_llm_config
 
 
 def test_document_vision_rejects_profile_declared_without_image_support() -> None:

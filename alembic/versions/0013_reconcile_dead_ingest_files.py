@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import _reconcile_dead_ingest_files
+from library.db.bootstrap import _reconcile_dead_ingest_files
 
 
 revision = "0013_reconcile_dead_ingest_files"

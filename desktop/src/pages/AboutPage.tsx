@@ -6,9 +6,9 @@ import { useI18n } from "@/lib/i18n";
 import { interceptExternalLink } from "@/lib/openExternal";
 import { cn } from "@/lib/utils";
 
-const RELEASES_URL = "https://github.com/shenmintao/marginalia/releases";
+const RELEASES_URL = "https://github.com/weifu1997/library/releases";
 const LATEST_RELEASE_API =
-  "https://api.github.com/repos/shenmintao/marginalia/releases/latest";
+  "https://api.github.com/repos/weifu1997/library/releases/latest";
 
 interface LatestRelease {
   tag_name?: string;
@@ -88,16 +88,16 @@ export function AboutPage() {
         <section className="rounded-md border border-border bg-bg-subtle p-4">
           <h2 className="text-sm font-semibold">{t.about.linksTitle}</h2>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <ExternalLinkButton href="https://github.com/shenmintao/marginalia">
+            <ExternalLinkButton href="https://github.com/weifu1997/library">
               {t.about.projectHomepage}
             </ExternalLinkButton>
             <ExternalLinkButton href={RELEASES_URL}>
               {t.about.downloadReleases}
             </ExternalLinkButton>
-            <ExternalLinkButton href="https://github.com/shenmintao/marginalia/issues">
+            <ExternalLinkButton href="https://github.com/weifu1997/library/issues">
               {t.about.reportIssue}
             </ExternalLinkButton>
-            <ExternalLinkButton href="https://github.com/shenmintao/marginalia/blob/main/LICENSE">
+            <ExternalLinkButton href="https://github.com/weifu1997/library/blob/main/LICENSE">
               {t.about.license}
             </ExternalLinkButton>
           </div>

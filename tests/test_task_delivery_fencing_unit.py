@@ -8,13 +8,13 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from marginalia.config import Settings
-from marginalia.db.models.base import Base
-from marginalia.db.models.tasks import Task
-from marginalia.repositories import tasks as tasks_repo
-from marginalia.tasks import runner as runner_module
-from marginalia.tasks.runner import TaskRunner
-from marginalia.utils.ids import new_id
+from library.config import Settings
+from library.db.models.base import Base
+from library.db.models.tasks import Task
+from library.repositories import tasks as tasks_repo
+from library.tasks import runner as runner_module
+from library.tasks.runner import TaskRunner
+from library.utils.ids import new_id
 
 
 def _task(*, task_id: str | None = None, owner: str | None = None) -> Task:

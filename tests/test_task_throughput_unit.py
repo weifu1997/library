@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from marginalia.api.routes_tasks import _task_throughput_payload
+from library.api.routes_tasks import _task_throughput_payload
 
 
 def test_task_throughput_payload_reports_backlog_failures_and_durations() -> None:

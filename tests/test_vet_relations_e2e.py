@@ -30,10 +30,10 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_vet_relations_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -41,21 +41,21 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from sqlalchemy import select  # noqa: E402
 
-from marginalia.config import get_settings  # noqa: E402
+from library.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm  # noqa: E402
-from marginalia.db.engine import get_engine, get_session_factory  # noqa: E402
-from marginalia.db.models import (  # noqa: E402
+from library import llm  # noqa: E402
+from library.db.engine import get_engine, get_session_factory  # noqa: E402
+from library.db.models import (  # noqa: E402
     Base, EntryRelation, File, FileEntry, Folder,
 )
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage  # noqa: E402
-from marginalia.services.recommend import find_related  # noqa: E402
-from marginalia.tasks.handlers.vet_relations import (  # noqa: E402
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage  # noqa: E402
+from library.services.recommend import find_related  # noqa: E402
+from library.tasks.handlers.vet_relations import (  # noqa: E402
     handle_vet_relations,
 )
-from marginalia.utils.ids import new_id  # noqa: E402
+from library.utils.ids import new_id  # noqa: E402
 
 
 def _now() -> datetime:
@@ -112,7 +112,7 @@ class _FakeVetIngest:
 def _install_fake() -> None:
     llm.reset_clients_cache()
     fake = _FakeVetIngest()
-    import marginalia.tasks.handlers.vet_relations as vmod
+    import library.tasks.handlers.vet_relations as vmod
     vmod.get_chat_client = lambda profile="ingest": fake  # type: ignore[assignment]
 
 

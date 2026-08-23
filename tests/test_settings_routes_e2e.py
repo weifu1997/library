@@ -24,14 +24,14 @@ from pathlib import Path
 from uuid import uuid4
 
 _TEST_PARENT = Path(os.environ.get(
-    "MARGINALIA_TEST_TMP",
+    "LIBRARY_TEST_TMP",
     str(Path(__file__).resolve().parent),
 ))
 _TEST_PARENT.mkdir(parents=True, exist_ok=True)
 _TEST_ROOT = _TEST_PARENT / f"_settings_routes_e2e_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
 atexit.register(lambda: shutil.rmtree(_TEST_ROOT, ignore_errors=True))
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["AUTO_LIFECYCLE_ENABLED"] = "false"
@@ -50,7 +50,7 @@ os.environ.pop("LLM_DEFAULT_BASE_URL", None)
 # from reading the file at all. Cut the env_file binding once at import
 # time so every `Settings()` constructed during this test module sees
 # only `os.environ`.
-from marginalia.config import Settings as _Settings  # noqa: E402
+from library.config import Settings as _Settings  # noqa: E402
 
 _Settings.model_config["env_file"] = None
 # Also drop any LLM_<PROFILE>_* env vars the dev's .env exported into
@@ -108,7 +108,7 @@ def _ensure_test_env() -> None:
     """Re-assert env at the start of each test. Other test files set
     `LLM_DEFAULT_MODEL=fake-model` at import time; in a multi-file run
     those imports fire during collection and clobber ours."""
-    os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+    os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
     os.environ["STORAGE_BACKEND"] = "local"
     os.environ["WORKER_ENABLED"] = "false"
     os.environ["AUTO_LIFECYCLE_ENABLED"] = "false"
@@ -116,7 +116,7 @@ def _ensure_test_env() -> None:
     os.environ["LLM_DEFAULT_MODEL"] = "settings-default-model"
     os.environ["LLM_DEFAULT_PROVIDER"] = "openai"
     os.environ.pop("LLM_DEFAULT_BASE_URL", None)
-    os.environ.pop("MARGINALIA_API_TOKEN", None)
+    os.environ.pop("LIBRARY_API_TOKEN", None)
     os.environ.pop("RELATION_BACKGROUND_VETTING_ENABLED", None)
     _TEST_ROOT.mkdir(parents=True, exist_ok=True)
     (_TEST_ROOT / ".env").write_text("", encoding="utf-8")
@@ -160,10 +160,10 @@ def _ensure_test_env() -> None:
 import httpx
 from httpx import ASGITransport
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.main import app
+from library.main import app
 
 
 @asynccontextmanager
@@ -186,7 +186,7 @@ async def _create_schema() -> None:
 
 async def test_optional_bearer_auth() -> None:
     _ensure_test_env()
-    os.environ["MARGINALIA_API_TOKEN"] = "test-token"
+    os.environ["LIBRARY_API_TOKEN"] = "test-token"
     get_settings.cache_clear()  # type: ignore[attr-defined]
     transport = ASGITransport(app=app)
     try:
@@ -211,7 +211,7 @@ async def test_optional_bearer_auth() -> None:
                 assert r.status_code == 200, r.text
         print("[0] optional bearer auth gates v1 routes and exempts /health")
     finally:
-        os.environ.pop("MARGINALIA_API_TOKEN", None)
+        os.environ.pop("LIBRARY_API_TOKEN", None)
         get_settings.cache_clear()  # type: ignore[attr-defined]
 
 

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from marginalia.pipelines.base import PipelineContext, PipelineResult
-from marginalia.pipelines.markitdown import MarkItDownPipeline
+from library.pipelines.base import PipelineContext, PipelineResult
+from library.pipelines.markitdown import MarkItDownPipeline
 
 
 class _MemoryStorage:
@@ -65,7 +65,7 @@ async def test_markitdown_pipeline_indexes_supplemental_formats(
             entry_tags=[],
         )
 
-    import marginalia.pipelines.markitdown as mod
+    import library.pipelines.markitdown as mod
 
     monkeypatch.setattr(mod, "_convert_bytes_with_markitdown", fake_convert)
     monkeypatch.setattr(mod, "index_extracted_text", fake_index)
@@ -90,7 +90,7 @@ async def test_markitdown_pipeline_indexes_supplemental_formats(
 async def test_markitdown_read_segment_from_bytes_uses_text_slicing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import marginalia.pipelines.markitdown as mod
+    import library.pipelines.markitdown as mod
 
     monkeypatch.setattr(
         mod,
@@ -113,7 +113,7 @@ async def test_markitdown_read_segment_from_bytes_uses_text_slicing(
 async def test_markitdown_read_segment_uses_original_text_not_index_cap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import marginalia.pipelines.markitdown as mod
+    import library.pipelines.markitdown as mod
 
     monkeypatch.setattr(
         mod,

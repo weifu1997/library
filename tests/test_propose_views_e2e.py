@@ -26,10 +26,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_propose_views_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -37,16 +37,16 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from sqlalchemy import select, text
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import (
+from library import llm
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import (
     Base, EntryTag, File, FileEntry, Folder, Tag, View,
 )
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.utils.ids import new_id
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.utils.ids import new_id
 
 
 CALL_LOG: list[ChatRequest] = []
@@ -113,7 +113,7 @@ def _make_fake(plan: dict[str, dict]):
 
 def _install_fake(client):
     llm.reset_clients_cache()
-    import marginalia.tasks.handlers.propose_views as mod
+    import library.tasks.handlers.propose_views as mod
     mod.get_chat_client = lambda profile="ingest": client  # type: ignore[assignment]
 
 
@@ -237,7 +237,7 @@ async def main():
     fake = _make_fake(plan)
     _install_fake(fake)
 
-    from marginalia.tasks.handlers.propose_views import handle_propose_views
+    from library.tasks.handlers.propose_views import handle_propose_views
 
     # ---- 1. first run --------------------------------------------------
     await handle_propose_views({})

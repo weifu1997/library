@@ -29,26 +29,26 @@ from uuid import uuid4
 import pytest
 
 _TEST_PARENT = Path(os.environ.get(
-    "MARGINALIA_TEST_TMP",
+    "LIBRARY_TEST_TMP",
     str(Path(__file__).resolve().parent),
 ))
 _TEST_ROOT = _TEST_PARENT / f"_publish_selected_scope_e2e_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True, exist_ok=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
 os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 os.environ["WEBDAV_URL"] = "https://dav.test"
-os.environ["WEBDAV_REMOTE_PATH"] = "/marginalia-test"
+os.environ["WEBDAV_REMOTE_PATH"] = "/library-test"
 
-from marginalia.config import Settings as _Settings  # noqa: E402
+from library.config import Settings as _Settings  # noqa: E402
 
 _Settings.model_config["env_file"] = None
 
-from marginalia.config import get_settings  # noqa: E402
-from marginalia.db.engine import dispose_engine, get_engine, get_session_factory  # noqa: E402
-from marginalia.db.models import (  # noqa: E402
+from library.config import get_settings  # noqa: E402
+from library.db.engine import dispose_engine, get_engine, get_session_factory  # noqa: E402
+from library.db.models import (  # noqa: E402
     Base,
     Conversation,
     EntryTag,
@@ -61,13 +61,13 @@ from marginalia.db.models import (  # noqa: E402
     TagAlias,
     View,
 )
-from marginalia.services.webdav_sync import (  # noqa: E402
+from library.services.webdav_sync import (  # noqa: E402
     WebDavConfigError,
     _parse_jsonl,
     publish_selected,
 )
-from marginalia.storage import get_storage, reset_storage_cache  # noqa: E402
-from marginalia.utils.ids import new_id  # noqa: E402
+from library.storage import get_storage, reset_storage_cache  # noqa: E402
+from library.utils.ids import new_id  # noqa: E402
 
 
 async def _create_schema() -> None:
@@ -76,13 +76,13 @@ async def _create_schema() -> None:
 
 async def _activate_home(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
-    os.environ["MARGINALIA_HOME"] = str(path)
+    os.environ["LIBRARY_HOME"] = str(path)
     os.environ["STORAGE_BACKEND"] = "local"
     os.environ["WORKER_ENABLED"] = "false"
     os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
     os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
     os.environ["WEBDAV_URL"] = "https://dav.test"
-    os.environ["WEBDAV_REMOTE_PATH"] = "/marginalia-test"
+    os.environ["WEBDAV_REMOTE_PATH"] = "/library-test"
     get_settings.cache_clear()  # type: ignore[attr-defined]
     reset_storage_cache()
     await dispose_engine()
@@ -308,7 +308,7 @@ async def test_publish_selected_scopes_metadata_to_selected_entry(
     seeded = await _seed_scoped_source()
     _MemoryWebDavClient.remote = {}
     monkeypatch.setattr(
-        "marginalia.services.webdav_sync.WebDavClient",
+        "library.services.webdav_sync.WebDavClient",
         _MemoryWebDavClient,
     )
 
@@ -316,8 +316,8 @@ async def test_publish_selected_scopes_metadata_to_selected_entry(
     assert published["selected_entries"] == 1
 
     remote = _MemoryWebDavClient.remote
-    latest = json.loads(remote["/marginalia-test/latest.json"].decode("utf-8"))
-    snapshot_root = f"/marginalia-test/snapshots/{latest['snapshot_id']}"
+    latest = json.loads(remote["/library-test/latest.json"].decode("utf-8"))
+    snapshot_root = f"/library-test/snapshots/{latest['snapshot_id']}"
 
     def rows(name: str) -> list[dict]:
         return _parse_jsonl(remote[f"{snapshot_root}/{name}"], source=name)

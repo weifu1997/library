@@ -9,12 +9,12 @@ Covered bugs:
        Unknown REQUESTS (with id) must still get METHOD_NOT_FOUND.
   #14  run_stdio_server dispatched requests strictly serially, so a slow
        tools/call blocked ping/tools/list until it finished.
-  #69  MarginaliaClient.upload_file did not expanduser() the local path,
+  #69  LibraryClient.upload_file did not expanduser() the local path,
        so the documented "~/file.pdf" example always failed verbatim.
   #44  /ls discarded the "entries" key of /v1/folders and printed
        "(no folders)" for folders containing only files.
 
-Pure unit tests: no DB, no MARGINALIA_HOME, in-memory transports only.
+Pure unit tests: no DB, no LIBRARY_HOME, in-memory transports only.
 """
 from __future__ import annotations
 
@@ -28,9 +28,9 @@ from typing import Any
 import httpx
 import pytest
 
-from marginalia import mcp_server
-from marginalia.cli.client import MarginaliaClient
-from marginalia.cli.commands import CliContext, cmd_ls
+from library import mcp_server
+from library.cli.client import LibraryClient
+from library.cli.commands import CliContext, cmd_ls
 
 
 # ---- helpers ---------------------------------------------------------------
@@ -128,7 +128,7 @@ async def test_cli_stream_chat_strips_exactly_one_sse_space() -> None:
             content=body,
         )
 
-    client = MarginaliaClient(
+    client = LibraryClient(
         base_url="http://test",
         transport=httpx.MockTransport(handler),
     )
@@ -278,7 +278,7 @@ async def test_upload_file_expands_tilde(
     def handler(request: httpx.Request) -> httpx.Response:  # never reached
         return httpx.Response(200, json={})
 
-    client = MarginaliaClient(
+    client = LibraryClient(
         base_url="http://test",
         transport=httpx.MockTransport(handler),
     )

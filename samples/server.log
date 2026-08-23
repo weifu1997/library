@@ -1,6 +1,6 @@
 2024-03-12T10:00:01 INFO server starting on port 8000
 2024-03-12T10:00:02 INFO loading database connection pool size=10
-2024-03-12T10:00:03 INFO worker daemon connected: marginalia-worker:1
+2024-03-12T10:00:03 INFO worker daemon connected: library-worker:1
 2024-03-12T10:00:05 INFO accepting connections
 2024-03-12T10:00:10 INFO POST /upload remote_path=/research/llm/ size=24512
 2024-03-12T10:00:11 INFO ingest_file enqueued file_id=019e5493-fca4-7524-...

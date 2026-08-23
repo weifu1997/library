@@ -38,10 +38,10 @@ import io
 import tarfile
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_compression_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -49,16 +49,16 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from sqlalchemy import select  # noqa: E402
 
-from marginalia.config import get_settings  # noqa: E402
+from library.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm  # noqa: E402
-from marginalia.db.engine import get_engine, get_session_factory  # noqa: E402
-from marginalia.db.models import Base, File, FileEntry  # noqa: E402
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage  # noqa: E402
-from marginalia.pipelines.registry import resolve_pipeline  # noqa: E402
-from marginalia.storage import get_storage  # noqa: E402
+from library import llm  # noqa: E402
+from library.db.engine import get_engine, get_session_factory  # noqa: E402
+from library.db.models import Base, File, FileEntry  # noqa: E402
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage  # noqa: E402
+from library.pipelines.registry import resolve_pipeline  # noqa: E402
+from library.storage import get_storage  # noqa: E402
 
 
 CALL_LOG: list[ChatRequest] = []
@@ -104,8 +104,8 @@ def _install_fakes() -> None:
 
     def _factory(profile: str = "ingest"):
         return fake
-    import marginalia.pipelines._text_indexer as imod
-    import marginalia.pipelines.archive as amod
+    import library.pipelines._text_indexer as imod
+    import library.pipelines.archive as amod
     imod.get_chat_client = _factory  # type: ignore[assignment]
     amod.get_chat_client = _factory  # type: ignore[assignment]
 
@@ -152,7 +152,7 @@ async def _create_schema():
 async def _seed_file(
     *, body: bytes, mime: str, name: str,
 ) -> tuple[str, str]:
-    from marginalia.services.upload import upload
+    from library.services.upload import upload
     storage = get_storage()
 
     async def _stream():
@@ -171,7 +171,7 @@ async def _seed_file(
 
 
 async def _ingest(file_id: str) -> None:
-    from marginalia.tasks.handlers.ingest_file import handle_ingest_file
+    from library.tasks.handlers.ingest_file import handle_ingest_file
     await handle_ingest_file({"file_id": file_id, "entry_id": None})
 
 
@@ -264,7 +264,7 @@ async def _check_archive_read_segment_dispatch() -> None:
     )
     await _ingest(file_id)
 
-    from marginalia.pipelines import resolve_pipeline as resolve
+    from library.pipelines import resolve_pipeline as resolve
     pipe = resolve("application/gzip", ".tar.gz", filename="dispatch.tar.gz")
     assert pipe is not None and pipe.name == "archive"
 

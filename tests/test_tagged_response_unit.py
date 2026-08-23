@@ -12,7 +12,7 @@ Run:
 """
 from __future__ import annotations
 
-from marginalia.llm.tagged_response import parse_tagged
+from library.llm.tagged_response import parse_tagged
 
 
 def test_well_formed_tags() -> None:

@@ -24,10 +24,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_tend_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -35,18 +35,18 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from sqlalchemy import select
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
 import httpx
 from httpx import ASGITransport
 
-from marginalia.api.routes_tend import TEND_CHAIN, TEND_DISPATCH_KIND, TEND_OBJECT_KIND
-from marginalia.db.engine import get_engine
-from marginalia.db.models import Base, Task
-from marginalia.db.models.task_outcomes import TaskOutcome
-from marginalia.db.session import session_scope
-from marginalia.main import app
+from library.api.routes_tend import TEND_CHAIN, TEND_DISPATCH_KIND, TEND_OBJECT_KIND
+from library.db.engine import get_engine
+from library.db.models import Base, Task
+from library.db.models.task_outcomes import TaskOutcome
+from library.db.session import session_scope
+from library.main import app
 
 
 async def _setup_schema() -> None:

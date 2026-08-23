@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.pipelines.base import PipelineContext
-from marginalia.pipelines.pdf import PdfPipeline
-from marginalia.pipelines.text import TextPipeline
-from marginalia.pipelines import text as text_mod
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.pipelines.base import PipelineContext
+from library.pipelines.pdf import PdfPipeline
+from library.pipelines.text import TextPipeline
+from library.pipelines import text as text_mod
 
 
 class _BytesStorage:
@@ -167,7 +167,7 @@ def test_pdf_read_segment_can_access_pages_past_ingest_cap() -> None:
 async def test_pdf_long_ingest_chunks_then_aggregates(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import marginalia.pipelines.pdf as pdf_mod
+    import library.pipelines.pdf as pdf_mod
 
     monkeypatch.setattr(pdf_mod, "has_vision_profile", lambda: False)
 

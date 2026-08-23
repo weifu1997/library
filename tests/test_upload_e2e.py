@@ -22,10 +22,10 @@ import sys
 from pathlib import Path
 
 # Use isolated SQLite + storage for the smoke run (don't pollute real data/).
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"  # we don't want a runner picking up tasks
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -36,12 +36,12 @@ from httpx import ASGITransport
 from sqlalchemy import select, text
 
 # Import after env vars set so config picks them up.
-from marginalia.config import get_settings  # noqa: E402
+from library.config import get_settings  # noqa: E402
 get_settings.cache_clear()  # type: ignore[attr-defined]
-from marginalia.db.engine import get_engine, get_session_factory  # noqa: E402
-from marginalia.db.models import AuditEvent, Base, File, FileEntry, Folder  # noqa: E402
-from marginalia.main import app  # noqa: E402
-from marginalia.tasks.kinds import KIND_INGEST_FILE  # noqa: E402
+from library.db.engine import get_engine, get_session_factory  # noqa: E402
+from library.db.models import AuditEvent, Base, File, FileEntry, Folder  # noqa: E402
+from library.main import app  # noqa: E402
+from library.tasks.kinds import KIND_INGEST_FILE  # noqa: E402
 
 
 async def _create_schema() -> None:
@@ -60,7 +60,7 @@ async def main() -> None:
             assert (await c.get("/health")).status_code == 200
 
             # 2. New upload — auto-creates /research/llm folders
-            content_a = b"Marginalia E2E content A\n" * 50
+            content_a = b"Library E2E content A\n" * 50
             r = await c.post(
                 "/v1/upload",
                 params={"remote_path": "/research/llm/paper.pdf"},
@@ -140,7 +140,7 @@ async def main() -> None:
             # → 400 with ambiguous_remote_path detail
             r = await c.post(
                 "/v1/upload",
-                params={"remote_path": "/repos/marginalia"},
+                params={"remote_path": "/repos/library"},
                 files={"file": ("LICENSE", io.BytesIO(b"MIT"), "text/plain")},
             )
             assert r.status_code == 400, r.text
@@ -150,19 +150,19 @@ async def main() -> None:
             # 7b. Same path with trailing '/' → folder, file lands as LICENSE
             r = await c.post(
                 "/v1/upload",
-                params={"remote_path": "/repos/marginalia/"},
+                params={"remote_path": "/repos/library/"},
                 files={"file": ("LICENSE", io.BytesIO(b"MIT"), "text/plain")},
             )
             assert r.status_code == 201, r.text
             up6b = r.json()
             assert up6b["display_name"] == "LICENSE"
-            print("[6b] /repos/marginalia/ + LICENSE:", up6b["display_name"])
+            print("[6b] /repos/library/ + LICENSE:", up6b["display_name"])
 
             # 7c. Same path WITHOUT trailing '/' but display_name override
-            # → folder=/repos/marginalia, display_name=LICENSE
+            # → folder=/repos/library, display_name=LICENSE
             r = await c.post(
                 "/v1/upload",
-                params={"remote_path": "/repos/marginalia",
+                params={"remote_path": "/repos/library",
                         "display_name": "COPYRIGHT"},
                 files={"file": ("LICENSE", io.BytesIO(b"MIT"), "text/plain")},
             )
@@ -225,7 +225,7 @@ async def main() -> None:
         # hash -> 1), default-A.
         # Files: 4. Entries: 4 (paper, copy_of, paper(1), raw.csv)
         # + 2 LICENSE/COPYRIGHT + 1 policy.txt = 7.
-        # Folders: research, llm, datasets, repos, marginalia, defaults = 6.
+        # Folders: research, llm, datasets, repos, library, defaults = 6.
         # Ingest tasks: 4 (one per unique sha256).
         print(
             "[DB] files=%d entries=%d folders=%d ingest_tasks=%d audit_events=%d"

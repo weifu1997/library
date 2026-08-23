@@ -1,7 +1,7 @@
-# Marginalia Launch Kit
+# Library Launch Kit
 
-Use this file when posting Marginalia to GitHub, Hacker News, Product Hunt,
-Reddit, LINUX DO, V2EX, or similar communities. Keep claims concrete: Marginalia
+Use this file when posting Library to GitHub, Hacker News, Product Hunt,
+Reddit, LINUX DO, V2EX, or similar communities. Keep claims concrete: Library
 is a local-first private AI library and research agent, not a general SOTA RAG
 benchmark claim.
 
@@ -53,7 +53,7 @@ Local-first AI library with cited answers from original files.
 
 Goal: show the value in one minute.
 
-1. Start from an empty Marginalia desktop app.
+1. Start from an empty Library desktop app.
 2. Upload a folder containing a Raft paper, Paxos notes, a meeting note, and a
    small log or spreadsheet.
 3. Ask: `What are the key differences between Raft and Paxos? Cite the sources.`
@@ -67,15 +67,15 @@ The demo should show original-source citation, not just a chat answer.
 
 **Title**
 
-Show HN: Marginalia - a local-first AI library that cites original files
+Show HN: Library - a local-first AI library that cites original files
 
 **Post/comment body**
 
-I built Marginalia because my research material was spread across PDFs, notes,
+I built Library because my research material was spread across PDFs, notes,
 tables, logs, and archives, and a plain vector-search layer over chunks did not
 give me enough confidence in the answers.
 
-Marginalia keeps files in a local folder tree, builds library metadata around
+Library keeps files in a local folder tree, builds library metadata around
 them, and gives the agent tools to find candidates, inspect metadata, follow
 related entries, read original source windows, and answer with citations.
 
@@ -86,7 +86,7 @@ It has two modes:
 
 There are desktop builds for Windows/macOS/Linux and a Python CLI. It is AGPL.
 
-Repo: https://github.com/shenmintao/marginalia
+Repo: https://github.com/weifu1997/library
 
 I would especially like feedback from people who manage large private research
 libraries or have built RAG systems over messy local files.
@@ -95,7 +95,7 @@ libraries or have built RAG systems over messy local files.
 
 **Name**
 
-Marginalia
+Library
 
 **Tagline**
 
@@ -103,13 +103,13 @@ Private AI library with cited answers from original files
 
 **Description**
 
-Marginalia turns PDFs, notes, spreadsheets, logs, images, and archives into a
+Library turns PDFs, notes, spreadsheets, logs, images, and archives into a
 local-first AI library. It organizes your files, searches metadata and journals,
 reads original source windows, and produces cited answers and research reports.
 
 **First comment**
 
-I built Marginalia for people whose useful knowledge is scattered across
+I built Library for people whose useful knowledge is scattered across
 private files: papers, notes, tables, logs, screenshots, and archives. The goal
 is not another black-box vector database. The goal is a local library where the
 agent can narrow the search space, read original sources, cite its evidence,
@@ -126,7 +126,7 @@ I built a local-first research agent that reads original files before answering
 
 **Body**
 
-Marginalia is an AGPL local-first AI library for private heterogeneous files:
+Library is an AGPL local-first AI library for private heterogeneous files:
 PDFs, Markdown, DOCX, images, spreadsheets, logs, and archives.
 
 Instead of only retrieving top-k chunks, it uses a structured retrieval funnel:
@@ -139,7 +139,7 @@ What I would like feedback on:
 - Whether Quick vs Deep mode is the right UX for latency/cost tradeoffs.
 - Which ingest formats or citation workflows are still missing.
 
-Repo: https://github.com/shenmintao/marginalia
+Repo: https://github.com/weifu1997/library
 
 ## Chinese Communities
 
@@ -149,7 +149,7 @@ Repo: https://github.com/shenmintao/marginalia
 
 **正文**
 
-Marginalia 是一个开源的本地优先研究 agent,面向 PDF、笔记、Office 文档、
+Library 是一个开源的本地优先研究 agent,面向 PDF、笔记、Office 文档、
 图片、表格、日志和压缩包混在一起的个人资料库。
 
 它不是简单把文件切块丢进向量库。它会先用文件夹、catalog、tag、metadata、
@@ -164,7 +164,7 @@ journal 和可选语义召回缩小范围,再读取原文窗口,最后输出带�
 
 当前有 Windows/macOS/Linux 桌面包,也有 Python CLI。
 
-仓库: https://github.com/shenmintao/marginalia
+仓库: https://github.com/weifu1997/library
 
 欢迎重点喷 README、安装体验、桌面端交互和真实资料库里的检索效果。
 

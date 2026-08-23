@@ -28,7 +28,7 @@ import { MetaPanel } from "@/components/library/MetaPanel";
 import { NewFolderDialog, UploadDialog, WebDavSyncDialog } from "@/components/library/Dialogs";
 import { useI18n, type I18nStrings } from "@/lib/i18n";
 
-const SIDEBAR_WIDTH_KEY = "marginalia.library.sidebarWidth";
+const SIDEBAR_WIDTH_KEY = "library.library.sidebarWidth";
 const SIDEBAR_DEFAULT_WIDTH = 288;
 const SIDEBAR_MIN_WIDTH = 240;
 const SIDEBAR_MAX_WIDTH = 560;

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from marginalia.config import Settings
+from library.config import Settings
 
 
 def test_env_example_documents_every_setting() -> None:

@@ -7,7 +7,7 @@ Architecture under test:
   - The API server's `WORKER_ENABLED=false` — its lifespan does NOT start
     an in-process TaskRunner.
   - We start an independent TaskRunner in this process (simulating a
-    separate `marginalia-worker` invocation talking to the same DB +
+    separate `library-worker` invocation talking to the same DB +
     storage).
   - Upload a file via the API → expect a row in `tasks`. Verify the
     standalone runner picks it up, marks done, and writes the file's
@@ -24,10 +24,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_worker_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"            # API does NOT spawn worker
 os.environ["WORKER_POLL_INTERVAL_SECONDS"] = "0.1"
@@ -38,16 +38,16 @@ import httpx
 from httpx import ASGITransport
 from sqlalchemy import select, text
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import Base, File, FileEntry
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.main import app
-from marginalia.tasks.kinds import KIND_INGEST_FILE
-from marginalia.tasks.runner import TaskRunner
+from library import llm
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import Base, File, FileEntry
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.main import app
+from library.tasks.kinds import KIND_INGEST_FILE
+from library.tasks.runner import TaskRunner
 
 
 CALL_LOG: list[ChatRequest] = []
@@ -60,7 +60,7 @@ class _FakeIngest:
     async def complete(self, request: ChatRequest) -> ChatResponse:
         CALL_LOG.append(request)
         tagged = """<summary>
-Worker-test note about Marginalia.
+Worker-test note about Library.
 </summary>
 <description>
 A short worker test fixture.
@@ -91,9 +91,9 @@ def _install_fake() -> None:
     fake = _FakeIngest()
     def _factory(profile: str = "ingest"):
         return fake
-    import marginalia.pipelines.text as tmod
+    import library.pipelines.text as tmod
     tmod.get_chat_client = _factory  # type: ignore[assignment]
-    import marginalia.tasks.handlers.periodic_tick as pmod
+    import library.tasks.handlers.periodic_tick as pmod
 
     async def _no_periodic_bootstrap() -> None:
         return None

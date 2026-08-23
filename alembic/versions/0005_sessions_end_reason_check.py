@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import _relax_sessions_end_reason_check
+from library.db.bootstrap import _relax_sessions_end_reason_check
 
 
 revision = "0005_sessions_end_reason_check"

@@ -26,10 +26,10 @@ import json
 import sys
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_pdf_ocr_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -38,16 +38,16 @@ os.environ["LLM_VISION_MODEL"] = "fake-vision"
 
 from sqlalchemy import text  # noqa: E402
 
-from marginalia.config import get_settings  # noqa: E402
+from library.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm  # noqa: E402
-from marginalia.db.engine import get_engine, get_session_factory  # noqa: E402
-from marginalia.db.models import Base, File  # noqa: E402
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage  # noqa: E402
-from marginalia.pipelines.pdf import PdfPipeline  # noqa: E402
-from marginalia.storage import get_storage  # noqa: E402
+from library import llm  # noqa: E402
+from library.db.engine import get_engine, get_session_factory  # noqa: E402
+from library.db.models import Base, File  # noqa: E402
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage  # noqa: E402
+from library.pipelines.pdf import PdfPipeline  # noqa: E402
+from library.storage import get_storage  # noqa: E402
 
 
 VISION_CALLS: list[ChatRequest] = []
@@ -131,7 +131,7 @@ def _install_fakes() -> None:
             return fake_vision
         return fake_ingest
 
-    import marginalia.pipelines.pdf as pmod
+    import library.pipelines.pdf as pmod
     pmod.get_chat_client = _factory  # type: ignore[assignment]
 
 
@@ -144,7 +144,7 @@ async def _create_schema():
 
 
 async def _seed_pdf(body: bytes, name: str) -> str:
-    from marginalia.services.upload import upload
+    from library.services.upload import upload
     storage = get_storage()
 
     async def _stream():
@@ -163,7 +163,7 @@ async def _seed_pdf(body: bytes, name: str) -> str:
 
 
 async def _ingest(file_id: str) -> None:
-    from marginalia.tasks.handlers.ingest_file import handle_ingest_file
+    from library.tasks.handlers.ingest_file import handle_ingest_file
     await handle_ingest_file({"file_id": file_id, "entry_id": None})
 
 

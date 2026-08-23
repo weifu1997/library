@@ -27,29 +27,29 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_runtime_guards_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
 os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
 from sqlalchemy import select
 
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import Base, Conversation, File, FileEntry, Session
-from marginalia.llm.types import (
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import Base, Conversation, File, FileEntry, Session
+from library.llm.types import (
     ChatRequest, ChatResponse, TokenUsage, ToolCall,
 )
-from marginalia.utils.ids import new_id
-import marginalia.agent.runtime as runtime
-from marginalia.agent import tools as tools_pkg
-from marginalia.agent.stable_context import PLAN_PHASE_PROMPT
+from library.utils.ids import new_id
+import library.agent.runtime as runtime
+from library.agent import tools as tools_pkg
+from library.agent.stable_context import PLAN_PHASE_PROMPT
 
 
 def _stored_plan_text(conv: Conversation) -> str:
@@ -343,7 +343,7 @@ async def test_no_plan_local_query_is_repaired_before_execute() -> None:
 
 def test_no_plan_prompt_excludes_factual_questions() -> None:
     assert (
-        "answered directly without Marginalia's local" in PLAN_PHASE_PROMPT
+        "answered directly without Library's local" in PLAN_PHASE_PROMPT
     )
     assert "weather, news, prices" in PLAN_PHASE_PROMPT
     assert "Do not invent the fact" in PLAN_PHASE_PROMPT
@@ -353,14 +353,14 @@ def test_no_plan_prompt_excludes_factual_questions() -> None:
     assert "knowledge-base contents" in PLAN_PHASE_PROMPT
 
 
-def test_marginalia_tool_requirement_heuristic() -> None:
-    assert runtime._requires_marginalia_tools("summarize this PDF")
-    assert runtime._requires_marginalia_tools("总结这份文档")
-    assert runtime._requires_marginalia_tools("总结这篇")
-    assert runtime._requires_marginalia_tools("我的知识库里有 Raft 笔记吗")
-    assert not runtime._requires_marginalia_tools("这份怎么样")
-    assert not runtime._requires_marginalia_tools("今天天气怎么样")
-    assert not runtime._requires_marginalia_tools("谢谢")
+def test_library_tool_requirement_heuristic() -> None:
+    assert runtime._requires_library_tools("summarize this PDF")
+    assert runtime._requires_library_tools("总结这份文档")
+    assert runtime._requires_library_tools("总结这篇")
+    assert runtime._requires_library_tools("我的知识库里有 Raft 笔记吗")
+    assert not runtime._requires_library_tools("这份怎么样")
+    assert not runtime._requires_library_tools("今天天气怎么样")
+    assert not runtime._requires_library_tools("谢谢")
 
 
 async def test_execute_repairs_premature_no_tool_answer_for_library_query() -> None:
@@ -736,7 +736,7 @@ async def main() -> None:
     test_canonical_args()
     test_public_plan_text_strips_numbering()
     test_no_plan_prompt_excludes_factual_questions()
-    test_marginalia_tool_requirement_heuristic()
+    test_library_tool_requirement_heuristic()
     await test_no_plan_fast_path()
     await test_no_plan_local_query_is_repaired_before_execute()
     await test_execute_repairs_premature_no_tool_answer_for_library_query()

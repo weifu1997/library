@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from marginalia.agent.tool_locks import (
+from library.agent.tool_locks import (
     _advisory_lock_id,
     session_execution_lock,
     tool_execution_lock,

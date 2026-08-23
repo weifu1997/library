@@ -9,34 +9,34 @@ import httpx
 import pytest
 from PIL import Image
 
-from marginalia.agent import runtime as agent_runtime
-from marginalia.agent.tools import ToolContext
-from marginalia.api import routes_settings
-from marginalia.config import Settings, resolve_profile
-from marginalia.llm.openai_adapter import OpenAIChatClient
-from marginalia.llm.types import (
+from library.agent import runtime as agent_runtime
+from library.agent.tools import ToolContext
+from library.api import routes_settings
+from library.config import Settings, resolve_profile
+from library.llm.openai_adapter import OpenAIChatClient
+from library.llm.types import (
     ChatMessage,
     ChatRequest,
     ChatResponse,
     ImageBlock,
     TokenUsage,
 )
-from marginalia.pipelines import pdf as pdf_pipeline
-from marginalia.provider_clients import (
+from library.pipelines import pdf as pdf_pipeline
+from library.provider_clients import (
     close_provider_clients,
     get_anthropic_client,
     get_openai_compatible_client,
     get_provider_http_client,
 )
-import marginalia.provider_clients as provider_clients
-from marginalia.semantic.embeddings import (
+import library.provider_clients as provider_clients
+from library.semantic.embeddings import (
     DashScopeEmbeddingClient,
     EmbeddingProviderError,
     EmbeddingResult,
     _validate_embedding_result,
 )
-from marginalia.semantic.index import _description_text
-from marginalia.semantic.rerank import BailianRerankClient, RerankProviderError
+from library.semantic.index import _description_text
+from library.semantic.rerank import BailianRerankClient, RerankProviderError
 
 
 def test_provider_http_client_is_reused_and_closed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -134,7 +134,7 @@ def test_dashscope_embedding_uses_shared_http_client(monkeypatch: pytest.MonkeyP
 
     fake_http = FakeHTTP()
     monkeypatch.setattr(
-        "marginalia.semantic.embeddings.get_provider_http_client",
+        "library.semantic.embeddings.get_provider_http_client",
         lambda: fake_http,
     )
     settings = Settings(
@@ -164,7 +164,7 @@ def test_rerank_rejects_empty_provider_response(monkeypatch: pytest.MonkeyPatch)
             )
 
     monkeypatch.setattr(
-        "marginalia.semantic.rerank.get_provider_http_client",
+        "library.semantic.rerank.get_provider_http_client",
         lambda: FakeHTTP(),
     )
     settings = Settings(
@@ -233,7 +233,7 @@ def test_openai_adapter_obeys_explicit_model_capabilities(
         chat=SimpleNamespace(completions=Completions()),
     )
     monkeypatch.setattr(
-        "marginalia.llm.openai_adapter.get_openai_compatible_client",
+        "library.llm.openai_adapter.get_openai_compatible_client",
         lambda **_kwargs: fake_sdk,
     )
     settings = Settings(

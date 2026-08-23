@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from marginalia.server_discovery import (
+from library.server_discovery import (
     clear_server_state,
     client_base_url,
     discover_server_url,

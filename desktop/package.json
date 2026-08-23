@@ -1,9 +1,9 @@
 {
-  "name": "marginalia-desktop",
+  "name": "library-desktop",
   "private": true,
   "version": "0.3.6",
   "type": "module",
-  "description": "Marginalia desktop GUI — Tauri + React + Vite",
+  "description": "Library desktop GUI — Tauri + React + Vite",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

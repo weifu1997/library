@@ -10,14 +10,14 @@ from pathlib import Path
 from uuid import uuid4
 
 _TEST_PARENT = Path(os.environ.get(
-    "MARGINALIA_TEST_TMP",
+    "LIBRARY_TEST_TMP",
     str(Path(__file__).resolve().parent),
 ))
 _TEST_PARENT.mkdir(parents=True, exist_ok=True)
 _TEST_ROOT = _TEST_PARENT / f"_chat_quick_mode_e2e_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
 atexit.register(lambda: shutil.rmtree(_TEST_ROOT, ignore_errors=True))
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -26,15 +26,15 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 import httpx
 from httpx import ASGITransport
 
-from marginalia.config import get_settings
+from library.config import get_settings
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine
-from marginalia.db.models import Base
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage, ToolCall
-from marginalia.main import app
-import marginalia.agent.runtime as runtime
+from library.db.engine import get_engine
+from library.db.models import Base
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage, ToolCall
+from library.main import app
+import library.agent.runtime as runtime
 
 
 async def _create_schema() -> None:

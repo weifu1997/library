@@ -3,14 +3,14 @@ from __future__ import annotations
 from io import BytesIO
 from types import SimpleNamespace
 
-from marginalia.pipelines.document_vision import (
+from library.pipelines.document_vision import (
     DocumentImage,
     inline_document_image_vision_text,
     persisted_document_image_segment,
     select_document_images,
 )
-from marginalia.pipelines.docx import _extract_docx_images
-from marginalia.pipelines.pptx import _extract_pptx_images
+from library.pipelines.docx import _extract_docx_images
+from library.pipelines.pptx import _extract_pptx_images
 
 
 def _png_bytes() -> bytes:

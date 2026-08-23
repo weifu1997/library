@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import _repair_dangling_file_entries_fks
+from library.db.bootstrap import _repair_dangling_file_entries_fks
 
 
 revision = "0004_repair_dangling_file_entries_fks"

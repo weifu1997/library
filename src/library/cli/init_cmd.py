@@ -1,0 +1,205 @@
+"""`library init` — bootstrap a Library project directory.
+
+Mirrors claw-code's `claw init`: creates the bare minimum so the user can
+run the server + worker without manual setup.
+
+Created/updated artifacts (in `cwd`):
+  - .env             starter config (only if missing)
+  - data/            for SQLite + storage objects
+  - .library/     local cache (sessions, tmp)
+  - .gitignore       appended with Library-local artifacts
+
+Schema creation happens automatically on first server / worker startup
+(see `library.db.bootstrap`), so this command does not touch the DB.
+"""
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from typing import Iterable
+
+
+_STARTER_ENV = """\
+# Library configuration. See README.md for the full set.
+
+# Project-local home — db, library, and objects all live under the data/
+# directory next to this file. Written as an absolute path so the CLI,
+# server, and worker agree on one database regardless of each process's
+# working directory. Change to ~/LibraryData to use the user-global home.
+LIBRARY_HOME={home}
+
+DB_BACKEND=sqlite
+
+# HTTP backend bind settings. `library serve`, the desktop app, and
+# auto-discovery all use these values when they are present.
+LIBRARY_API_HOST=127.0.0.1
+LIBRARY_API_PORT=8000
+
+# mirror = folder-tree on disk matching the user's intent (default)
+# local  = UUID-flat object pool; faster, dedup-on, less human-friendly
+# s3     = remote object storage; configure S3_* below
+STORAGE_BACKEND=mirror
+
+# Set WORKER_ENABLED=true for development mode (TaskRunner runs in the
+# uvicorn process). Production: keep this false and run `library-worker`
+# as a separate process.
+WORKER_ENABLED=false
+
+# Automatic active -> demoted -> archived lifecycle transitions. Personal
+# knowledge bases usually want manual lifecycle control; shared/team
+# deployments can opt in.
+AUTO_LIFECYCLE_ENABLED=false
+
+# Rolling 24h token cap for low-priority background maintenance. 0 = unlimited.
+MAINTENANCE_DAILY_TOKEN_BUDGET=0
+
+# Batch relation vetting is optional; /discover --vet queues seed-scoped vetting.
+RELATION_BACKGROUND_VETTING_ENABLED=false
+
+# LLM defaults — every profile (chat / reflect / ingest / vision / audio)
+# inherits these unless overridden by LLM_<PROFILE>_* keys.
+LLM_DEFAULT_PROVIDER=openai
+LLM_DEFAULT_API_KEY=
+LLM_DEFAULT_MODEL=gpt-4o-mini
+
+# Per-profile overrides (uncomment to use):
+# LLM_REFLECT_MODEL=gpt-4o
+# LLM_VISION_MODEL=gpt-4o
+
+# Optional semantic recall. Credentials are separate from chat/vision/ingest.
+EMBEDDING_PROVIDER=openai-compatible
+EMBEDDING_API_KEY=
+EMBEDDING_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+EMBEDDING_MODEL=text-embedding-v4
+EMBEDDING_DIMENSIONS=1024
+EMBEDDING_BATCH_SIZE=10
+SEMANTIC_INDEX_BACKEND=auto
+SEMANTIC_RECALL_ENABLED=false
+SEMANTIC_RECALL_LIMIT=100
+
+# Optional rerank. Leave disabled unless RERANK_API_KEY is configured.
+RERANK_ENABLED=false
+RERANK_API_KEY=
+RERANK_BASE_URL=https://dashscope.aliyuncs.com/compatible-api/v1
+RERANK_MODEL=qwen3-rerank
+RERANK_TOP_N=80
+RERANK_MAX_DOC_CHARS=1800
+RERANK_CONCURRENCY=10
+EVIDENCE_SELECTION=quota
+"""
+
+
+_GITIGNORE_COMMENT = "# Library local artifacts"
+_GITIGNORE_ENTRIES = (
+    ".env",
+    "data/",
+    ".library/",
+    "*.db",
+    "*.db-shm",
+    "*.db-wal",
+)
+
+
+class _Status(Enum):
+    CREATED = "created"
+    UPDATED = "updated"
+    SKIPPED = "skipped (already exists)"
+
+
+@dataclass(slots=True)
+class _Artifact:
+    name: str
+    status: _Status
+
+
+def init_project(cwd: Path) -> list[_Artifact]:
+    """Create / update the bootstrap files. Caller pretty-prints the report."""
+    out: list[_Artifact] = []
+
+    starter_env = _STARTER_ENV.format(home=(cwd / "data").resolve())
+    out.append(_Artifact(".env", _write_if_missing(cwd / ".env", starter_env)))
+    out.append(_Artifact("data/", _ensure_dir(cwd / "data")))
+    out.append(_Artifact("data/library/", _ensure_dir(cwd / "data" / "library")))
+    out.append(_Artifact(".library/", _ensure_dir(cwd / ".library")))
+    out.append(_Artifact(".gitignore", _ensure_gitignore(cwd / ".gitignore")))
+    return out
+
+
+def render_report(cwd: Path, artifacts: list[_Artifact]) -> str:
+    lines = [
+        "library init",
+        f"  Project          {cwd}",
+    ]
+    for a in artifacts:
+        lines.append(f"  {a.name:<18} {a.status.value}")
+    lines.append("")
+    lines.append("Next steps:")
+    lines.append("  1. Edit .env and set LLM_DEFAULT_API_KEY (or per-profile keys).")
+    lines.append("  2. Start the backend:        library serve")
+    lines.append("  3. (Production) start the worker:  library-worker")
+    lines.append("  4. Open the CLI:             library")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _ensure_dir(p: Path) -> _Status:
+    if p.is_dir():
+        return _Status.SKIPPED
+    p.mkdir(parents=True, exist_ok=True)
+    return _Status.CREATED
+
+
+def _write_if_missing(p: Path, content: str) -> _Status:
+    if p.exists():
+        return _Status.SKIPPED
+    p.write_text(content, encoding="utf-8")
+    return _Status.CREATED
+
+
+def _ensure_gitignore(p: Path) -> _Status:
+    if not p.exists():
+        body = _GITIGNORE_COMMENT + "\n" + "\n".join(_GITIGNORE_ENTRIES) + "\n"
+        p.write_text(body, encoding="utf-8")
+        return _Status.CREATED
+
+    existing = p.read_text(encoding="utf-8")
+    lines = existing.splitlines()
+    changed = False
+    if not any(line == _GITIGNORE_COMMENT for line in lines):
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.append(_GITIGNORE_COMMENT)
+        changed = True
+    for entry in _GITIGNORE_ENTRIES:
+        if not any(line.strip() == entry for line in lines):
+            lines.append(entry)
+            changed = True
+    if not changed:
+        return _Status.SKIPPED
+    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return _Status.UPDATED
+
+
+# ---- CLI entry point ------------------------------------------------------
+
+def cmd_init_main(argv: Iterable[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="library init",
+        description="Bootstrap a Library project in the current directory.",
+    )
+    parser.add_argument(
+        "directory", nargs="?", default=".",
+        help="Project directory (default: current).",
+    )
+    args = parser.parse_args(list(argv) if argv is not None else None)
+    target = Path(args.directory).resolve()
+    target.mkdir(parents=True, exist_ok=True)
+    artifacts = init_project(target)
+    print(render_report(target, artifacts))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(cmd_init_main())

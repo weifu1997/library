@@ -1,4 +1,4 @@
-# Marginalia 操作手册
+# Library 操作手册
 
 > English: [USAGE.md](USAGE.md)
 >
@@ -15,13 +15,13 @@
 
 ```bash
 git clone <repo>
-cd marginalia
+cd library
 python -m venv .venv
 source .venv/Scripts/activate         # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
-成功标志:`marginalia --help` 能跑出命令列表。
+成功标志:`library --help` 能跑出命令列表。
 
 ---
 
@@ -31,20 +31,20 @@ pip install -e ".[dev]"
 
 ```bash
 mkdir my-library && cd my-library
-marginalia init
+library init
 ```
 
 `init` 在当前目录生成:
 - `.env` —— 配置文件,需要手动填 API key
 - `data/` —— SQLite 数据库会落在这
 - `library/` —— 你上传的文件以可读文件夹形式存这
-- `.marginalia/` —— 缓存
+- `.library/` —— 缓存
 
-如果想把库放别处,设 `MARGINALIA_HOME`:
+如果想把库放别处,设 `LIBRARY_HOME`:
 
 ```bash
-export MARGINALIA_HOME=/some/other/path
-marginalia init
+export LIBRARY_HOME=/some/other/path
+library init
 ```
 
 ---
@@ -99,27 +99,27 @@ alembic upgrade head
 ## 4. 跑通一次完整流程
 
 ```bash
-marginalia
+library
 ```
 
 进入 REPL。下面这 5 步是最小可行流程:
 
 ```
-marginalia> /upload paper.pdf /
+library> /upload paper.pdf /
    ↳ 把 paper.pdf 拷进 vault 根目录,入队 ingest 任务
 
-marginalia> /tree
+library> /tree
    ↳ 看一下文件夹结构,确认 paper.pdf 进来了
 
-marginalia> /info <entry_id>
+library> /info <entry_id>
    ↳ 看 ingest 状态。status=pending → processing → done 才算入册完毕
    ↳ 第一次跑要等十几秒到几十秒(看模型快慢)
 
-marginalia> 这篇论文讲了什么?
+library> 这篇论文讲了什么?
    ↳ 进入 agent 流程:planning → tool calls → answer
    ↳ 答案末尾会有 [^a] [^b] 角标,引用具体段落
 
-marginalia> /export
+library> /export
    ↳ 把刚才那次对话(含引用原文)打包成 zip,落到当前目录
 ```
 
@@ -157,7 +157,7 @@ doom-loop 保护会在 6 次内强制收尾。如果反复出现,看 §9 故障�
 ### 单文件
 
 ```
-marginalia> /upload ~/Downloads/paper.pdf /papers
+library> /upload ~/Downloads/paper.pdf /papers
 ```
 
 第二个参数是 vault 内的路径。`/` 开头 = 绝对路径(从 vault 根算起);
@@ -166,42 +166,42 @@ marginalia> /upload ~/Downloads/paper.pdf /papers
 ### 切换 remote cwd 后批量上传
 
 ```
-marginalia> /cd /papers/2024
-marginalia> /upload ~/Downloads/p1.pdf
-marginalia> /upload ~/Downloads/p2.pdf
+library> /cd /papers/2024
+library> /upload ~/Downloads/p1.pdf
+library> /upload ~/Downloads/p2.pdf
    ↳ 都进 /papers/2024/ 下
 ```
 
 ### 一次拷一个目录
 
 ```
-marginalia> /upload ~/Downloads/notes /
+library> /upload ~/Downloads/notes /
    ↳ 把整个 notes/ 目录搬进 vault 根
 ```
 
 ### 已经存在同名文件
 
 ```
-marginalia> /on-conflict rename     # 自动加 (1) (2)
-marginalia> /on-conflict skip       # 跳过
-marginalia> /on-conflict error      # 报错(默认)
+library> /on-conflict rename     # 自动加 (1) (2)
+library> /on-conflict skip       # 跳过
+library> /on-conflict error      # 报错(默认)
 ```
 
 设置只对当前 session 生效。
 
-### 在 marginalia 之外改了文件
+### 在 library 之外改了文件
 
 ```
-marginalia> /check
+library> /check
    ↳ diff 磁盘 vs db,只读不动
-marginalia> /ingest --all
+library> /ingest --all
    ↳ 把变化同步进 db(类似 git add -A)
 ```
 
 单文件同步:
 
 ```
-marginalia> /ingest /papers/edited.md
+library> /ingest /papers/edited.md
 ```
 
 ---
@@ -220,7 +220,7 @@ marg ask "我收藏的扩散模型论文里关于 score-based 方法的有哪些
 
 ```bash
 marg chat
-   或在 REPL 里: marginalia> /new
+   或在 REPL 里: library> /new
 ```
 
 每轮 follow-up 都带上文。结束:`/clear`(标 cleared)或直接 `/quit`。
@@ -295,7 +295,7 @@ journal 召回会在读取时校验引用 entry:如果旧笔记指向已删除 e
 有效笔记之后。后续 reflect 如果发现同一 entry 的旧 journal 结论被直接矛盾,
 会把旧行标记为 invalidated;默认活跃召回会隐藏它,审计查询仍可显式包含。
 
-外部 BEIR-style 数据集和 `marginalia eval` 命令的完整说明见
+外部 BEIR-style 数据集和 `library eval` 命令的完整说明见
 [`README.zh-CN.md`](README.zh-CN.md)。
 
 ---
@@ -305,7 +305,7 @@ journal 召回会在读取时校验引用 entry:如果旧笔记指向已删除 e
 ### 文件卡在 processing
 
 ```
-marginalia> /info <entry_id>
+library> /info <entry_id>
    ↳ 看 ingest_status。卡 5 分钟以上不动 = 真卡了
 ```
 
@@ -313,13 +313,13 @@ marginalia> /info <entry_id>
 pending。手动触发整轮维护:
 
 ```
-marginalia> /tend
+library> /tend
 ```
 
 ### ingest 反复失败
 
 ```
-marginalia> /info <entry_id>
+library> /info <entry_id>
    ↳ 看 last_error。前缀会标 Parse: / LLM: / Route:
 ```
 
@@ -330,7 +330,7 @@ marginalia> /info <entry_id>
 
 ### LLM API key 失效
 
-任务会反复失败到 `dead`。修好 `.env` 后重启 marginalia,
+任务会反复失败到 `dead`。修好 `.env` 后重启 library,
 `recover_stuck_tasks` 会给 dead 任务一次重试机会。
 
 ### 想强制重新 ingest 一个文件
@@ -338,7 +338,7 @@ marginalia> /info <entry_id>
 目前没有专用命令。最直接的办法:
 
 ```
-marginalia> /info <entry_id>
+library> /info <entry_id>
    ↳ 记下 file_id
 ```
 
@@ -354,7 +354,7 @@ marginalia> /info <entry_id>
 
 ### 单机备份(SQLite + 本地 / mirror 存储)
 
-直接 `cp -r` 整个 `MARGINALIA_HOME` 目录。db 文件 + library + objects
+直接 `cp -r` 整个 `LIBRARY_HOME` 目录。db 文件 + library + objects
 都在里面。
 
 跑着的时候 cp 也能拷,但更稳的做法是先 `/quit`,再拷。
@@ -366,7 +366,7 @@ marginalia> /info <entry_id>
 
 ```ini
 DB_BACKEND=postgres
-POSTGRES_DSN=postgresql+asyncpg://user:pass@localhost:5432/marginalia
+POSTGRES_DSN=postgresql+asyncpg://user:pass@localhost:5432/library
 ```
 
 3. 跑迁移:
@@ -382,7 +382,7 @@ alembic upgrade head
 ### 从 mirror / local 存储迁到 S3
 
 ```bash
-marginalia storage migrate --to s3
+library storage migrate --to s3
 ```
 
 会把所有 `files.storage_key` 重写指向 S3 对象,物理文件批量 PUT。
@@ -394,23 +394,23 @@ marginalia storage migrate --to s3
 
 SQLite 不支持多进程写,要多机必须先迁到 Postgres + S3。不要用
 Dropbox、Syncthing、iCloud Drive、OneDrive 等文件同步工具同步正在运行的
-`MARGINALIA_HOME`; SQLite 和 mirror/local 存储在并发复制下可能损坏。
+`LIBRARY_HOME`; SQLite 和 mirror/local 存储在并发复制下可能损坏。
 
 **A 机(server)**:
 
 ```bash
 # .env: DB_BACKEND=postgres, STORAGE_BACKEND=s3, WORKER_ENABLED=true
-uvicorn marginalia.main:app --host 0.0.0.0 --port 8000
+uvicorn library.main:app --host 0.0.0.0 --port 8000
 ```
 
 **B 机(client)**:
 
 ```bash
-marginalia --server http://A.lan:8000
+library --server http://A.lan:8000
 ```
 
-或在 B 机的 `~/.marginalia/.env` 里写 `MARGINALIA_SERVER=http://A.lan:8000`,
-之后直接 `marginalia` 即可。
+或在 B 机的 `~/.library/.env` 里写 `LIBRARY_SERVER=http://A.lan:8000`,
+之后直接 `library` 即可。
 
 ### Docker compose 一键起栈
 
@@ -423,23 +423,23 @@ docker compose up -d
 启动时自动跑,MinIO bucket 由一次性 init 容器创建。
 
 Compose 默认只把 API 和 MinIO 控制台绑定到 `127.0.0.1`。如果要主动暴露到
-局域网,请设置 `MARGINALIA_API_TOKEN`,并让 CLI/桌面端发送
+局域网,请设置 `LIBRARY_API_TOKEN`,并让 CLI/桌面端发送
 `Authorization: Bearer <token>`。
 
 ```bash
-marginalia --server http://localhost:8000
+library --server http://localhost:8000
 ```
 
 ### WebDAV 快照同步
 
-如果只想用 WebDAV 在多设备间传递知识库,不要把 `MARGINALIA_HOME` 放进
+如果只想用 WebDAV 在多设备间传递知识库,不要把 `LIBRARY_HOME` 放进
 WebDAV 同步目录。请在 Settings -> WebDAV sync 中配置:
 
 ```ini
 WEBDAV_URL=https://example.com/dav
 WEBDAV_USERNAME=...
 WEBDAV_PASSWORD=...
-WEBDAV_REMOTE_PATH=/marginalia
+WEBDAV_REMOTE_PATH=/library
 ```
 
 然后:
@@ -458,7 +458,7 @@ catalog、relations 会随 metadata 带过来,本机索引和缓存仍由本机�
 ## 12. 看后台在干什么
 
 ```
-marginalia> /tend
+library> /tend
    ↳ 触发一次完整的离线维护周期(normalize_tags / enrich_tags / restructure /
      suggest_demotion 等),实时打印每个任务的产出
 ```
@@ -473,34 +473,34 @@ marginalia> /tend
 被自动降级了:
 
 ```
-marginalia> /search <keyword>
+library> /search <keyword>
    ↳ 默认只搜 active。没搜到再加 --include-archived 看全集
 ```
 
 恢复一个被自动归档的 entry:
 
 ```
-marginalia> /restore <entry_id>
+library> /restore <entry_id>
 ```
 
 ---
 
 ## 13. MCP Server
 
-需要让 Claude Desktop 或其他 MCP-capable agent 调用你的 Marginalia 库时,
+需要让 Claude Desktop 或其他 MCP-capable agent 调用你的 Library 库时,
 运行 stdio MCP server:
 
 ```bash
-marginalia mcp
+library mcp
 # 或
-marginalia-mcp
+library-mcp
 ```
 
 MCP 面只暴露只读检索工具:`recall_knowledge`、`read_files`、
 `search_metadata`、`search_journal`、`read_entries_metadata`、
 `list_folder`、`list_catalogs`、`read_catalog`、`resolve_tag` 和
 `materialize_view`。写入类工具、artifact 生成工具、SQL/log/container
-分析工具不会暴露。MCP 客户端使用和 CLI 相同的 `MARGINALIA_HOME`、数据库、
+分析工具不会暴露。MCP 客户端使用和 CLI 相同的 `LIBRARY_HOME`、数据库、
 存储和可选 provider 环境变量。
 
 ---
@@ -508,7 +508,7 @@ MCP 面只暴露只读检索工具:`recall_knowledge`、`read_files`、
 ## 14. 退出
 
 ```
-marginalia> /quit
+library> /quit
 ```
 
 或直接 Ctrl+D。embedded 模式下会同时关停 server + worker,跑到一半的

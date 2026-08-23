@@ -18,14 +18,14 @@ from pathlib import Path
 from uuid import uuid4
 
 _TEST_PARENT = Path(os.environ.get(
-    "MARGINALIA_TEST_TMP",
+    "LIBRARY_TEST_TMP",
     str(Path(__file__).resolve().parent),
 ))
 _TEST_PARENT.mkdir(parents=True, exist_ok=True)
 _TEST_ROOT = _TEST_PARENT / f"_cli_e2e_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
 atexit.register(lambda: shutil.rmtree(_TEST_ROOT, ignore_errors=True))
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -34,16 +34,16 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 import httpx
 from httpx import ASGITransport
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.cli import CliContext, MarginaliaClient, dispatch
-from marginalia.cli.commands import _ExitREPL
-from marginalia.cli.render import render_markdown
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import Base
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.main import app
+from library.cli import CliContext, LibraryClient, dispatch
+from library.cli.commands import _ExitREPL
+from library.cli.render import render_markdown
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import Base
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.main import app
 
 
 async def _create_schema():
@@ -83,7 +83,7 @@ class _FakeChat:
 
 
 def _install_fake_chat(client) -> None:
-    import marginalia.agent.runtime as r
+    import library.agent.runtime as r
     r.get_chat_client = lambda profile="chat": client  # type: ignore[assignment]
 
 
@@ -98,7 +98,7 @@ async def main() -> None:
 
     transport = ASGITransport(app=app)
     async with app.router.lifespan_context(app):
-        client = MarginaliaClient(base_url="http://t", transport=transport)
+        client = LibraryClient(base_url="http://t", transport=transport)
         ctx = CliContext(client=client)
 
         # --- 1. /help -----------------------------------------------------
@@ -114,11 +114,11 @@ async def main() -> None:
         print("[3] /upload renamed OK")
 
         # --- 4. /upload ambiguous (no ext, no slash) → server returns 400 -
-        await dispatch(ctx, f"/upload {upload_local} /repos/marginalia")
+        await dispatch(ctx, f"/upload {upload_local} /repos/library")
         print("[4] /upload ambiguous handled (no exception raised)")
 
         # --- 5. /upload with --name override ------------------------------
-        await dispatch(ctx, f"/upload {upload_local} /repos/marginalia --name LICENSE")
+        await dispatch(ctx, f"/upload {upload_local} /repos/library --name LICENSE")
         print("[5] /upload --name OK")
 
         # --- 6. /tree -----------------------------------------------------

@@ -1,11 +1,11 @@
-# Marginalia Desktop GUI Tutorial
+# Library Desktop GUI Tutorial
 
 This guide is written for non-technical users. It explains the first-run setup, what each Settings field means, recommended values, local model setup, embeddings, rerank, and common troubleshooting steps.
 
 ## The Short Version
 
 1. You must configure a question-answering model before the app can answer. A fresh install has no API key, so importing a Markdown file and asking a question may appear to do nothing until the LLM profile is configured.
-2. You do not need to manually chunk Markdown, PDF, Word, or other documents. Marginalia reads and splits long files internally during analysis.
+2. You do not need to manually chunk Markdown, PDF, Word, or other documents. Library reads and splits long files internally during analysis.
 3. Embeddings are optional. Basic library search and grounded Q&A work without an embedding model. Embeddings only improve semantic recall.
 4. Local models are supported when they expose an OpenAI-compatible API, such as Ollama, LM Studio, or vLLM.
 5. Most users only need to configure the `Default` LLM profile. Leave `chat`, `reflect`, and `ingest` blank so they inherit `Default`.
@@ -85,7 +85,7 @@ Start Ollama first and make sure the model is installed.
 | Model | The installed Ollama model name |
 | API Key | `local` |
 
-Ollama can run ingest when the model has enough context for the imported file. Marginalia chunks long documents internally, but each chunk can still be large, so short-context local models are most reliable with small and medium documents. For large PDFs or long Markdown files, use a larger-context local model or keep the first test set small.
+Ollama can run ingest when the model has enough context for the imported file. Library chunks long documents internally, but each chunk can still be large, so short-context local models are most reliable with small and medium documents. For large PDFs or long Markdown files, use a larger-context local model or keep the first test set small.
 
 Recommended local-model limits:
 
@@ -127,10 +127,10 @@ If local responses are unstable, lower concurrency before increasing token budge
 | Setting | Meaning | Recommended |
 | --- | --- | --- |
 | API base URL | Where the GUI sends backend API requests. | Leave empty in the packaged desktop app. Use `http://host:8000` only for a remote backend. |
-| API bearer token | Token used when the backend sets `MARGINALIA_API_TOKEN`. | Leave empty for a local single-user desktop setup. |
+| API bearer token | Token used when the backend sets `LIBRARY_API_TOKEN`. | Leave empty for a local single-user desktop setup. |
 
 Only change Connection when the GUI talks to a separate backend. The API base
-URL is the address of a **Marginalia backend**, not an Ollama or LM Studio model
+URL is the address of a **Library backend**, not an Ollama or LM Studio model
 endpoint. Configure local model URLs under **LLM profiles**.
 
 ### Preferences
@@ -265,7 +265,7 @@ LM Studio:
 Invoke-RestMethod http://127.0.0.1:1234/v1/models
 ```
 
-If these do not respond, Marginalia cannot connect to the local model either.
+If these do not respond, Library cannot connect to the local model either.
 
 ### 5. Port 8000 Is Busy
 
@@ -278,17 +278,17 @@ If the backend says:
 Use port `8001`:
 
 ```powershell
-cd "D:\AI Platform\marginalia"
+cd "D:\AI Platform\library"
 $env:PYTHONPATH="src"
-$env:MARGINALIA_DESKTOP="1"
-$env:MARGINALIA_API_PORT="8001"
-& ".\.venv\Scripts\python.exe" -m marginalia
+$env:LIBRARY_DESKTOP="1"
+$env:LIBRARY_API_PORT="8001"
+& ".\.venv\Scripts\python.exe" -m library
 ```
 
 For frontend development, point Vite to the same port:
 
 ```powershell
-cd "D:\AI Platform\marginalia\desktop"
+cd "D:\AI Platform\library\desktop"
 $env:VITE_API_TARGET="http://127.0.0.1:8001"
 npm run dev
 ```
@@ -300,7 +300,7 @@ Get-NetTCPConnection -LocalPort 8000 | Select-Object LocalAddress,LocalPort,Stat
 Get-Process -Id <OwningProcess>
 ```
 
-After confirming it is an old Python/Marginalia process:
+After confirming it is an old Python/Library process:
 
 ```powershell
 Stop-Process -Id <PID> -Force
@@ -308,38 +308,38 @@ Stop-Process -Id <PID> -Force
 
 ## Development Startup Commands
 
-Do not run `python .\main.py` from `src\marginalia`. That file defines the FastAPI app but does not start the server.
+Do not run `python .\main.py` from `src\library`. That file defines the FastAPI app but does not start the server.
 
 Start the backend from the repository root:
 
 ```powershell
-cd "D:\AI Platform\marginalia"
+cd "D:\AI Platform\library"
 $env:PYTHONPATH="src"
-$env:MARGINALIA_DESKTOP="1"
-& ".\.venv\Scripts\python.exe" -m marginalia
+$env:LIBRARY_DESKTOP="1"
+& ".\.venv\Scripts\python.exe" -m library
 ```
 
 If port `8000` is unavailable:
 
 ```powershell
-cd "D:\AI Platform\marginalia"
+cd "D:\AI Platform\library"
 $env:PYTHONPATH="src"
-$env:MARGINALIA_DESKTOP="1"
-$env:MARGINALIA_API_PORT="8001"
-& ".\.venv\Scripts\python.exe" -m marginalia
+$env:LIBRARY_DESKTOP="1"
+$env:LIBRARY_API_PORT="8001"
+& ".\.venv\Scripts\python.exe" -m library
 ```
 
 Start the frontend:
 
 ```powershell
-cd "D:\AI Platform\marginalia\desktop"
+cd "D:\AI Platform\library\desktop"
 npm run dev
 ```
 
 If the backend uses `8001`:
 
 ```powershell
-cd "D:\AI Platform\marginalia\desktop"
+cd "D:\AI Platform\library\desktop"
 $env:VITE_API_TARGET="http://127.0.0.1:8001"
 npm run dev
 ```
@@ -355,7 +355,7 @@ http://localhost:5173
 Run from the repository root:
 
 ```powershell
-cd "D:\AI Platform\marginalia"
+cd "D:\AI Platform\library"
 node scripts\prepare-backend.mjs
 cd desktop
 npm run tauri:build
@@ -366,33 +366,33 @@ node scripts\package-windows-portable.mjs
 Common output paths:
 
 ```text
-desktop\src-tauri\target\release\marginalia-tauri.exe
+desktop\src-tauri\target\release\library-tauri.exe
 desktop\src-tauri\target\release\bundle\
-desktop\src-tauri\target\release\bundle\nsis\marginalia-v0.2.6-windows-x64-portable.zip
+desktop\src-tauri\target\release\bundle\nsis\library-v0.2.6-windows-x64-portable.zip
 ```
 
-Packaged builds start the backend automatically. You do not need to run `python -m marginalia` manually.
+Packaged builds start the backend automatically. You do not need to run `python -m library` manually.
 
 ## Data, Config, and Logs
 
 Default data directory:
 
 ```text
-%USERPROFILE%\Marginalia
+%USERPROFILE%\LibraryData
 ```
 
 Typical contents:
 
 | Path | Purpose |
 | --- | --- |
-| `marginalia.db` | SQLite database. |
+| `library.db` | SQLite database. |
 | `library\` | Library files for the default `mirror` storage backend. |
 | `objects\` | Object files for `local` storage mode. |
 | `config_overlay.json` | Settings saved from the GUI. |
 | `logs\backend.log` | Packaged backend log. |
 | `semantic-index\` | Semantic index files. |
 
-Do not sync a running `MARGINALIA_HOME` with OneDrive, Dropbox, Syncthing, iCloud Drive, or similar tools. SQLite can be corrupted by concurrent file sync. Exit Marginalia first, then copy the whole directory for backup.
+Do not sync a running `LIBRARY_HOME` with OneDrive, Dropbox, Syncthing, iCloud Drive, or similar tools. SQLite can be corrupted by concurrent file sync. Exit Library first, then copy the whole directory for backup.
 
 ## Recommended Defaults For Non-Technical Users
 

@@ -46,10 +46,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_restructure_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -57,13 +57,13 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from sqlalchemy import select, text
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import Base, Catalog, File, FileEntry, Folder
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.utils.ids import new_id
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import Base, Catalog, File, FileEntry, Folder
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.utils.ids import new_id
 
 
 def _now() -> datetime:
@@ -104,7 +104,7 @@ def _make_fake(operations: list[dict]):
 
 
 def _install(client) -> None:
-    import marginalia.tasks.handlers.restructure_catalogs as mod
+    import library.tasks.handlers.restructure_catalogs as mod
     mod.get_chat_client = lambda profile="ingest": client  # type: ignore[assignment]
 
 
@@ -195,7 +195,7 @@ async def main():
     fake = _make_fake(operations)
     _install(fake)
 
-    from marginalia.tasks.handlers.restructure_catalogs import handle_restructure_catalogs
+    from library.tasks.handlers.restructure_catalogs import handle_restructure_catalogs
     await handle_restructure_catalogs({})
 
     factory = get_session_factory()

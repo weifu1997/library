@@ -10,7 +10,7 @@
  */
 
 const CONTAINS_LATEX = /\\\(.*?\\\)|\\\[.*?\\\]/s;
-const PLACEHOLDER = "__MARGINALIA_LATEX_PROTECTED_";
+const PLACEHOLDER = "__LIBRARY_LATEX_PROTECTED_";
 
 interface BracketMatch {
   pre: string;

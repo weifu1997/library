@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import (
+from library.db.bootstrap import (
     _drop_postgres_metadata_fts_indexes,
     _ensure_postgres_metadata_fts_indexes,
 )

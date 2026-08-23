@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from marginalia.pipelines.base import PipelineContext
-from marginalia.pipelines.image import ImagePipeline
+from library.pipelines.base import PipelineContext
+from library.pipelines.image import ImagePipeline
 
 
 class _MemoryStorage:
@@ -33,7 +33,7 @@ def _ctx(name: str = "scan.tiff") -> PipelineContext:
 async def test_image_pipeline_without_vision_profile_keeps_file_readable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import marginalia.pipelines.image as mod
+    import library.pipelines.image as mod
 
     monkeypatch.setattr(mod, "has_vision_profile", lambda: False)
 
@@ -52,7 +52,7 @@ async def test_image_pipeline_without_vision_profile_keeps_file_readable(
 async def test_image_member_without_vision_profile_returns_placeholder(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import marginalia.pipelines.image as mod
+    import library.pipelines.image as mod
 
     monkeypatch.setattr(mod, "has_vision_profile", lambda: False)
 

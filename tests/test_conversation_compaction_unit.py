@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from marginalia.agent.conversation_compaction import (
+from library.agent.conversation_compaction import (
     CHECKPOINT_MESSAGE_PREFIX,
     TokenCounter,
     fit_messages_to_token_budget,
 )
-from marginalia.agent.runtime import _fit_provider_messages
-from marginalia.config import ModelCapabilities, Settings, resolve_profile
-from marginalia.llm.types import ChatMessage, ToolResultBlock, ToolUseBlock
-from marginalia.llm import PromptPrefixTracker
+from library.agent.runtime import _fit_provider_messages
+from library.config import ModelCapabilities, Settings, resolve_profile
+from library.llm.types import ChatMessage, ToolResultBlock, ToolUseBlock
+from library.llm import PromptPrefixTracker
 
 
 def test_model_capabilities_inherit_and_override_without_url_detection() -> None:

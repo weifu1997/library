@@ -28,10 +28,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_reflect_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -41,18 +41,18 @@ import httpx
 from httpx import ASGITransport
 from sqlalchemy import select, text
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm
-from marginalia.db.engine import get_session_factory, get_engine
-from marginalia.db.models import (
+from library import llm
+from library.db.engine import get_session_factory, get_engine
+from library.db.models import (
     Base, Catalog, Conversation, EntryRelation, EntryTag, FileEntry, Folder,
     Journal, Session, Tag, View,
 )
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.main import app
-from marginalia.utils.ids import new_id
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.main import app
+from library.utils.ids import new_id
 
 
 # ---- fake LLM ---------------------------------------------------------------
@@ -107,7 +107,7 @@ def _install_fake_reflect_client(client) -> None:
     llm.reset_clients_cache()
     def _factory(profile: str = "ingest"):
         return client
-    import marginalia.tasks.handlers.reflect_turn as rmod
+    import library.tasks.handlers.reflect_turn as rmod
     rmod.get_chat_client = _factory  # type: ignore[assignment]
 
 
@@ -139,7 +139,7 @@ async def _seed_world():
                     created_at=now, updated_at=now)
         s.add_all([folder, catalog, view])
 
-        from marginalia.db.models import File
+        from library.db.models import File
         f1 = File(id=new_id(), storage_key="aa/bb/k1", sha256="a"*64, size_bytes=100,
                   mime_type="text/markdown", original_ext=".md", kind="text",
                   summary="Paper A", description={"sections": []}, extra=None,
@@ -219,7 +219,7 @@ async def main():
     fake = _make_fake_reflect(entry_a=seeded["entry_a"], entry_b=seeded["entry_b"])
     _install_fake_reflect_client(fake)
 
-    from marginalia.tasks.handlers.reflect_turn import handle_reflect_turn
+    from library.tasks.handlers.reflect_turn import handle_reflect_turn
 
     factory = get_session_factory()
 
@@ -256,7 +256,7 @@ async def main():
         assert view.extra is None, f"view.extra should remain None; got {view.extra!r}"
 
         # files.* must be untouched (write-once)
-        from marginalia.db.models import File
+        from library.db.models import File
         all_files = (await s.execute(select(File))).scalars().all()
         for f in all_files:
             assert f.summary in ("Paper A", "Paper B"), f"file.summary mutated: {f.summary!r}"

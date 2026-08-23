@@ -21,10 +21,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_runner_no_llm_key_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["WORKER_POLL_INTERVAL_SECONDS"] = "0.1"
@@ -32,12 +32,12 @@ os.environ["WORKER_POLL_INTERVAL_SECONDS"] = "0.1"
 os.environ.pop("LLM_DEFAULT_API_KEY", None)
 os.environ["LLM_DEFAULT_API_KEY"] = ""
 
-from marginalia.config import get_settings
-from marginalia.db.bootstrap import bootstrap_schema
-from marginalia.db.session import session_scope
-from marginalia.repositories import tasks as tasks_repo
-from marginalia.tasks.enqueue import enqueue
-from marginalia.tasks.kinds import (
+from library.config import get_settings
+from library.db.bootstrap import bootstrap_schema
+from library.db.session import session_scope
+from library.repositories import tasks as tasks_repo
+from library.tasks.enqueue import enqueue
+from library.tasks.kinds import (
     KIND_INGEST_FILE,
     KIND_MINE_RELATIONS,
     KIND_PERIODIC_TICK,
@@ -46,7 +46,7 @@ from marginalia.tasks.kinds import (
     KIND_TAG_QUALITY,
     LLM_DEPENDENT_KINDS,
 )
-from marginalia.tasks.runner import TaskRunner, _NO_LLM_KEY_ERROR
+from library.tasks.runner import TaskRunner, _NO_LLM_KEY_ERROR
 
 
 def _now() -> datetime:

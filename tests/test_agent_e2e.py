@@ -26,10 +26,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_agent_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -39,18 +39,18 @@ import httpx
 from httpx import ASGITransport
 from sqlalchemy import select, text
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import (
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import (
     Base, Conversation, File, FileEntry, Folder, Journal, Session,
 )
-from marginalia.llm.types import (
+from library.llm.types import (
     ChatRequest, ChatResponse, TokenUsage, ToolCall,
 )
-from marginalia.utils.ids import new_id
-from marginalia.main import app
+from library.utils.ids import new_id
+from library.main import app
 
 
 CALL_LOG: list[ChatRequest] = []
@@ -113,7 +113,7 @@ class _ScriptedFakeChat:
 
 
 def _install(client) -> None:
-    import marginalia.agent.runtime as r
+    import library.agent.runtime as r
     r.get_chat_client = lambda profile="chat": client  # type: ignore[assignment]
 
 
@@ -350,7 +350,7 @@ async def main():
             assert closed["totals"]["tool_calls"] == 2
 
     # ---- budget-tail: nudge appears once we enter the last 1/3 -----------
-    from marginalia.agent.runtime import _budget_tail
+    from library.agent.runtime import _budget_tail
     early = _budget_tail(turn=0, limit=15)   # used+1=1, well below nudge_from=11
     late = _budget_tail(turn=10, limit=15)   # used+1=11 >= 11
     print("[7] tail at turn 0:", early[:60])

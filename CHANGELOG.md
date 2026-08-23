@@ -20,7 +20,7 @@
   have explicit read, candidate, page, batch, and retention bounds.
 - PostgreSQL can run through transaction-pooled proxies with disabled asyncpg
   statement caching and globally unique prepared-statement names.
-- Managed deployments can migrate once with `marginalia-db-prepare`, disable
+- Managed deployments can migrate once with `library-db-prepare`, disable
   runtime schema DDL on API/worker replicas, use `/live` for liveness and
   `/ready` for bounded database/storage readiness checks, and run queue-only
   workers without periodic scheduling.
@@ -37,7 +37,7 @@
   completion and event commits race, avoiding prematurely closed streams.
 - Legacy CLI SSE streams without durable conversation identities still finish
   cleanly, while identified turns continue reconnecting until a terminal event.
-- Desktop backend overrides are now verified against Marginalia's `/health`
+- Desktop backend overrides are now verified against Library's `/health`
   response before they are saved. Ollama and LM Studio model endpoints can no
   longer be mistaken for the GUI backend, and a bad existing override can be
   cleared from the startup screen to restore the bundled backend.
@@ -158,11 +158,11 @@
 - Multimodal chat input: paste or drag images into the chat composer to ask
   about your library together with a picture. Images ride the current turn
   only (never re-sent in history, so token cost stays flat) and render in the
-  transcript. `MARGINALIA_CHAT_VISION` (auto|on|off, default auto) probes the
+  transcript. `LIBRARY_CHAT_VISION` (auto|on|off, default auto) probes the
   chat model once per model and, for a text-only model, routes images through
   the `vision` profile as an injected description — automating the manual
   "describe the image first" workaround. Per-turn caps via
-  `MARGINALIA_CHAT_IMAGE_MAX_COUNT` / `MARGINALIA_CHAT_IMAGE_MAX_BYTES`. Pasted
+  `LIBRARY_CHAT_IMAGE_MAX_COUNT` / `LIBRARY_CHAT_IMAGE_MAX_BYTES`. Pasted
   images are persisted per turn and re-displayed as thumbnails when a session's
   transcript is reloaded (UI only — still never re-sent to the model).
 - `POST /v1/settings/llm/test` probes each configured LLM profile with a tiny
@@ -268,7 +268,7 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 ### Added
 
-- `MARGINALIA_UPLOAD_MAX_BYTES` caps `POST /v1/upload` (default `0` =
+- `LIBRARY_UPLOAD_MAX_BYTES` caps `POST /v1/upload` (default `0` =
   unlimited); oversized uploads are rejected with 413 before the body is
   spooled to disk.
 
@@ -307,7 +307,7 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 ### Added
 
 - WebDAV knowledge-pack sync can publish and consume snapshots without
-  syncing the live `MARGINALIA_HOME` directory.
+  syncing the live `LIBRARY_HOME` directory.
 - Desktop Library now provides separate WebDAV upload and download sync
   flows that list changed files and let users choose which entries to sync.
 - Desktop Settings can save WebDAV connection details and sync lightweight
@@ -339,10 +339,10 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
   whether a local port is open, avoiding false reuse of unrelated local
   services.
 - Packaged desktop builds now write early launcher diagnostics to
-  `<MARGINALIA_HOME>/logs/launcher.log`, including skipped backend launches,
+  `<LIBRARY_HOME>/logs/launcher.log`, including skipped backend launches,
   missing bundled backend resources, and sidecar spawn failures.
 - Packaged desktop builds now write frontend diagnostics to
-  `<MARGINALIA_HOME>/logs/frontend.log`, including backend URL resolution,
+  `<LIBRARY_HOME>/logs/frontend.log`, including backend URL resolution,
   health-check delays, network failures, and uncaught frontend errors.
 - Backend logs now include startup milestones, request failures, slow
   requests, upload diagnostics, and task runner lifecycle events.
@@ -450,13 +450,13 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 ### Added
 
-- Desktop bundles now expose `marginalia`, `marginalia-mcp`, and
-  `marginalia-worker` CLI wrappers backed by the bundled Python runtime:
+- Desktop bundles now expose `library`, `library-mcp`, and
+  `library-worker` CLI wrappers backed by the bundled Python runtime:
   Linux packages install commands under `/usr/bin`, Windows packages include
   `.cmd` wrappers next to the app, and macOS bundles include wrappers under
-  `Marginalia.app/Contents/MacOS`.
-- `marginalia mcp` now follows CLI backend discovery and exposes structured
-  workflow tools for asking Marginalia, upload, download, export, search, and
+  `Library.app/Contents/MacOS`.
+- `library mcp` now follows CLI backend discovery and exposes structured
+  workflow tools for asking Library, upload, download, export, search, and
   metadata reads.
 
 ### Changed
@@ -519,15 +519,15 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 ### Added
 
-- Optional API bearer authentication via `MARGINALIA_API_TOKEN`, with CLI and
+- Optional API bearer authentication via `LIBRARY_API_TOKEN`, with CLI and
   desktop client support for sending the token.
 - Auto chat mode now defaults new turns to planner-selected quick/standard/deep
   execution budgets, with visible budget upgrade notices when fresh evidence
   justifies continuing.
-- `marginalia eval ablation-run` for candidate-pool component attribution
+- `library eval ablation-run` for candidate-pool component attribution
   across metadata, relation expansion, semantic recall, rerank, and full
   recall configurations.
-- `marginalia mcp` / `marginalia-mcp` stdio server exposing the read-only
+- `library mcp` / `library-mcp` stdio server exposing the read-only
   retrieval tool set to MCP-capable clients.
 - Python linting baseline with `ruff check src tests` in CI.
 - Postgres metadata search now uses native text-search expressions with GIN
@@ -548,7 +548,7 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 ### Changed
 
 - Split the eval implementation into dataset, retrieval, metrics, reporting,
-  prompt, and probe modules while keeping `marginalia.eval.core` as the
+  prompt, and probe modules while keeping `library.eval.core` as the
   compatibility import path.
 
 ### Fixed
@@ -566,7 +566,7 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 ### Documentation
 
 - Documented API token use, compose localhost binding, and the known risk of
-  syncing a live `MARGINALIA_HOME` with file replication tools.
+  syncing a live `LIBRARY_HOME` with file replication tools.
 
 ## 0.2.3 - 2026-06-05
 
@@ -575,7 +575,7 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 - CLI chat mode control: `/mode [quick|deep]` now shows or switches the
   investigation mode, and CLI chat requests send the selected mode to
   `/v1/chat`.
-- `marginalia init` now includes optional embedding, semantic recall, rerank,
+- `library init` now includes optional embedding, semantic recall, rerank,
   and evidence-selection settings in the generated starter `.env`.
 
 ### Fixed
@@ -659,7 +659,7 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 ## 0.2.0 - 2026-05-30
 
-Marginalia 0.2.0 moves the project toward a personal-library research agent:
+Library 0.2.0 moves the project toward a personal-library research agent:
 retrieval remains local-first and source-grounded, while optional semantic
 recall, reranking, and evaluation commands make report-generation quality
 measurable.
@@ -672,7 +672,7 @@ measurable.
 - Optional second-stage reranking with separate `RERANK_*` credentials.
 - Hybrid `recall_knowledge` evaluation support with batched recall, answer
   probes, answer-run aggregates, and report comparison.
-- `marginalia eval compare-report`, which compares one-shot RAG reports with
+- `library eval compare-report`, which compares one-shot RAG reports with
   the full ReAct investigation workflow using blind pairwise judging.
 - BEIR-style dataset import that runs ingest synchronously and supports
   resumed/concurrent imports.

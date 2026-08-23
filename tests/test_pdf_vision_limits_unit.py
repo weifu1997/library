@@ -10,8 +10,8 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from marginalia.llm.types import ImageBlock
-from marginalia.pipelines import pdf as pdf_pipeline
+from library.llm.types import ImageBlock
+from library.pipelines import pdf as pdf_pipeline
 
 
 class _FakePdfImage:

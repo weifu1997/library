@@ -1,7 +1,7 @@
 /** Typed fetch wrapper for the /v1/ API.
  *
  *  Base URL precedence:
- *    1. localStorage["marginalia.api_base"]  (set from Settings → Connection)
+ *    1. localStorage["library.api_base"]  (set from Settings → Connection)
  *    2. VITE_API_BASE                         (compile-time override)
  *    3. Tauri: ask the Rust shell which port the sidecar bound.
  *       Rust picks an ephemeral port on launch and exposes it via the
@@ -50,8 +50,8 @@ import type {
 } from "@/types/api";
 import { describeError, frontendLog } from "@/lib/frontendLog";
 
-const STORAGE_KEY = "marginalia.api_base";
-const TOKEN_STORAGE_KEY = "marginalia.api_token";
+const STORAGE_KEY = "library.api_base";
+const TOKEN_STORAGE_KEY = "library.api_token";
 
 function isTauri(): boolean {
   if (typeof window === "undefined") return false;
@@ -182,7 +182,7 @@ function isBackendHealth(payload: unknown): payload is BackendHealth {
   );
 }
 
-/** Verify that a custom GUI API base points to Marginalia itself, rather than
+/** Verify that a custom GUI API base points to Library itself, rather than
  * to an Ollama/LM Studio OpenAI-compatible model endpoint. */
 export async function probeBackendBaseUrl(url: string, token = ""): Promise<void> {
   const base = url.trim().replace(/\/$/, "");
@@ -202,7 +202,7 @@ export async function probeBackendBaseUrl(url: string, token = ""): Promise<void
     throw new Error("/health did not return JSON");
   }
   if (!isBackendHealth(payload)) {
-    throw new Error("/health is not a Marginalia backend response");
+    throw new Error("/health is not a Library backend response");
   }
 }
 
@@ -571,7 +571,7 @@ export const exports_ = {
 export const health = async (): Promise<BackendHealth> => {
   const payload = await _request<unknown>(`/health`);
   if (!isBackendHealth(payload)) {
-    throw new Error("Connected URL is not a Marginalia backend");
+    throw new Error("Connected URL is not a Library backend");
   }
   return payload;
 };

@@ -20,9 +20,9 @@ import sys
 # Importing handlers populates the task-handler registry so registered_kinds()
 # returns the full set. Without this, handlers that no other module has touched
 # yet would be missing from the count.
-import marginalia.tasks.handlers  # noqa: F401
+import library.tasks.handlers  # noqa: F401
 
-from marginalia.tasks.kinds import (
+from library.tasks.kinds import (
     DEFAULT_PRIORITIES,
     KIND_DELETE_STORAGE_OBJECT,
     KIND_MINE_RELATIONS,

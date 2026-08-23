@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from marginalia.agent.tools.read_files import (
+from library.agent.tools.read_files import (
     _error_diagnostic,
     _locator_diagnostic,
     _segment_diagnostic,

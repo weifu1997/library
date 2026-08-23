@@ -29,10 +29,10 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_summarize_session_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -40,17 +40,17 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from sqlalchemy import select
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import (
+from library import llm
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import (
     Base, Conversation, File, FileEntry, Folder, Journal, Session,
 )
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.tasks.kinds import KIND_SUMMARIZE_SESSION
-from marginalia.utils.ids import new_id
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.tasks.kinds import KIND_SUMMARIZE_SESSION
+from library.utils.ids import new_id
 
 
 SUMMARIZE_CALLS: list[ChatRequest] = []
@@ -95,7 +95,7 @@ def _install_fake(client) -> None:
     llm.reset_clients_cache()
     def _factory(profile: str = "ingest"):
         return client
-    import marginalia.tasks.handlers.summarize_session as smod
+    import library.tasks.handlers.summarize_session as smod
     smod.get_chat_client = _factory  # type: ignore[assignment]
 
 
@@ -210,7 +210,7 @@ async def main():
     fake = _make_fake_summarizer()
     _install_fake(fake)
 
-    from marginalia.tasks.handlers.summarize_session import (
+    from library.tasks.handlers.summarize_session import (
         handle_summarize_session,
     )
 
@@ -292,10 +292,10 @@ async def main():
     # Seed a fresh eligible session that hasn't been summarized yet.
     fresh = await _seed_session_with_reflects(turn_count=3, age_hours=48)
 
-    from marginalia.tasks.handlers.periodic_tick import (
+    from library.tasks.handlers.periodic_tick import (
         _dispatch_summarize_sessions,
     )
-    from marginalia.db.session import session_scope
+    from library.db.session import session_scope
 
     async with session_scope() as s:
         enqueued = await _dispatch_summarize_sessions(s, _now())

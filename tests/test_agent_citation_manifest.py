@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from marginalia.agent.citation_manifest import (
+from library.agent.citation_manifest import (
     attach_citation_manifest,
     prepare_finish_citation_manifest,
 )
-from marginalia.agent.tools import get_tool
-from marginalia.citations import iter_citation_footnotes
-from marginalia.llm import ToolCall
-import marginalia.agent.runtime as runtime
+from library.agent.tools import get_tool
+from library.citations import iter_citation_footnotes
+from library.llm import ToolCall
+import library.agent.runtime as runtime
 
 
 ENTRY_ID = "0750b210-60d5-4f43-9c47-c5c84caac9be"

@@ -1,12 +1,12 @@
-# Marginalia v1 — 发布说明
+# Library v1 — 发布说明
 
-V1 是 Marginalia 的首个完整可用版本：从上传文件到对话回答，端到端
+V1 是 Library 的首个完整可用版本：从上传文件到对话回答，端到端
 跑通。本文档列出主要能力、已知边界和后续路线。
 
 ## 主要能力
 
 ### 用户视角
-- `marginalia` CLI，类似 Claude Code 的 slash 命令体验
+- `library` CLI，类似 Claude Code 的 slash 命令体验
 - `/upload` 单文件上传，三种重名策略（rename / error / skip）
 - `/search` 按文件名 + 内容召回，但不暴露 AI 字段
 - `/info` 查文件元数据 + 一句话摘要（"标注卡"）

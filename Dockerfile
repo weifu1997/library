@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# Multi-stage build for Marginalia. The api and worker share one image —
+# Multi-stage build for Library. The api and worker share one image —
 # the entrypoint dispatches based on the `command:` set in compose.
 
 ARG PYTHON_VERSION=3.12
@@ -47,7 +47,7 @@ RUN pip install uv
 # uv.lock is out of sync with pyproject.toml. `--no-hashes` is required
 # because two deps are git+https refs (markitdown, glowpy) pip can't hash, and
 # pip rejects a file mixing hashed and unhashed requirements. `--no-emit-
-# project` drops marginalia itself; it is installed from source below.
+# project` drops library itself; it is installed from source below.
 # UV_PYTHON_DOWNLOADS=never keeps uv on the base image's interpreter instead of
 # fetching one over the network.
 COPY pyproject.toml uv.lock ./
@@ -57,7 +57,7 @@ RUN python -m venv /opt/venv \
  && /opt/venv/bin/pip install -r requirements.txt
 
 # --- Project layer ----------------------------------------------------------
-# Source + packaging inputs only; `--no-deps` installs marginalia itself
+# Source + packaging inputs only; `--no-deps` installs library itself
 # without re-resolving the dependency graph already pinned above. README.md is
 # required here because hatchling reads it to build the wheel.
 COPY README.md ./
@@ -74,7 +74,7 @@ ARG APT_MIRROR
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    MARGINALIA_HOME=/data \
+    LIBRARY_HOME=/data \
     ALEMBIC_CONFIG=/app/alembic.ini
 
 # Runtime libs only — no compilers. libmagic helps content-type sniffing
@@ -100,22 +100,22 @@ WORKDIR /app
 
 # /data is the on-disk footprint root. Compose mounts a named volume here
 # so the mirror vault, sqlite (if used), and object pool survive restarts.
-RUN mkdir -p /data && useradd --system --uid 10001 marginalia \
- && chown -R marginalia:marginalia /data /app
-USER marginalia
+RUN mkdir -p /data && useradd --system --uid 10001 library \
+ && chown -R library:library /data /app
+USER library
 
 EXPOSE 8000
 
 # Schema bootstrap runs on app startup by default. Managed deployments can
 # migrate first and disable startup DDL with RUNTIME_SCHEMA_BOOTSTRAP_ENABLED.
-# The worker service overrides the command to `marginalia-worker`.
+# The worker service overrides the command to `library-worker`.
 #
 # SECURITY: this binds 0.0.0.0 *inside the container*. If you publish the
 # port beyond loopback (e.g. `docker run -p 8000:8000`, or editing the
 # compose file's `127.0.0.1:8000:8000` bind for LAN exposure), you MUST
-# set MARGINALIA_API_TOKEN — without it every endpoint is unauthenticated.
-# MARGINALIA_API_HOST mirrors the uvicorn --host flag below so the app's
+# set LIBRARY_API_TOKEN — without it every endpoint is unauthenticated.
+# LIBRARY_API_HOST mirrors the uvicorn --host flag below so the app's
 # startup checks (the unauthenticated-bind warning) see the real bind
 # address rather than the 127.0.0.1 default.
-ENV MARGINALIA_API_HOST=0.0.0.0
-CMD ["uvicorn", "marginalia.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENV LIBRARY_API_HOST=0.0.0.0
+CMD ["uvicorn", "library.main:app", "--host", "0.0.0.0", "--port", "8000"]

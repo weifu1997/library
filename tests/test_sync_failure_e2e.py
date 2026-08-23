@@ -20,27 +20,27 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_sync_failure_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _VAULT = _TEST_ROOT / "library"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "mirror"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
 os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
-from marginalia.config import get_settings  # noqa: E402
+from library.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory  # noqa: E402
-from marginalia.db.models import Base  # noqa: E402
-from marginalia.services.scan import scan_vault  # noqa: E402
-from marginalia.services.sync import (  # noqa: E402
+from library.db.engine import get_engine, get_session_factory  # noqa: E402
+from library.db.models import Base  # noqa: E402
+from library.services.scan import scan_vault  # noqa: E402
+from library.services.sync import (  # noqa: E402
     SyncFailure, apply_all, apply_modified,
 )
-from marginalia.storage import get_storage, reset_storage_cache  # noqa: E402
+from library.storage import get_storage, reset_storage_cache  # noqa: E402
 
 
 async def _create_schema():
@@ -50,7 +50,7 @@ async def _create_schema():
 
 
 async def _upload(body: bytes, *, name: str, remote_path: str) -> str:
-    from marginalia.services.upload import upload
+    from library.services.upload import upload
     storage = get_storage()
 
     async def _stream():

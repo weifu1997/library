@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from marginalia.pipelines.base import PipelineContext, PipelineResult
-from marginalia.pipelines.email import EmailPipeline
+from library.pipelines.base import PipelineContext, PipelineResult
+from library.pipelines.email import EmailPipeline
 
 
 class _MemoryStorage:
@@ -72,7 +72,7 @@ async def test_email_pipeline_indexes_headers_body_and_attachments(
             entry_tags=[],
         )
 
-    import marginalia.pipelines.email as mod
+    import library.pipelines.email as mod
 
     monkeypatch.setattr(mod, "index_extracted_text", fake_index)
 

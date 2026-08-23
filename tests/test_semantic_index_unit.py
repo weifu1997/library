@@ -9,13 +9,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from marginalia.db.bootstrap import bootstrap_schema_sync
-from marginalia.db.models import File, FileEntry
-from marginalia.db.models.tasks import Task
-from marginalia.config import Settings
-from marginalia.semantic.embeddings import EmbeddingConfigError, get_embedding_client
-from marginalia.semantic.embeddings import EmbeddingResult
-from marginalia.semantic.index import (
+from library.db.bootstrap import bootstrap_schema_sync
+from library.db.models import File, FileEntry
+from library.db.models.tasks import Task
+from library.config import Settings
+from library.semantic.embeddings import EmbeddingConfigError, get_embedding_client
+from library.semantic.embeddings import EmbeddingResult
+from library.semantic.index import (
     SQLITE_VEC_INDEX_FILENAME,
     best_semantic_sections,
     build_semantic_index,
@@ -27,10 +27,10 @@ from marginalia.semantic.index import (
     semantic_index_status,
     sqlite_vec_available,
 )
-from marginalia.agent.tools.recall_knowledge import load_rerank_documents_by_entry_id
-from marginalia.semantic.rerank import _parse_rerank_hits
-from marginalia.utils.ids import new_id
-from marginalia.tasks.kinds import KIND_REBUILD_SEMANTIC_INDEX
+from library.agent.tools.recall_knowledge import load_rerank_documents_by_entry_id
+from library.semantic.rerank import _parse_rerank_hits
+from library.utils.ids import new_id
+from library.tasks.kinds import KIND_REBUILD_SEMANTIC_INDEX
 
 
 @dataclass
@@ -70,11 +70,11 @@ async def test_semantic_index_builds_and_searches(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MARGINALIA_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("EMBEDDING_DIMENSIONS", "3")
     if sqlite_vec_available():
         monkeypatch.setenv("SEMANTIC_INDEX_BACKEND", "sqlite-vec")
-    from marginalia.config import get_settings
+    from library.config import get_settings
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
 
@@ -192,12 +192,12 @@ async def test_section_vectors_preserve_match_for_recall_rerank_and_refresh(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MARGINALIA_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "true")
     monkeypatch.setenv("EMBEDDING_API_KEY", "fake-key")
     monkeypatch.setenv("EMBEDDING_DIMENSIONS", "3")
     monkeypatch.setenv("SEMANTIC_INDEX_BACKEND", "file")
-    from marginalia.config import get_settings
+    from library.config import get_settings
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'sections.db'}")
@@ -343,12 +343,12 @@ async def test_semantic_index_refresh_updates_reprocessed_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MARGINALIA_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "true")
     monkeypatch.setenv("EMBEDDING_API_KEY", "fake-key")
     monkeypatch.setenv("EMBEDDING_DIMENSIONS", "3")
     monkeypatch.setenv("SEMANTIC_INDEX_BACKEND", "file")
-    from marginalia.config import get_settings
+    from library.config import get_settings
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
 
@@ -475,12 +475,12 @@ async def test_semantic_refresh_reuses_current_vectors_for_deduplicated_entry(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MARGINALIA_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "true")
     monkeypatch.setenv("EMBEDDING_API_KEY", "fake-key")
     monkeypatch.setenv("EMBEDDING_DIMENSIONS", "3")
     monkeypatch.setenv("SEMANTIC_INDEX_BACKEND", "file")
-    from marginalia.config import get_settings
+    from library.config import get_settings
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'reuse.db'}")
@@ -584,12 +584,12 @@ async def test_semantic_refresh_enqueues_rebuild_for_incompatible_index(
     setting: str,
     replacement: str,
 ) -> None:
-    monkeypatch.setenv("MARGINALIA_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "true")
     monkeypatch.setenv("EMBEDDING_API_KEY", "fake-key")
     monkeypatch.setenv("EMBEDDING_DIMENSIONS", "3")
     monkeypatch.setenv("SEMANTIC_INDEX_BACKEND", "file")
-    from marginalia.config import get_settings
+    from library.config import get_settings
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'mismatch.db'}")

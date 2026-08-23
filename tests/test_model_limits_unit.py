@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from marginalia.config import Settings, resolve_profile
-from marginalia.model_rate_limit import model_limit_key
-from marginalia.semantic.rerank import _rerank_endpoint
+from library.config import Settings, resolve_profile
+from library.model_rate_limit import model_limit_key
+from library.semantic.rerank import _rerank_endpoint
 
 
 def test_resolve_profile_uses_lowest_tps_for_shared_model() -> None:

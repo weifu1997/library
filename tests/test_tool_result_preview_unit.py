@@ -10,7 +10,7 @@ Run:
 """
 from __future__ import annotations
 
-from marginalia.agent.tool_display import (
+from library.agent.tool_display import (
     format_tool_call,
     format_tool_result_preview,
 )

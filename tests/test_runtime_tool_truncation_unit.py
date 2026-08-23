@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 
-from marginalia.agent.runtime import _budget_tail, _copy_jsonish, _structured_truncate
+from library.agent.runtime import _budget_tail, _copy_jsonish, _structured_truncate
 
 
 def test_model_truncation_copy_preserves_original_result() -> None:
@@ -54,7 +54,7 @@ def test_budget_tail_nudge_scales_with_limit() -> None:
 
 
 def test_overlay_validates_agent_execute_max_turns() -> None:
-    from marginalia.services.config_overlay import (
+    from library.services.config_overlay import (
         OverlayValidationError, validate_and_normalize,
     )
 
@@ -70,7 +70,7 @@ def test_overlay_validates_agent_execute_max_turns() -> None:
 
 
 def test_overlay_accepts_maintenance_budget_zero_and_large_values() -> None:
-    from marginalia.services.config_overlay import validate_and_normalize
+    from library.services.config_overlay import validate_and_normalize
 
     assert validate_and_normalize(
         {"maintenance_daily_token_budget": "0"}
@@ -84,7 +84,7 @@ def test_overlay_accepts_maintenance_budget_zero_and_large_values() -> None:
 
 
 def test_overlay_validates_agent_turn_timeout_seconds() -> None:
-    from marginalia.services.config_overlay import (
+    from library.services.config_overlay import (
         OverlayValidationError, validate_and_normalize,
     )
 
@@ -104,7 +104,7 @@ def test_overlay_validates_agent_turn_timeout_seconds() -> None:
 
 
 def test_overlay_accepts_unified_compression_fields() -> None:
-    from marginalia.services.config_overlay import (
+    from library.services.config_overlay import (
         OverlayValidationError, validate_and_normalize,
     )
 
@@ -132,7 +132,7 @@ def test_overlay_accepts_unified_compression_fields() -> None:
 
 
 def test_read_overlay_drops_invalid_persisted_values(tmp_path) -> None:
-    from marginalia.services.config_overlay import read_overlay
+    from library.services.config_overlay import read_overlay
 
     (tmp_path / "config_overlay.json").write_text(
         '{"embedding_batch_size": 20, "semantic_recall_limit": "42"}',

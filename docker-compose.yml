@@ -1,5 +1,5 @@
 # syntax=docker/compose-spec:1.0
-# Marginalia dev stack: api + worker + Postgres + MinIO.
+# Library dev stack: api + worker + Postgres + MinIO.
 #
 # Bring up:    docker compose up -d
 # Logs:        docker compose logs -f api worker
@@ -9,22 +9,22 @@
 # Other LLM_* overrides are read by Settings via env passthrough.
 # Published ports bind to 127.0.0.1 by default. To expose the API or
 # MinIO console on a LAN, change the host bindings deliberately and set
-# MARGINALIA_API_TOKEN for the API service.
+# LIBRARY_API_TOKEN for the API service.
 
-name: marginalia
+name: library
 
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: marginalia
-      POSTGRES_PASSWORD: marginalia
-      POSTGRES_DB: marginalia
+      POSTGRES_USER: library
+      POSTGRES_PASSWORD: library
+      POSTGRES_DB: library
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U marginalia -d marginalia"]
+      test: ["CMD-SHELL", "pg_isready -U library -d library"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -56,7 +56,7 @@ services:
     entrypoint: >
       sh -c "
       mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/marginalia &&
+      mc mb --ignore-existing local/library &&
       echo 'bucket ready'
       "
     restart: "no"
@@ -66,15 +66,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: marginalia:dev
+    image: library:dev
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["marginalia-db-prepare"]
+    command: ["library-db-prepare"]
     environment:
-      MARGINALIA_HOME: /data
+      LIBRARY_HOME: /data
       DB_BACKEND: postgres
-      POSTGRES_DSN: postgresql+asyncpg://marginalia:marginalia@postgres:5432/marginalia
+      POSTGRES_DSN: postgresql+asyncpg://library:library@postgres:5432/library
       RUNTIME_SCHEMA_BOOTSTRAP_ENABLED: "false"
     volumes:
       - margdata:/data
@@ -84,7 +84,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: marginalia:dev
+    image: library:dev
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,17 +93,17 @@ services:
       minio-init:
         condition: service_completed_successfully
     environment:
-      MARGINALIA_HOME: /data
+      LIBRARY_HOME: /data
       APP_ENV: ${APP_ENV:-dev}
       BUILD_SHA: ${BUILD_SHA:-unknown}
       BUILD_ID: ${BUILD_ID:-local}
       DB_BACKEND: postgres
-      POSTGRES_DSN: postgresql+asyncpg://marginalia:marginalia@postgres:5432/marginalia
+      POSTGRES_DSN: postgresql+asyncpg://library:library@postgres:5432/library
       POSTGRES_PREPARED_STATEMENT_CACHE_SIZE: ${POSTGRES_PREPARED_STATEMENT_CACHE_SIZE:-100}
       RUNTIME_SCHEMA_BOOTSTRAP_ENABLED: "false"
       STORAGE_BACKEND: s3
       S3_ENDPOINT_URL: http://minio:9000
-      S3_BUCKET: marginalia
+      S3_BUCKET: library
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: minioadmin
       # Worker runs as its own service; disable the in-process runner.
@@ -113,7 +113,7 @@ services:
       LLM_DEFAULT_MODEL: ${LLM_DEFAULT_MODEL:-gpt-4o-mini}
       LLM_DEFAULT_API_KEY: ${LLM_DEFAULT_API_KEY:?set LLM_DEFAULT_API_KEY in .env}
       LLM_DEFAULT_BASE_URL: ${LLM_DEFAULT_BASE_URL:-}
-      MARGINALIA_API_TOKEN: ${MARGINALIA_API_TOKEN:-}
+      LIBRARY_API_TOKEN: ${LIBRARY_API_TOKEN:-}
     volumes:
       - margdata:/data
     ports:
@@ -125,23 +125,23 @@ services:
       retries: 10
 
   worker:
-    image: marginalia:dev
+    image: library:dev
     depends_on:
       api:
         condition: service_healthy
-    command: ["marginalia-worker", "--log-level", "INFO"]
+    command: ["library-worker", "--log-level", "INFO"]
     environment:
-      MARGINALIA_HOME: /data
+      LIBRARY_HOME: /data
       APP_ENV: ${APP_ENV:-dev}
       BUILD_SHA: ${BUILD_SHA:-unknown}
       BUILD_ID: ${BUILD_ID:-local}
       DB_BACKEND: postgres
-      POSTGRES_DSN: postgresql+asyncpg://marginalia:marginalia@postgres:5432/marginalia
+      POSTGRES_DSN: postgresql+asyncpg://library:library@postgres:5432/library
       POSTGRES_PREPARED_STATEMENT_CACHE_SIZE: ${POSTGRES_PREPARED_STATEMENT_CACHE_SIZE:-100}
       RUNTIME_SCHEMA_BOOTSTRAP_ENABLED: "false"
       STORAGE_BACKEND: s3
       S3_ENDPOINT_URL: http://minio:9000
-      S3_BUCKET: marginalia
+      S3_BUCKET: library
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: minioadmin
       LLM_DEFAULT_PROVIDER: ${LLM_DEFAULT_PROVIDER:-openai}

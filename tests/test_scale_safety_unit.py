@@ -6,14 +6,14 @@ from types import SimpleNamespace
 import pytest
 from fastapi.responses import JSONResponse
 
-from marginalia.capacity import CapacityExceeded, enforce_upload_capacity
-from marginalia.config import Settings
+from library.capacity import CapacityExceeded, enforce_upload_capacity
+from library.config import Settings
 
 
 def test_section_embedding_limit_supports_zero_small_and_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from marginalia.semantic import index
+    from library.semantic import index
 
     description = {
         "sections": [
@@ -42,7 +42,7 @@ def test_pagination_cursor_is_opaque_strict_and_keeps_tie_breaker() -> None:
 
     from fastapi import HTTPException
 
-    from marginalia.api.pagination import decode_desc_cursor, encode_desc_cursor
+    from library.api.pagination import decode_desc_cursor, encode_desc_cursor
 
     timestamp = datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc)
     cursor = encode_desc_cursor(timestamp, "row-b")
@@ -60,9 +60,9 @@ async def test_session_keyset_pages_do_not_skip_equal_timestamps() -> None:
 
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-    from marginalia.api.pagination import decode_desc_cursor, encode_desc_cursor
-    from marginalia.db.models import Base, Session
-    from marginalia.repositories import sessions
+    from library.api.pagination import decode_desc_cursor, encode_desc_cursor
+    from library.db.models import Base, Session
+    from library.repositories import sessions
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -104,8 +104,8 @@ async def test_task_claim_exclusion_and_terminal_pruning_are_bounded() -> None:
 
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-    from marginalia.db.models import Base, Task
-    from marginalia.repositories import tasks
+    from library.db.models import Base, Task
+    from library.repositories import tasks
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -189,8 +189,8 @@ async def test_agent_event_retention_deletes_only_one_oldest_batch() -> None:
 
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-    from marginalia.db.models import AgentEvent, Base, Conversation, Session
-    from marginalia.repositories import agent_events
+    from library.db.models import AgentEvent, Base, Conversation, Session
+    from library.repositories import agent_events
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -274,7 +274,7 @@ async def test_agent_event_retention_deletes_only_one_oldest_batch() -> None:
 def test_postgres_transaction_pool_disables_statement_cache_with_unique_names(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from marginalia.db import engine
+    from library.db import engine
 
     captured: dict[str, object] = {}
     sentinel = object()
@@ -304,7 +304,7 @@ def test_postgres_transaction_pool_disables_statement_cache_with_unique_names(
 async def test_runtime_schema_bootstrap_can_be_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from marginalia.db import bootstrap
+    from library.db import bootstrap
 
     monkeypatch.setattr(
         bootstrap,
@@ -323,7 +323,7 @@ def test_db_prepare_resolves_explicit_migration_assets(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:  # noqa: ANN001
-    from marginalia.db.cli import _alembic_configuration
+    from library.db.cli import _alembic_configuration
 
     migrations = tmp_path / "migrations"
     migrations.mkdir()
@@ -384,7 +384,7 @@ async def test_upload_capacity_is_opt_in_and_reports_429() -> None:
 async def test_chat_capacity_is_rejected_before_stream_starts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from marginalia.api import routes_chat
+    from library.api import routes_chat
 
     class ChatDB:
         async def get(self, _model, _row_id):  # noqa: ANN001, ANN202
@@ -417,7 +417,7 @@ async def test_chat_background_turn_does_not_depend_on_stream_consumption(
 ) -> None:
     import asyncio
 
-    from marginalia.api import routes_chat
+    from library.api import routes_chat
 
     completed = asyncio.Event()
 
@@ -443,7 +443,7 @@ async def test_chat_background_turn_does_not_depend_on_stream_consumption(
 async def test_readiness_returns_503_when_a_dependency_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from marginalia import main
+    from library import main
 
     async def database_failure() -> None:
         raise RuntimeError("database unavailable")
@@ -472,7 +472,7 @@ async def test_readiness_returns_503_when_a_dependency_fails(
 async def test_readiness_timeout_is_bounded() -> None:
     import asyncio
 
-    from marginalia import main
+    from library import main
 
     assert await main._bounded_readiness(  # noqa: SLF001
         asyncio.Event().wait(),
@@ -484,8 +484,8 @@ async def test_readiness_timeout_is_bounded() -> None:
 async def test_scheduler_disabled_skips_bootstrap_but_starts_worker(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from marginalia.tasks.handlers import periodic_tick
-    from marginalia.tasks.runner import TaskRunner
+    from library.tasks.handlers import periodic_tick
+    from library.tasks.runner import TaskRunner
 
     calls = {"bootstrap": 0, "run": 0}
 
@@ -509,7 +509,7 @@ async def test_scheduler_disabled_skips_bootstrap_but_starts_worker(
 
 
 def test_public_tool_call_id_is_stable_and_provider_independent() -> None:
-    from marginalia.agent.runtime import _public_tool_call_id
+    from library.agent.runtime import _public_tool_call_id
 
     assert _public_tool_call_id(turn=0, tool_index=0) == "turn-1-tool-1"
     assert _public_tool_call_id(turn=3, tool_index=2) == "turn-4-tool-3"
@@ -519,9 +519,9 @@ def test_public_tool_call_id_is_stable_and_provider_independent() -> None:
 async def test_tool_events_use_public_id_while_model_pairing_keeps_provider_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from marginalia.agent import runtime
-    from marginalia.agent.tools import ToolContext
-    from marginalia.llm import ToolCall
+    from library.agent import runtime
+    from library.agent.tools import ToolContext
+    from library.llm import ToolCall
 
     persisted: list[dict[str, object]] = []
 
@@ -568,7 +568,7 @@ async def test_tool_events_use_public_id_while_model_pairing_keeps_provider_id(
 
 @pytest.mark.asyncio
 async def test_prune_batch_loop_honors_max_batches() -> None:
-    from marginalia.tasks.handlers.prune import _prune_in_batches
+    from library.tasks.handlers.prune import _prune_in_batches
 
     calls = 0
 
@@ -587,7 +587,7 @@ async def test_prune_batch_loop_honors_max_batches() -> None:
 
 
 def test_migration_head_contains_durable_event_ledger() -> None:
-    from marginalia.db.bootstrap import ALEMBIC_HEAD_REVISION, SCALE_SAFETY_INDEXES
+    from library.db.bootstrap import ALEMBIC_HEAD_REVISION, SCALE_SAFETY_INDEXES
 
     assert ALEMBIC_HEAD_REVISION == "0016_scale_safety_indexes"
     assert {name for name, _table, _columns in SCALE_SAFETY_INDEXES} == {

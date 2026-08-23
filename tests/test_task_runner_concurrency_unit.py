@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from marginalia.config import Settings
-from marginalia.tasks.runner import TaskRunner
+from library.config import Settings
+from library.tasks.runner import TaskRunner
 
 
 @pytest.mark.asyncio
@@ -54,7 +54,7 @@ async def test_worker_batch_size_limits_inflight_tasks() -> None:
 
 def test_dynamic_runner_reads_current_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = SimpleNamespace(worker_batch_size=4, worker_poll_interval_seconds=0.005)
-    monkeypatch.setattr("marginalia.tasks.runner.get_settings", lambda: settings)
+    monkeypatch.setattr("library.tasks.runner.get_settings", lambda: settings)
 
     runner = TaskRunner()
     settings.worker_batch_size = 10
@@ -69,7 +69,7 @@ def test_dynamic_runner_uses_current_settings_for_llm_key(
         "settings": Settings(llm_default_api_key=""),
     }
     monkeypatch.setattr(
-        "marginalia.tasks.runner.get_settings",
+        "library.tasks.runner.get_settings",
         lambda: current["settings"],
     )
 

@@ -17,14 +17,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from marginalia.config import get_settings
-from marginalia.pipelines import pdf as pdf_module
-from marginalia.pipelines import pptx as pptx_module
-from marginalia.pipelines.base import PipelineContext
-from marginalia.pipelines.docx import DocxPipeline
-from marginalia.pipelines.pdf import PdfPipeline
-from marginalia.pipelines.pptx import PptxPipeline
-from marginalia.pipelines.spreadsheet import SpreadsheetPipeline
+from library.config import get_settings
+from library.pipelines import pdf as pdf_module
+from library.pipelines import pptx as pptx_module
+from library.pipelines.base import PipelineContext
+from library.pipelines.docx import DocxPipeline
+from library.pipelines.pdf import PdfPipeline
+from library.pipelines.pptx import PptxPipeline
+from library.pipelines.spreadsheet import SpreadsheetPipeline
 
 
 class _ChunkStorage:
@@ -98,7 +98,7 @@ async def test_docx_parse_runs_off_the_event_loop(monkeypatch, record_to_thread)
         DocxPipeline, "_parse_paragraphs_from_bytes", staticmethod(fake_parse),
     )
     monkeypatch.setattr(
-        "marginalia.pipelines.docx.index_extracted_text", _fake_index,
+        "library.pipelines.docx.index_extracted_text", _fake_index,
     )
 
     await DocxPipeline().run(ctx=_ctx("docx"), storage=_ChunkStorage())
@@ -125,7 +125,7 @@ async def test_pptx_parse_runs_off_the_event_loop(monkeypatch, record_to_thread)
         PptxPipeline, "_render_from_bytes_with_coverage", staticmethod(fake_render),
     )
     monkeypatch.setattr(
-        "marginalia.pipelines.pptx.index_extracted_text", _fake_index,
+        "library.pipelines.pptx.index_extracted_text", _fake_index,
     )
 
     await PptxPipeline().run(ctx=_ctx("pptx"), storage=_ChunkStorage())
@@ -153,7 +153,7 @@ async def test_spreadsheet_parse_runs_off_the_event_loop(monkeypatch, record_to_
         staticmethod(fake_render),
     )
     monkeypatch.setattr(
-        "marginalia.pipelines.spreadsheet.index_extracted_text", _fake_index,
+        "library.pipelines.spreadsheet.index_extracted_text", _fake_index,
     )
 
     await SpreadsheetPipeline().run(ctx=_ctx("xlsx"), storage=_ChunkStorage())

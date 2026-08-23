@@ -2,7 +2,7 @@
 
   (A) prompt_toolkit-backed REPL — pipe-mode fallback still works.
   (B) Spinner + table rendering in render.py.
-  (C) `marginalia init` bootstrap command.
+  (C) `library init` bootstrap command.
 
 No real HTTP server, no real LLM, no TTY required.
 
@@ -21,7 +21,7 @@ from pathlib import Path
 from uuid import uuid4
 
 _TEST_PARENT = Path(os.environ.get(
-    "MARGINALIA_TEST_TMP",
+    "LIBRARY_TEST_TMP",
     str(Path(__file__).resolve().parent),
 ))
 _TEST_PARENT.mkdir(parents=True, exist_ok=True)
@@ -40,7 +40,7 @@ os.environ.pop("NO_COLOR", None)
 
 def test_spinner_no_op_when_not_tty() -> None:
     """Spinner is silent when stdout is not a TTY (it must not write frames)."""
-    from marginalia.cli.render import Spinner
+    from library.cli.render import Spinner
 
     buf = io.StringIO()
     real_stdout = sys.stdout
@@ -63,7 +63,7 @@ def test_spinner_no_op_when_not_tty() -> None:
 
 def test_spinner_context_manager_runs_without_error() -> None:
     """Spinner used as a context manager must not raise even when disabled."""
-    from marginalia.cli.render import Spinner, spinner
+    from library.cli.render import Spinner, spinner
 
     with Spinner("ctx test"):
         time.sleep(0.01)
@@ -77,7 +77,7 @@ def test_spinner_animates_when_forced_enabled() -> None:
 
     We don't assert on exact frames (timing flake), just that some output
     landed and the thread shut down cleanly."""
-    from marginalia.cli.render import Spinner
+    from library.cli.render import Spinner
 
     buf = io.StringIO()
     real_stdout = sys.stdout
@@ -103,7 +103,7 @@ def test_spinner_animates_when_forced_enabled() -> None:
 
 def test_render_table_alignment() -> None:
     """`render_markdown` should detect a `| a | b |` block and emit aligned rows."""
-    from marginalia.cli.render import render_markdown
+    from library.cli.render import render_markdown
 
     md = (
         "前言。\n"
@@ -136,18 +136,18 @@ def test_render_table_alignment() -> None:
 
 def test_render_table_no_header_separator() -> None:
     """Tables without a `---` row should still render (no special header)."""
-    from marginalia.cli.render import render_table
+    from library.cli.render import render_table
 
     out = render_table(["| a | bb |", "| ccc | d |"])
     assert "a" in out and "bb" in out and "ccc" in out and "d" in out
     print("[B5] render_table without header separator OK")
 
 
-# ---- (C) marginalia init -----------------------------------------------------
+# ---- (C) library init -----------------------------------------------------
 
 def test_init_project_creates_artifacts() -> None:
-    """`init_project` creates .env / data/ / .marginalia/ / .gitignore."""
-    from marginalia.cli.init_cmd import init_project, _Status
+    """`init_project` creates .env / data/ / .library/ / .gitignore."""
+    from library.cli.init_cmd import init_project, _Status
 
     tgt = _TEST_ROOT / "init_fresh"
     tgt.mkdir(parents=True)
@@ -157,21 +157,21 @@ def test_init_project_creates_artifacts() -> None:
     assert ".env" in names and names[".env"] == _Status.CREATED
     assert "data/" in names and names["data/"] == _Status.CREATED
     assert "data/library/" in names and names["data/library/"] == _Status.CREATED
-    assert ".marginalia/" in names and names[".marginalia/"] == _Status.CREATED
+    assert ".library/" in names and names[".library/"] == _Status.CREATED
     assert ".gitignore" in names and names[".gitignore"] == _Status.CREATED
 
     # File system reality checks
     assert (tgt / ".env").is_file()
     assert (tgt / "data").is_dir()
     assert (tgt / "data" / "library").is_dir()
-    assert (tgt / ".marginalia").is_dir()
+    assert (tgt / ".library").is_dir()
     gi = (tgt / ".gitignore").read_text(encoding="utf-8")
-    for entry in (".env", "data/", ".marginalia/", "*.db", "*.db-shm", "*.db-wal"):
+    for entry in (".env", "data/", ".library/", "*.db", "*.db-shm", "*.db-wal"):
         assert entry in gi, f"missing entry {entry!r} in .gitignore"
     env = (tgt / ".env").read_text(encoding="utf-8")
     assert "DB_BACKEND" in env
-    assert "MARGINALIA_API_HOST" in env
-    assert "MARGINALIA_API_PORT" in env
+    assert "LIBRARY_API_HOST" in env
+    assert "LIBRARY_API_PORT" in env
     assert "STORAGE_BACKEND" in env
     assert "LLM_DEFAULT_API_KEY" in env
     assert "EMBEDDING_API_KEY" in env
@@ -184,13 +184,13 @@ def test_init_project_creates_artifacts() -> None:
 
 def test_init_project_idempotent() -> None:
     """Running init twice should report SKIPPED, not overwrite, not error."""
-    from marginalia.cli.init_cmd import init_project, _Status
+    from library.cli.init_cmd import init_project, _Status
 
     tgt = _TEST_ROOT / "init_fresh"  # reuse the directory from the previous test
     artifacts = init_project(tgt)
     statuses = {a.name: a.status for a in artifacts}
     # Everything already exists → SKIPPED
-    for n in (".env", "data/", "data/library/", ".marginalia/"):
+    for n in (".env", "data/", "data/library/", ".library/"):
         assert statuses[n] == _Status.SKIPPED, f"{n} not skipped on rerun"
     # .gitignore: all entries present → SKIPPED (not UPDATED)
     assert statuses[".gitignore"] == _Status.SKIPPED
@@ -200,7 +200,7 @@ def test_init_project_idempotent() -> None:
 def test_init_project_appends_existing_gitignore() -> None:
     """When .gitignore exists with unrelated content, init should append our
     entries without removing existing lines."""
-    from marginalia.cli.init_cmd import init_project, _Status
+    from library.cli.init_cmd import init_project, _Status
 
     tgt = _TEST_ROOT / "init_pre_existing_gitignore"
     tgt.mkdir(parents=True)
@@ -220,14 +220,14 @@ def test_init_project_appends_existing_gitignore() -> None:
 
 def test_init_render_report() -> None:
     """`render_report` returns a multi-line string mentioning each artifact."""
-    from marginalia.cli.init_cmd import init_project, render_report
+    from library.cli.init_cmd import init_project, render_report
 
     tgt = _TEST_ROOT / "init_render_report"
     tgt.mkdir(parents=True)
     artifacts = init_project(tgt)
     text = render_report(tgt, artifacts)
 
-    assert "marginalia init" in text
+    assert "library init" in text
     assert ".env" in text
     assert "data/" in text
     assert ".gitignore" in text
@@ -238,17 +238,17 @@ def test_init_render_report() -> None:
 # ---- (A) prompt_toolkit REPL — fallback path ---------------------------------
 
 def test_repl_module_imports_and_main_dispatches_init() -> None:
-    """`marginalia init` subcommand must be detected in main() before argparse,
+    """`library init` subcommand must be detected in main() before argparse,
     so it does not collide with --server. Run main() with argv replaced to
     confirm it returns 0 and creates the bootstrap files."""
-    from marginalia.cli import repl
+    from library.cli import repl
 
     tgt = _TEST_ROOT / "init_via_main"
     tgt.mkdir(parents=True)
 
     real_argv = sys.argv
     try:
-        sys.argv = ["marginalia", "init", str(tgt)]
+        sys.argv = ["library", "init", str(tgt)]
         rc = repl.main()
     finally:
         sys.argv = real_argv
@@ -256,7 +256,7 @@ def test_repl_module_imports_and_main_dispatches_init() -> None:
     assert rc == 0
     assert (tgt / ".env").is_file()
     assert (tgt / "data").is_dir()
-    print("[A1] `marginalia init` dispatched through repl.main() OK")
+    print("[A1] `library init` dispatched through repl.main() OK")
 
 
 def test_repl_pt_session_buildable() -> None:
@@ -264,10 +264,10 @@ def test_repl_pt_session_buildable() -> None:
     `/help` (and friends) when the user types `/`. We test the completer
     directly because building a full PromptSession on Windows requires a
     real console buffer, which is unavailable under piped test output."""
-    from marginalia.cli.repl import _make_slash_completer
+    from library.cli.repl import _make_slash_completer
 
     # Ensure the command registry is populated
-    from marginalia.cli import commands as _cmds  # noqa: F401
+    from library.cli import commands as _cmds  # noqa: F401
     from prompt_toolkit.document import Document
 
     completer = _make_slash_completer()
@@ -303,19 +303,19 @@ def test_repl_fallback_when_not_tty() -> None:
     # Carve a fresh DB sandbox just for this test
     sandbox = _TEST_ROOT / "repl_fallback"
     sandbox.mkdir(parents=True)
-    os.environ["MARGINALIA_HOME"] = str(sandbox)
+    os.environ["LIBRARY_HOME"] = str(sandbox)
     os.environ["STORAGE_BACKEND"] = "local"
     os.environ["WORKER_ENABLED"] = "false"
     os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
     os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
-    from marginalia.config import get_settings
+    from library.config import get_settings
     get_settings.cache_clear()  # type: ignore[attr-defined]
 
-    from marginalia.db.engine import get_engine
-    from marginalia.db.models import Base
-    from marginalia.main import app
-    from marginalia.cli import repl as repl_mod
+    from library.db.engine import get_engine
+    from library.db.models import Base
+    from library.main import app
+    from library.cli import repl as repl_mod
 
     async def _setup_schema() -> None:
         engine = get_engine()
@@ -373,7 +373,7 @@ def test_repl_fallback_when_not_tty() -> None:
 
 
 def test_embedded_mode_starts_lifespan_and_exits_cleanly() -> None:
-    """`marginalia` (no --server) must mount the FastAPI app in-process.
+    """`library` (no --server) must mount the FastAPI app in-process.
 
     Verifies:
       1. _embedded_lifespan() yields an httpx.ASGITransport
@@ -386,17 +386,17 @@ def test_embedded_mode_starts_lifespan_and_exits_cleanly() -> None:
 
     sandbox = _TEST_ROOT / "embedded_mode"
     sandbox.mkdir(parents=True)
-    os.environ["MARGINALIA_HOME"] = str(sandbox)
+    os.environ["LIBRARY_HOME"] = str(sandbox)
     os.environ["WORKER_ENABLED"] = "true"
     os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
     os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
-    from marginalia.config import get_settings
+    from library.config import get_settings
     get_settings.cache_clear()  # type: ignore[attr-defined]
 
-    from marginalia.db.engine import get_engine
-    from marginalia.db.models import Base
-    from marginalia.cli import repl as repl_mod
+    from library.db.engine import get_engine
+    from library.db.models import Base
+    from library.cli import repl as repl_mod
 
     async def _setup_schema() -> None:
         engine = get_engine()
@@ -433,7 +433,7 @@ def test_embedded_mode_starts_lifespan_and_exits_cleanly() -> None:
 
 
 def test_embedded_main_picks_remote_when_server_arg_given() -> None:
-    """`marginalia --server URL` must skip embedded mode (just URL routing).
+    """`library --server URL` must skip embedded mode (just URL routing).
 
     We don't actually run the loop — just verify the dispatch logic by
     pulling apart main()'s argv handling: with --server, asyncio.run
@@ -442,7 +442,7 @@ def test_embedded_main_picks_remote_when_server_arg_given() -> None:
     import sys as _sys
     import asyncio
 
-    from marginalia.cli import repl as repl_mod
+    from library.cli import repl as repl_mod
 
     captured = {"target": None}
 
@@ -454,37 +454,37 @@ def test_embedded_main_picks_remote_when_server_arg_given() -> None:
         return 0
 
     real_argv = _sys.argv[:]
-    real_env_server = os.environ.pop("MARGINALIA_SERVER", None)
+    real_env_server = os.environ.pop("LIBRARY_SERVER", None)
     try:
         asyncio.run = _capture  # type: ignore[assignment]
 
-        _sys.argv = ["marginalia"]
+        _sys.argv = ["library"]
         repl_mod.main()
         assert captured["target"] == "_run_discovered_or_embedded", captured
 
-        _sys.argv = ["marginalia", "--server", "http://example:9999"]
+        _sys.argv = ["library", "--server", "http://example:9999"]
         repl_mod.main()
         assert captured["target"] == "run_repl", captured
 
-        os.environ["MARGINALIA_SERVER"] = "http://from-env:8000"
-        _sys.argv = ["marginalia"]
+        os.environ["LIBRARY_SERVER"] = "http://from-env:8000"
+        _sys.argv = ["library"]
         repl_mod.main()
         assert captured["target"] == "run_repl", captured
     finally:
         asyncio.run = real_run  # type: ignore[assignment]
         _sys.argv = real_argv
-        os.environ.pop("MARGINALIA_SERVER", None)
+        os.environ.pop("LIBRARY_SERVER", None)
         if real_env_server is not None:
-            os.environ["MARGINALIA_SERVER"] = real_env_server
+            os.environ["LIBRARY_SERVER"] = real_env_server
 
     print("[A5] main() picks embedded vs remote correctly")
 
 
 def test_discovered_backend_precedes_embedded_mode() -> None:
-    """No-arg `marginalia` should reuse a live backend before embedding."""
+    """No-arg `library` should reuse a live backend before embedding."""
     import asyncio
 
-    from marginalia.cli import repl as repl_mod
+    from library.cli import repl as repl_mod
 
     calls: list[dict[str, object]] = []
     embedded_called = False
@@ -531,7 +531,7 @@ def test_discovery_falls_back_to_embedded_mode() -> None:
     """No discovered backend should preserve the historical embedded REPL."""
     import asyncio
 
-    from marginalia.cli import repl as repl_mod
+    from library.cli import repl as repl_mod
 
     async def _fake_discover() -> None:
         return None
@@ -555,11 +555,11 @@ def test_discovery_falls_back_to_embedded_mode() -> None:
 
 
 def test_main_dispatches_serve_subcommand() -> None:
-    """`marginalia serve` should dispatch before REPL argparse."""
+    """`library serve` should dispatch before REPL argparse."""
     import sys as _sys
 
-    from marginalia import server_main
-    from marginalia.cli import repl as repl_mod
+    from library import server_main
+    from library.cli import repl as repl_mod
 
     captured: dict[str, object] = {}
 
@@ -572,7 +572,7 @@ def test_main_dispatches_serve_subcommand() -> None:
     real_serve = server_main.main
     try:
         server_main.main = _fake_serve  # type: ignore[assignment]
-        _sys.argv = ["marginalia", "serve", "--port", "8765"]
+        _sys.argv = ["library", "serve", "--port", "8765"]
 
         rc = repl_mod.main()
     finally:
@@ -580,8 +580,8 @@ def test_main_dispatches_serve_subcommand() -> None:
         _sys.argv = real_argv
 
     assert rc == 42
-    assert captured == {"argv": ["--port", "8765"], "prog": "marginalia serve"}
-    print("[A8] `marginalia serve` dispatches before REPL argparse")
+    assert captured == {"argv": ["--port", "8765"], "prog": "library serve"}
+    print("[A8] `library serve` dispatches before REPL argparse")
 
 
 # ---- main runner -------------------------------------------------------------

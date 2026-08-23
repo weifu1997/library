@@ -11,7 +11,7 @@
  *
  *  After STALE_THRESHOLD_MS we widen the splash to surface what's wrong
  *  — usually a missing python runtime or a port collision, both of
- *  which leave fingerprints in `<MARGINALIA_HOME>/logs/backend.log`.
+ *  which leave fingerprints in `<LIBRARY_HOME>/logs/backend.log`.
  *
  *  When the Rust shell reports a doomed startup (spawn failed, the
  *  configured port is occupied, or the sidecar process exited) via the
@@ -67,7 +67,7 @@ export function BackendGate({ children }: Props) {
   const [lastError, setLastError] = useState<string | null>(null);
   const [fatal, setFatal] = useState<BackendStatusInfo | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
-  const [logDir, setLogDir] = useState("~/Marginalia/logs");
+  const [logDir, setLogDir] = useState("~/LibraryData/logs");
   const loggedFirstFailure = useRef(false);
   const loggedStale = useRef(false);
   const { t } = useI18n();

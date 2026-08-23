@@ -6,8 +6,8 @@
 //      desktop/src-tauri/target/release/ — same folder NSIS itself
 //      installs into.
 //   2. A README-portable.txt explaining: no autoupdate, WebView2 must
-//      already be installed, MARGINALIA_HOME defaults to %USERPROFILE%
-//      \Marginalia.
+//      already be installed, LIBRARY_HOME defaults to %USERPROFILE%
+//      \Library.
 //
 // The zip is then dropped next to the NSIS installer so the release
 // workflow's bundle glob picks it up.
@@ -23,7 +23,7 @@ const projectRoot = path.resolve(__dirname, '..');
 const releaseDir = path.join(projectRoot, 'desktop', 'src-tauri', 'target', 'release');
 const nsisDir = path.join(releaseDir, 'bundle', 'nsis');
 
-const productName = 'Marginalia';
+const productName = 'Library';
 
 const readPackageVersion = () => {
   const cargoToml = readFileSync(
@@ -50,12 +50,12 @@ First-launch notes:
   - The first launch may show a SmartScreen "Windows protected your PC"
     dialog because the binary is unsigned. Click "More info" -> "Run
     anyway" once. Subsequent launches go straight through.
-  - User data (db, library, .env) lives in %USERPROFILE%\\Marginalia by
-    default. Set MARGINALIA_HOME to relocate.
-  - CLI wrappers live next to Marginalia.exe:
-      marginalia.cmd
-      marginalia-mcp.cmd
-      marginalia-worker.cmd
+  - User data (db, library, .env) lives in %USERPROFILE%\\LibraryData by
+    default. Set LIBRARY_HOME to relocate.
+  - CLI wrappers live next to Library.exe:
+      library.cmd
+      library-mcp.cmd
+      library-worker.cmd
     Use their full paths in MCP clients, or add this folder to PATH.
   - Portable builds do not auto-update. To upgrade: download a newer
     zip and replace this folder.
@@ -75,11 +75,11 @@ const collectFiles = (dir, base = dir) => {
 };
 
 const main = () => {
-  // Cargo names the binary after the package (`marginalia-tauri`); the
+  // Cargo names the binary after the package (`library-tauri`); the
   // bundle pipeline renames it to `${productName}.exe` only inside the
   // MSI/NSIS installers. We rename it in the portable zip so users see
   // a friendly executable name.
-  const cargoExeName = 'marginalia-tauri.exe';
+  const cargoExeName = 'library-tauri.exe';
   const friendlyExeName = `${productName}.exe`;
   const exePath = path.join(releaseDir, cargoExeName);
   if (!existsSync(exePath)) {
@@ -112,7 +112,7 @@ const main = () => {
   };
   cp(exePath, path.join(stagingApp, friendlyExeName));
 
-  for (const wrapper of ['marginalia.cmd', 'marginalia-mcp.cmd', 'marginalia-worker.cmd']) {
+  for (const wrapper of ['library.cmd', 'library-mcp.cmd', 'library-worker.cmd']) {
     cp(
       path.join(projectRoot, 'desktop', 'src-tauri', 'package', 'windows', wrapper),
       path.join(stagingApp, wrapper),

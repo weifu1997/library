@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from marginalia.pipelines.text import TextPipeline
+from library.pipelines.text import TextPipeline
 
 
 def test_heading_read_matches_chapter_prefix_from_sections() -> None:

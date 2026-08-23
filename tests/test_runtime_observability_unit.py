@@ -6,23 +6,23 @@ from types import SimpleNamespace
 
 import pytest
 
-from marginalia.agent import runtime
-from marginalia.agent.cache_metrics import summarize_llm_calls
-from marginalia.agent.stable_context import (
+from library.agent import runtime
+from library.agent.cache_metrics import summarize_llm_calls
+from library.agent.stable_context import (
     ConversationHistoryIntegrityError,
     _validated_tool_calls,
 )
-from marginalia.agent.tools import (
+from library.agent.tools import (
     ToolContext,
     ToolPolicy,
     ToolRegistration,
     _canonical_schema,
     get_tool,
 )
-from marginalia.api.routes_agent import _cache_metric_fields
-from marginalia.llm import ChatMessage, PromptPrefixTracker, PromptPrefixViolation, ToolDef
-from marginalia.llm.types import ToolCall
-from marginalia.tasks.usage import bind_accumulator, current_usage, measure_stage, unbind_accumulator
+from library.api.routes_agent import _cache_metric_fields
+from library.llm import ChatMessage, PromptPrefixTracker, PromptPrefixViolation, ToolDef
+from library.llm.types import ToolCall
+from library.tasks.usage import bind_accumulator, current_usage, measure_stage, unbind_accumulator
 
 
 def test_prompt_prefix_tracker_accepts_append_only_lineage() -> None:

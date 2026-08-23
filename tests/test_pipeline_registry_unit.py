@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from marginalia.pipelines import resolve_pipeline
-from marginalia.pipelines.archive import _resolve_inner
+from library.pipelines import resolve_pipeline
+from library.pipelines.archive import _resolve_inner
 
 
 def test_image_pipeline_routes_supported_image_mimes_and_extensions() -> None:

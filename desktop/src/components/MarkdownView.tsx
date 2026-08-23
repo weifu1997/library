@@ -75,7 +75,7 @@ interface Props {
    *  /library?entry=... with every field preserved so the file viewer can
    *  navigate and highlight in one operation. */
   onEntryLink?: (entryId: string, locator?: EntryLocator) => void;
-  /** Tailwind class for the wrapping div. Defaults to `prose-marginalia`. */
+  /** Tailwind class for the wrapping div. Defaults to `prose-library`. */
   className?: string;
   /** Override the `clobberPrefix` mdast-util-to-hast applies to footnote
    *  ids (default `user-content-`). When several MarkdownView instances
@@ -177,7 +177,7 @@ export function MarkdownView({ content, onEntryLink, className, idPrefix }: Prop
   };
 
   return (
-    <div className={cn("prose-marginalia", className)}>
+    <div className={cn("prose-library", className)}>
       <ReactMarkdown
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={REHYPE_PLUGINS}

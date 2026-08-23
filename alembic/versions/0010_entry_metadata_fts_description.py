@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import (
+from library.db.bootstrap import (
     _drop_entry_metadata_fts,
     _ensure_entry_metadata_fts_description,
 )

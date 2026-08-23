@@ -13,10 +13,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from marginalia.llm.types import ChatResponse, TokenUsage
-from marginalia.pipelines.base import SegmentResult
-from marginalia.pipelines.image import ImagePipeline
-from marginalia.pipelines.pdf import PdfPipeline
+from library.llm.types import ChatResponse, TokenUsage
+from library.pipelines.base import SegmentResult
+from library.pipelines.image import ImagePipeline
+from library.pipelines.pdf import PdfPipeline
 
 
 class _FakeStorage:
@@ -54,10 +54,10 @@ _TINY_IMAGE_BYTES = b"x"
 def test_image_with_question_calls_vlm(monkeypatch):
     fake = _FakeVisionClient(text="this is a cat")
     monkeypatch.setattr(
-        "marginalia.pipelines.image.has_vision_profile", lambda: True,
+        "library.pipelines.image.has_vision_profile", lambda: True,
     )
     monkeypatch.setattr(
-        "marginalia.pipelines.image.get_chat_client", lambda _name: fake,
+        "library.pipelines.image.get_chat_client", lambda _name: fake,
     )
 
     pipeline = ImagePipeline()
@@ -103,10 +103,10 @@ def test_image_question_falls_back_after_live_vision_failure(monkeypatch):
             raise RuntimeError("provider unavailable")
 
     monkeypatch.setattr(
-        "marginalia.pipelines.image.has_vision_profile", lambda: True,
+        "library.pipelines.image.has_vision_profile", lambda: True,
     )
     monkeypatch.setattr(
-        "marginalia.pipelines.image.get_chat_client",
+        "library.pipelines.image.get_chat_client",
         lambda _name: _FailingVisionClient(),
     )
     result = asyncio.run(ImagePipeline().read_segment(
@@ -128,10 +128,10 @@ def test_image_question_falls_back_after_live_vision_failure(monkeypatch):
 def test_empty_image_vision_answer_is_an_error(monkeypatch):
     fake = _FakeVisionClient(text="")
     monkeypatch.setattr(
-        "marginalia.pipelines.image.has_vision_profile", lambda: True,
+        "library.pipelines.image.has_vision_profile", lambda: True,
     )
     monkeypatch.setattr(
-        "marginalia.pipelines.image.get_chat_client", lambda _name: fake,
+        "library.pipelines.image.get_chat_client", lambda _name: fake,
     )
 
     stored = asyncio.run(ImagePipeline().read_segment(
@@ -237,7 +237,7 @@ def test_text_pdf_question_prefers_source_text(monkeypatch):
 
 def test_text_pdf_without_readable_text_requires_vision(monkeypatch):
     monkeypatch.setattr(
-        "marginalia.pipelines.pdf.has_vision_profile", lambda: False,
+        "library.pipelines.pdf.has_vision_profile", lambda: False,
     )
     pipeline = PdfPipeline()
     file_row = SimpleNamespace(storage_key="any", description={})

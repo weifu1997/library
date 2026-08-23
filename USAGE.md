@@ -1,10 +1,10 @@
-# Marginalia Operations Manual
+# Library Operations Manual
 
 > Chinese manual: [USAGE.zh-CN.md](USAGE.zh-CN.md)
 > Design rationale: [DESIGN.md](DESIGN.md)
 
 This manual describes how to install, configure, run, evaluate, and
-troubleshoot Marginalia as a private heterogeneous knowledge-base retrieval
+troubleshoot Library as a private heterogeneous knowledge-base retrieval
 and report-generation system.
 
 ## 1. Install
@@ -13,7 +13,7 @@ Requires Python 3.11+.
 
 ```bash
 git clone <repo>
-cd Marginalia
+cd Library
 python -m venv .venv
 
 # Windows PowerShell
@@ -28,7 +28,7 @@ pip install -e ".[dev]"
 Check the CLI:
 
 ```bash
-marginalia --help
+library --help
 ```
 
 ## 2. Initialize a Library
@@ -36,15 +36,15 @@ marginalia --help
 ```bash
 mkdir my-library
 cd my-library
-marginalia init
+library init
 ```
 
-`init` creates a starter `.env` and local folders. Runtime state is rooted at `MARGINALIA_HOME`; when unset it defaults to `~/Marginalia`.
+`init` creates a starter `.env` and local folders. Runtime state is rooted at `LIBRARY_HOME`; when unset it defaults to `~/LibraryData`.
 
 Recommended explicit setting:
 
 ```ini
-MARGINALIA_HOME=E:/Marginalia
+LIBRARY_HOME=E:/LibraryData
 ```
 
 ## 3. Configure LLM Profiles
@@ -88,21 +88,21 @@ AGENT_FINAL_ANSWER_CONTINUE_TURNS=3
 AGENT_FINAL_ANSWER_MAX_CHARS=120000
 ```
 
-## 4. Start Marginalia
+## 4. Start Library
 
 Embedded mode:
 
 ```bash
-marginalia
+library
 ```
 
-This starts FastAPI, TaskRunner, and the CLI in one process. Database schema bootstrap runs automatically on startup. Managed deployments may run `marginalia-db-prepare` before rollout and set `RUNTIME_SCHEMA_BOOTSTRAP_ENABLED=false` on every API and worker replica.
+This starts FastAPI, TaskRunner, and the CLI in one process. Database schema bootstrap runs automatically on startup. Managed deployments may run `library-db-prepare` before rollout and set `RUNTIME_SCHEMA_BOOTSTRAP_ENABLED=false` on every API and worker replica.
 
 Remote server mode:
 
 ```bash
-uvicorn marginalia.main:app --host 0.0.0.0 --port 8000
-marginalia --server http://127.0.0.1:8000
+uvicorn library.main:app --host 0.0.0.0 --port 8000
+library --server http://127.0.0.1:8000
 ```
 
 `alembic upgrade head` is still safe for explicit migration workflows, but a fresh local database does not require a separate migration step before first use.
@@ -112,26 +112,26 @@ marginalia --server http://127.0.0.1:8000
 Upload:
 
 ```text
-marginalia> /upload ./papers/raft.pdf /papers/
+library> /upload ./papers/raft.pdf /papers/
 ```
 
 Watch ingest:
 
 ```text
-marginalia> /background
+library> /background
 ```
 
 Find the entry:
 
 ```text
-marginalia> /search raft
-marginalia> /info <entry_id>
+library> /search raft
+library> /info <entry_id>
 ```
 
 Ask a question:
 
 ```text
-marginalia> compare this Raft paper with my Paxos notes
+library> compare this Raft paper with my Paxos notes
 ```
 
 The investigator will plan, call `recall_knowledge` for broad material
@@ -151,12 +151,12 @@ conversation never leaves an ambiguous spinner.
 Export:
 
 ```text
-marginalia> /export
+library> /export
 ```
 
 ## 6. Capability Profile
 
-Marginalia is intentionally stronger than a plain top-k RAG loop in the
+Library is intentionally stronger than a plain top-k RAG loop in the
 personal-library investigation case:
 
 - it keeps durable journal memory from previous investigations;
@@ -167,7 +167,7 @@ personal-library investigation case:
 - it follows related-entry signals and reads original source windows before
   making cited claims;
 - it can compare the full ReAct report workflow against one-shot RAG with
-  `marginalia eval compare-report`.
+  `library eval compare-report`.
 
 Metadata text search is indexed in both local and remote database modes:
 SQLite uses the local FTS5 trigram table, while Postgres uses native
@@ -227,7 +227,7 @@ Any non-slash input is sent to the agent.
 
 ### Retrieval Evaluation
 
-`marginalia eval` is a non-interactive command group for external retrieval
+`library eval` is a non-interactive command group for external retrieval
 benchmarks. It currently imports local BEIR-style datasets:
 
 ```text
@@ -240,37 +240,37 @@ Import runs ingest synchronously for every corpus document. Use
 `--concurrency` for large corpora and `--resume` after an interrupted import:
 
 ```bash
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval import-beir scifact ./datasets/scifact --concurrency 100 --resume
+LIBRARY_HOME=./runtime/eval/scifact library eval import-beir scifact ./datasets/scifact --concurrency 100 --resume
 ```
 
 Build semantic recall with Bailian/DashScope `text-embedding-v4`:
 
 ```bash
-MARGINALIA_HOME=./runtime/eval/scifact EMBEDDING_API_KEY=... marginalia eval build-semantic-index scifact --concurrency 10 --resume
+LIBRARY_HOME=./runtime/eval/scifact EMBEDDING_API_KEY=... library eval build-semantic-index scifact --concurrency 10 --resume
 ```
 
 Run retrieval metrics after import:
 
 ```bash
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval run scifact --retriever search_metadata --k 10,50,100
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval run scifact --retriever semantic_recall --k 10,50,100
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval run scifact --retriever recall_knowledge --json report.json
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval ablation-run scifact --k 10,50,100 --json ablation-report.json
+LIBRARY_HOME=./runtime/eval/scifact library eval run scifact --retriever search_metadata --k 10,50,100
+LIBRARY_HOME=./runtime/eval/scifact library eval run scifact --retriever semantic_recall --k 10,50,100
+LIBRARY_HOME=./runtime/eval/scifact library eval run scifact --retriever recall_knowledge --json report.json
+LIBRARY_HOME=./runtime/eval/scifact library eval ablation-run scifact --k 10,50,100 --json ablation-report.json
 ```
 
 Probe one final answer with a hard wall-clock budget:
 
 ```bash
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval answer scifact --retriever recall_knowledge --query-id <qid> --timeout-seconds 300 --json answer-report.json
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval answer-run scifact --retriever recall_knowledge --qrels-only --query-limit 20 --concurrency 10 --timeout-seconds 300 --json answer-run-report.json
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval compare-report scifact --query-limit 30 --concurrency 3 --timeout-seconds 300 --json compare-report.json
+LIBRARY_HOME=./runtime/eval/scifact library eval answer scifact --retriever recall_knowledge --query-id <qid> --timeout-seconds 300 --json answer-report.json
+LIBRARY_HOME=./runtime/eval/scifact library eval answer-run scifact --retriever recall_knowledge --qrels-only --query-limit 20 --concurrency 10 --timeout-seconds 300 --json answer-run-report.json
+LIBRARY_HOME=./runtime/eval/scifact library eval compare-report scifact --query-limit 30 --concurrency 3 --timeout-seconds 300 --json compare-report.json
 ```
 
 Reported metrics distinguish candidate-pool recall from ranking efficiency:
 hit@k answers whether at least one relevant document entered the candidate
 pool, candidate_recall@k answers how much labeled evidence entered it, and
 nDCG/MRR describe how early evidence appears. Use a dedicated
-`MARGINALIA_HOME` for external benchmarks to avoid mixing benchmark documents
+`LIBRARY_HOME` for external benchmarks to avoid mixing benchmark documents
 with your personal library. `eval ablation-run` runs a retrieval component
 matrix over metadata-only, relations, semantic recall, and rerank variants,
 then reports per-configuration deltas against metadata-only. `eval answer`
@@ -288,7 +288,7 @@ report path against the full ReAct investigation workflow. It runs both
 systems on the same queries and uses a blind pairwise judge; when gold verdict
 labels are present, correctness is judged before completeness.
 
-When a semantic index exists under `MARGINALIA_HOME/semantic-index/default`,
+When a semantic index exists under `LIBRARY_HOME/semantic-index/default`,
 `recall_knowledge` can merge semantic candidates with the existing FTS/BM25
 metadata path. Semantic recall is optional and disabled by default; enable it
 with `SEMANTIC_RECALL_ENABLED=true` after building an index. The embedding
@@ -336,24 +336,24 @@ relation edges ahead of time.
 ### MCP Server
 
 Run a stdio MCP server when you want Claude Desktop or another MCP-capable
-agent to use Marginalia as a private-library backend:
+agent to use Library as a private-library backend:
 
 ```bash
-marginalia mcp
+library mcp
 # or
-marginalia-mcp
+library-mcp
 ```
 
 Only read-only retrieval tools are exposed: `recall_knowledge`, `read_files`,
 `search_metadata`, `search_journal`, `read_entries_metadata`, `list_folder`,
 `list_catalogs`, `read_catalog`, `resolve_tag`, and `materialize_view`.
 Write-side tools and artifact generators are intentionally absent from the MCP
-surface. Configure the MCP client with the same `MARGINALIA_HOME`, database,
+surface. Configure the MCP client with the same `LIBRARY_HOME`, database,
 storage, and optional provider environment variables you use for the CLI.
 
 ## 8. Asking Effective Questions
 
-Marginalia works best for questions that need evidence from your library:
+Library works best for questions that need evidence from your library:
 
 ```text
 Which saved contracts make the bonus discretionary?
@@ -390,10 +390,10 @@ Long documents are windowed. Default PDF reads do not extract an entire thousand
 Default. Files live in a readable tree:
 
 ```text
-<MARGINALIA_HOME>/library/papers/raft.pdf
+<LIBRARY_HOME>/library/papers/raft.pdf
 ```
 
-If you edit files outside Marginalia:
+If you edit files outside Library:
 
 ```text
 /check
@@ -407,8 +407,8 @@ UUID-addressed object pool. Faster for high-churn workloads, less friendly for d
 Migration:
 
 ```bash
-marginalia storage migrate --from mirror --to local
-marginalia storage migrate --from local --to mirror
+library storage migrate --from mirror --to local
+library storage migrate --from local --to mirror
 ```
 
 ### s3
@@ -417,9 +417,9 @@ Remote object storage for multi-host deployments. Use Postgres with S3; SQLite i
 
 ### Multi-device sync
 
-Do not sync a live `MARGINALIA_HOME` with Dropbox, Syncthing, iCloud Drive,
+Do not sync a live `LIBRARY_HOME` with Dropbox, Syncthing, iCloud Drive,
 OneDrive, or similar tools. SQLite databases and the mirror/local storage
-layout are not safe under concurrent file replication. Stop Marginalia before
+layout are not safe under concurrent file replication. Stop Library before
 copying the directory for backup; for active multi-device use, run a remote
 server with Postgres and S3-compatible object storage.
 
@@ -472,7 +472,7 @@ Semantic recall is opt-in. Build an index first, then enable it:
 
 ```bash
 pip install -e ".[semantic]"
-MARGINALIA_HOME=./runtime/eval/scifact EMBEDDING_API_KEY=... marginalia eval build-semantic-index scifact
+LIBRARY_HOME=./runtime/eval/scifact EMBEDDING_API_KEY=... library eval build-semantic-index scifact
 ```
 
 ```ini
@@ -574,7 +574,7 @@ and `truncated_chunks`.
 If startup reports that existing `storage_key` values do not match the configured backend, either restore the previous backend or migrate:
 
 ```bash
-marginalia storage migrate --from local --to mirror
+library storage migrate --from local --to mirror
 ```
 
 ### Re-index a changed file
@@ -588,18 +588,18 @@ For mirror storage:
 
 ## 13. Backup
 
-For SQLite + mirror/local storage, stop Marginalia and copy the whole `MARGINALIA_HOME` directory. This is a backup operation, not live multi-device sync.
+For SQLite + mirror/local storage, stop Library and copy the whole `LIBRARY_HOME` directory. This is a backup operation, not live multi-device sync.
 
 Windows:
 
 ```bash
-robocopy E:\Marginalia D:\backup\Marginalia /MIR
+robocopy E:\Library D:\backup\Library /MIR
 ```
 
 macOS/Linux:
 
 ```bash
-rsync -a ~/Marginalia/ /backup/Marginalia/
+rsync -a ~/LibraryData/ /backup/LibraryData/
 ```
 
 For Postgres/S3 deployments, back up the database and object storage separately.

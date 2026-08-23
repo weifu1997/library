@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from marginalia.db.bootstrap import bootstrap_schema_sync
-from marginalia.db.models import File, Task
-from marginalia.tasks.handlers import bulk_reprocess_files as module
-from marginalia.utils.ids import new_id
+from library.db.bootstrap import bootstrap_schema_sync
+from library.db.models import File, Task
+from library.tasks.handlers import bulk_reprocess_files as module
+from library.utils.ids import new_id
 
 
 @pytest.mark.asyncio

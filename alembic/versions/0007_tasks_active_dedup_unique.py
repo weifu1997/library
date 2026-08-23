@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import _ensure_tasks_active_dedup_unique
+from library.db.bootstrap import _ensure_tasks_active_dedup_unique
 
 
 revision = "0007_tasks_active_dedup_unique"

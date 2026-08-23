@@ -19,7 +19,7 @@ from uuid import uuid4
 from sqlalchemy import text
 
 _TEST_PARENT = Path(os.environ.get(
-    "MARGINALIA_TEST_TMP",
+    "LIBRARY_TEST_TMP",
     str(Path(__file__).resolve().parent),
 ))
 _TEST_PARENT.mkdir(parents=True, exist_ok=True)
@@ -27,7 +27,7 @@ _TEST_ROOT = _TEST_PARENT / f"_cli_oneshot_e2e_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
 atexit.register(lambda: shutil.rmtree(_TEST_ROOT, ignore_errors=True))
 
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT / "home")
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT / "home")
 os.environ["STORAGE_BACKEND"] = "mirror"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -35,16 +35,16 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from httpx import ASGITransport
 
-from marginalia.config import get_settings
+from library.config import get_settings
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.cli.client import MarginaliaClient
-from marginalia.cli.oneshot import run_async
-from marginalia.db.bootstrap import bootstrap_schema
-from marginalia.db.engine import get_session_factory
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.main import app
+from library.cli.client import LibraryClient
+from library.cli.oneshot import run_async
+from library.db.bootstrap import bootstrap_schema
+from library.db.engine import get_session_factory
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.main import app
 
 
 class _FakeChat:
@@ -74,12 +74,12 @@ class _FakeChat:
 
 
 def _install_fake_chat(fake: _FakeChat) -> None:
-    import marginalia.agent.runtime as runtime
+    import library.agent.runtime as runtime
 
     runtime.get_chat_client = lambda profile="chat": fake  # type: ignore[assignment]
 
 
-async def _capture(client: MarginaliaClient, argv: list[str]) -> tuple[int, str]:
+async def _capture(client: LibraryClient, argv: list[str]) -> tuple[int, str]:
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         rc = await run_async(argv, client=client)
@@ -109,7 +109,7 @@ async def main() -> None:
 
     transport = ASGITransport(app=app)
     async with app.router.lifespan_context(app):
-        client = MarginaliaClient(base_url="http://test", transport=transport)
+        client = LibraryClient(base_url="http://test", transport=transport)
         try:
             rc, out = await _capture(
                 client,

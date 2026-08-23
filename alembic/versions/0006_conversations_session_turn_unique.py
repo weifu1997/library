@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import _ensure_conversations_session_turn_unique
+from library.db.bootstrap import _ensure_conversations_session_turn_unique
 
 
 revision = "0006_conversations_session_turn_unique"

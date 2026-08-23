@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import (
+from library.db.bootstrap import (
     SCALE_SAFETY_INDEXES,
     _ensure_scale_safety_indexes,
 )
