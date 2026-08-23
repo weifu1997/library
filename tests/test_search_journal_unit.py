@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from marginalia.agent.tools import ToolContext
+from library.agent.tools import ToolContext
 
 
 def _row(note: str, tags: list[str], entry_ids: list[str] | None = None):
@@ -26,7 +26,7 @@ def _row(note: str, tags: list[str], entry_ids: list[str] | None = None):
 
 @pytest.mark.asyncio
 async def test_search_journal_tags_are_or(monkeypatch: pytest.MonkeyPatch) -> None:
-    mod = import_module("marginalia.agent.tools.search_journal")
+    mod = import_module("library.agent.tools.search_journal")
     rows = [
         _row("alpha only", ["alpha"]),
         _row("beta only", ["beta"]),
@@ -57,7 +57,7 @@ async def test_search_journal_tags_are_or(monkeypatch: pytest.MonkeyPatch) -> No
 async def test_search_journal_text_string_splits_to_or(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    mod = import_module("marginalia.agent.tools.search_journal")
+    mod = import_module("library.agent.tools.search_journal")
     rows = [
         _row("道路交通事故责任", []),
         _row("司法解释适用", []),
@@ -90,7 +90,7 @@ async def test_search_journal_text_string_splits_to_or(
 async def test_search_journal_text_array_is_or(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    mod = import_module("marginalia.agent.tools.search_journal")
+    mod = import_module("library.agent.tools.search_journal")
     rows = [
         _row("alpha only", []),
         _row("beta only", []),
@@ -123,7 +123,7 @@ async def test_search_journal_text_array_is_or(
 async def test_run_search_journal_match_any_combines_text_and_tags(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    mod = import_module("marginalia.agent.tools.search_journal")
+    mod = import_module("library.agent.tools.search_journal")
     rows = [
         _row("alpha text", ["other"]),
         _row("unrelated", ["beta"]),
@@ -152,7 +152,7 @@ async def test_run_search_journal_match_any_combines_text_and_tags(
 async def test_search_journal_entry_id_uses_prefix_resolution(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    mod = import_module("marginalia.agent.tools.search_journal")
+    mod = import_module("library.agent.tools.search_journal")
     full_id = "0123abcd-1111-2222-3333-444455556666"
     rows = [
         _row("target", ["alpha"], [full_id]),
@@ -197,7 +197,7 @@ async def test_search_journal_entry_id_uses_prefix_resolution(
 async def test_search_journal_entry_id_resolution_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    mod = import_module("marginalia.agent.tools.search_journal")
+    mod = import_module("library.agent.tools.search_journal")
 
     async def fake_resolve(db: Any, raw: str) -> tuple[str, str | None]:
         return raw, "prefix is ambiguous"

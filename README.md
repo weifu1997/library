@@ -1,4 +1,4 @@
-# Marginalia
+# Library
 
 > Chinese README: [README.zh-CN.md](README.zh-CN.md)
 > Detailed design: [DESIGN.md](DESIGN.md)
@@ -7,18 +7,18 @@
 **Turn your PDFs, notes, spreadsheets, logs, and archives into a private AI
 library that answers from original sources.**
 
-Marginalia is a local-first research agent for people with messy private
+Library is a local-first research agent for people with messy private
 knowledge bases. It keeps your files in a normal folder tree, builds useful
 library metadata around them, and makes the agent read the relevant original
 file windows before it writes a cited answer.
 
-[Download desktop app](https://github.com/shenmintao/marginalia/releases) ·
+[Download desktop app](https://github.com/weifu1997/library/releases) ·
 [GUI setup guide](docs/GUI_TUTORIAL.md) · [CLI quickstart](#cli-quickstart) · [Usage guide](USAGE.md) ·
 [Design notes](DESIGN.md)
 
-![Marginalia promotional hero](docs/images/marginalia-promo-en.png)
+![Library promotional hero](docs/images/library-promo-en.png)
 
-![Marginalia desktop app screenshot](docs/images/desktop-screenshot-en.jpg)
+![Library desktop app screenshot](docs/images/desktop-screenshot-en.jpg)
 
 ## Why Use It
 
@@ -29,7 +29,7 @@ file windows before it writes a cited answer.
 - You need both quick lookups and slower investigation-style reports over the
   same private library.
 - You want local-first storage: the default `mirror` backend keeps your library
-  as readable files under `MARGINALIA_HOME/library`.
+  as readable files under `LIBRARY_HOME/library`.
 
 ## What It Does
 
@@ -48,7 +48,7 @@ file windows before it writes a cited answer.
 ### Desktop App
 
 Download the latest desktop package from
-[GitHub Releases](https://github.com/shenmintao/marginalia/releases):
+[GitHub Releases](https://github.com/weifu1997/library/releases):
 
 - **Windows**: x64/arm64 installer and portable zip.
 - **macOS**: Intel and Apple Silicon DMGs.
@@ -59,24 +59,24 @@ so Windows SmartScreen or macOS Gatekeeper may ask you to confirm the first
 launch.
 
 Desktop bundles also include CLI wrappers backed by the bundled Python
-runtime. They share the same `MARGINALIA_HOME` as the desktop app, so the CLI,
+runtime. They share the same `LIBRARY_HOME` as the desktop app, so the CLI,
 MCP server, reusable backend, and worker work without installing a separate
 system Python package.
 
-- **Linux `.deb` / `.rpm`**: installs `marginalia`, `marginalia-mcp`, and
-  `marginalia-worker` under `/usr/bin`.
-- **Windows installer / portable zip**: includes `marginalia.cmd`,
-  `marginalia-mcp.cmd`, and `marginalia-worker.cmd` next to
-  `Marginalia.exe`. Use full paths in MCP clients or add the install folder to
+- **Linux `.deb` / `.rpm`**: installs `library`, `library-mcp`, and
+  `library-worker` under `/usr/bin`.
+- **Windows installer / portable zip**: includes `library.cmd`,
+  `library-mcp.cmd`, and `library-worker.cmd` next to
+  `Library.exe`. Use full paths in MCP clients or add the install folder to
   `PATH`.
 - **macOS DMG**: includes wrappers inside the app bundle:
-  `/Applications/Marginalia.app/Contents/MacOS/marginalia`,
-  `marginalia-mcp`, and `marginalia-worker`.
+  `/Applications/Library.app/Contents/MacOS/library`,
+  `library-mcp`, and `library-worker`.
 
 - **Windows**: click **More info** -> **Run anyway** if SmartScreen blocks the
   first launch.
 - **macOS**: after dragging the app to `/Applications`, run
-  `xattr -dr com.apple.quarantine /Applications/Marginalia.app` if Gatekeeper
+  `xattr -dr com.apple.quarantine /Applications/Library.app` if Gatekeeper
   reports that the app is damaged or cannot be verified.
 
 ### CLI Quickstart
@@ -93,14 +93,14 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -e ".[dev]"
-marginalia init
+library init
 ```
 
 Edit `.env`:
 
 ```ini
-MARGINALIA_API_HOST=127.0.0.1
-MARGINALIA_API_PORT=8000
+LIBRARY_API_HOST=127.0.0.1
+LIBRARY_API_PORT=8000
 LLM_DEFAULT_PROVIDER=openai
 LLM_DEFAULT_API_KEY=sk-...
 LLM_DEFAULT_MODEL=gpt-4o-mini
@@ -109,33 +109,33 @@ LLM_DEFAULT_MODEL=gpt-4o-mini
 Run the embedded CLI + API + worker:
 
 ```bash
-marginalia
+library
 ```
 
 Then:
 
 ```text
-marginalia> /upload ./paper.pdf /papers/
-marginalia> /background
-marginalia> compare this paper with my Paxos notes
-marginalia> /export
+library> /upload ./paper.pdf /papers/
+library> /background
+library> compare this paper with my Paxos notes
+library> /export
 ```
 
 The first launch bootstraps the database schema automatically. Managed
-deployments can instead run `marginalia-db-prepare` before rollout and set
+deployments can instead run `library-db-prepare` before rollout and set
 `RUNTIME_SCHEMA_BOOTSTRAP_ENABLED=false` for both API and worker replicas.
 
 To share one backend across the desktop app, CLI sessions, MCP, skill-driven
 automation, or external HTTP clients, start the reusable HTTP backend instead:
 
 ```bash
-marginalia serve
+library serve
 ```
 
-`marginalia serve` reads `MARGINALIA_API_HOST` and `MARGINALIA_API_PORT` from
-`.env` and writes its live URL to `MARGINALIA_HOME/runtime/server.json`.
+`library serve` reads `LIBRARY_API_HOST` and `LIBRARY_API_PORT` from
+`.env` and writes its live URL to `LIBRARY_HOME/runtime/server.json`.
 Desktop and CLI clients auto-discover that file; skills inherit this when they
-drive the `marginalia` CLI. Explicit `--server URL` or `MARGINALIA_SERVER`
+drive the `library` CLI. Explicit `--server URL` or `LIBRARY_SERVER`
 still take precedence.
 
 ## Example Questions
@@ -150,7 +150,7 @@ Turn this folder into a cited research brief.
 
 ## How It Differs From Plain RAG
 
-Marginalia is not just "retrieve top-k chunks and answer." The agent can recall
+Library is not just "retrieve top-k chunks and answer." The agent can recall
 prior investigations, inspect structured metadata, follow related entries, read
 original source windows, and correct its search path before writing. Quick mode
 keeps this bounded for short lookups; Deep mode keeps the full ReAct
@@ -215,18 +215,18 @@ immediately passed through the ingest pipeline, so the command returns only
 after the eval corpus is indexed.
 
 ```bash
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval import-beir scifact ./datasets/scifact
-MARGINALIA_HOME=./runtime/eval/scifact EMBEDDING_API_KEY=... marginalia eval build-semantic-index scifact
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval run scifact --retriever search_metadata --k 10,50,100 --json report.json
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval run scifact --retriever semantic_recall --k 10,50,100
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval ablation-run scifact --k 10,50,100 --json ablation-report.json
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval load-run scifact --retriever recall_knowledge --requests 1000 --concurrency 20 --max-p95-ms 1500 --min-hit-at-k 0.90 --json load-report.json
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval answer scifact --retriever recall_knowledge --query-id <qid> --timeout-seconds 300
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval answer-run scifact --retriever recall_knowledge --qrels-only --query-limit 20 --concurrency 10 --json answer-report.json
-MARGINALIA_HOME=./runtime/eval/scifact marginalia eval compare-report scifact --query-limit 30 --concurrency 3 --json compare-report.json
+LIBRARY_HOME=./runtime/eval/scifact library eval import-beir scifact ./datasets/scifact
+LIBRARY_HOME=./runtime/eval/scifact EMBEDDING_API_KEY=... library eval build-semantic-index scifact
+LIBRARY_HOME=./runtime/eval/scifact library eval run scifact --retriever search_metadata --k 10,50,100 --json report.json
+LIBRARY_HOME=./runtime/eval/scifact library eval run scifact --retriever semantic_recall --k 10,50,100
+LIBRARY_HOME=./runtime/eval/scifact library eval ablation-run scifact --k 10,50,100 --json ablation-report.json
+LIBRARY_HOME=./runtime/eval/scifact library eval load-run scifact --retriever recall_knowledge --requests 1000 --concurrency 20 --max-p95-ms 1500 --min-hit-at-k 0.90 --json load-report.json
+LIBRARY_HOME=./runtime/eval/scifact library eval answer scifact --retriever recall_knowledge --query-id <qid> --timeout-seconds 300
+LIBRARY_HOME=./runtime/eval/scifact library eval answer-run scifact --retriever recall_knowledge --qrels-only --query-limit 20 --concurrency 10 --json answer-report.json
+LIBRARY_HOME=./runtime/eval/scifact library eval compare-report scifact --query-limit 30 --concurrency 3 --json compare-report.json
 ```
 
-Use a dedicated `MARGINALIA_HOME` for external benchmarks unless you
+Use a dedicated `LIBRARY_HOME` for external benchmarks unless you
 intentionally want benchmark documents inside your personal library.
 `eval build-semantic-index` uses the configured embedding provider. The
 default is Alibaba Cloud Model Studio / DashScope `text-embedding-v4`; set
@@ -299,7 +299,7 @@ Latest local validation on SciFact 300:
 - A 30-query end-to-end report comparison favored the full ReAct workflow over
   one-shot RAG in 26/30 cases, with 2 one-shot RAG wins, 2 ties, and 1 timeout.
 
-These results support Marginalia's current positioning: for quick lookups it
+These results support Library's current positioning: for quick lookups it
 behaves like a hybrid RAG system, while the full ReAct workflow is a slower
 deep-investigation path that can produce better source-grounded reports.
 They should not be read as a claim of general benchmark SOTA: the dataset is
@@ -309,23 +309,23 @@ evidence.
 
 ## CLI Surface
 
-`marginalia` with no arguments opens the interactive REPL. The same command
+`library` with no arguments opens the interactive REPL. The same command
 surface is also available as one-shot subcommands for scripts, CI, and agents
 that do not use MCP:
 
 ```bash
-marginalia ask "Compare this Raft paper with my Paxos notes"
-marginalia search "raft consensus" --json
-marginalia info <entry_id> --json
-marginalia discover <entry_id> --top-k 12 --json
-marginalia check --json
-marginalia ingest --all --yes --json
-marginalia reprocess failed --json
+library ask "Compare this Raft paper with my Paxos notes"
+library search "raft consensus" --json
+library info <entry_id> --json
+library discover <entry_id> --top-k 12 --json
+library check --json
+library ingest --all --yes --json
+library reprocess failed --json
 ```
 
 One-shot commands use the same backend discovery model as the REPL: explicit
-`--server URL`, then `MARGINALIA_SERVER`, then
-`MARGINALIA_HOME/runtime/server.json`, and finally an embedded backend. Text
+`--server URL`, then `LIBRARY_SERVER`, then
+`LIBRARY_HOME/runtime/server.json`, and finally an embedded backend. Text
 output is meant for humans; `--json` keeps stdout structured for automation.
 
 Slash commands:
@@ -359,22 +359,22 @@ overrides.
 
 ## MCP Server
 
-Marginalia can also run as a stdio MCP server for external agents:
+Library can also run as a stdio MCP server for external agents:
 
 ```bash
-marginalia mcp
+library mcp
 # or
-marginalia-mcp
+library-mcp
 ```
 
 The MCP server uses the same backend discovery model as the CLI: explicit
-`--server URL`, then `MARGINALIA_SERVER`, then
-`MARGINALIA_HOME/runtime/server.json`, and finally an embedded backend if
+`--server URL`, then `LIBRARY_SERVER`, then
+`LIBRARY_HOME/runtime/server.json`, and finally an embedded backend if
 nothing is already running. A Claude Desktop-style command entry can point at
-the same executable and set `MARGINALIA_HOME` / database settings through the
+the same executable and set `LIBRARY_HOME` / database settings through the
 environment.
 
-MCP exposes structured workflow tools including `ask_marginalia`,
+MCP exposes structured workflow tools including `ask_library`,
 `upload_file`, `download_file`, `download_folder`, `export_conversation`,
 `search_files`, `get_file_metadata`, plus retrieval/source-reading tools such
 as `recall_knowledge`, `search_metadata`, `search_journal`,
@@ -413,7 +413,7 @@ planner-selected budget behavior.
 Core `.env` fields:
 
 ```ini
-MARGINALIA_HOME=~/Marginalia
+LIBRARY_HOME=~/LibraryData
 DB_BACKEND=sqlite                  # sqlite or postgres
 RUNTIME_SCHEMA_BOOTSTRAP_ENABLED=true # false after managed Alembic migration
 STORAGE_BACKEND=mirror             # mirror, local, or s3
@@ -421,7 +421,7 @@ WORKER_ENABLED=true
 WORKER_SCHEDULER_ENABLED=true       # false: normal tasks only, no periodic fan-out
 WORKER_RETRY_BASE_SECONDS=60
 WORKER_RETRY_MAX_SECONDS=3600
-MARGINALIA_UPLOAD_MAX_BYTES=0      # per-file upload cap; 0 = unlimited
+LIBRARY_UPLOAD_MAX_BYTES=0      # per-file upload cap; 0 = unlimited
 LIBRARY_DOCUMENT_LIMIT=0           # optional global gates; 0 = disabled
 LIBRARY_STORAGE_BYTES_LIMIT=0
 INGEST_BACKLOG_LIMIT=0
@@ -475,7 +475,7 @@ Use `openai-compatible` for DeepSeek, Together, Groq, local vLLM, Ollama, and ot
 
 The `vision` profile is optional. Without it, image enrichment, PDF figure captioning, and scanned-PDF OCR degrade gracefully or are skipped.
 
-Compression uses one master switch, `COMPRESSION_ENABLED`. Marginalia vendors the dependency-free Headroom SearchCompressor, LogCompressor, SmartCrusher, and TextCrusher cores for large `read_files` model views, model-facing results from `search_metadata`, `query_sql`, and `query_log`, structured/log ingest views, archive member peeks, and long aggregate index prompts. It fails open to original content if a compressed view does not beat `COMPRESSION_MAX_RATIO`. Persisted tool-call results, UI previews, and original files stay unmodified; compressed `read_files` metadata includes `compress=false` reopen args for exact quoting.
+Compression uses one master switch, `COMPRESSION_ENABLED`. Library vendors the dependency-free Headroom SearchCompressor, LogCompressor, SmartCrusher, and TextCrusher cores for large `read_files` model views, model-facing results from `search_metadata`, `query_sql`, and `query_log`, structured/log ingest views, archive member peeks, and long aggregate index prompts. It fails open to original content if a compressed view does not beat `COMPRESSION_MAX_RATIO`. Persisted tool-call results, UI previews, and original files stay unmodified; compressed `read_files` metadata includes `compress=false` reopen args for exact quoting.
 
 `MAINTENANCE_DAILY_TOKEN_BUDGET` is a rolling 24-hour cap for background
 maintenance LLM usage. When it is exhausted, low-priority speculative tasks
@@ -488,7 +488,7 @@ and `/discover` reads the already-vetted graph without calling an LLM. Use
 that seed's direct raw edges, or set `RELATION_BACKGROUND_VETTING_ENABLED=true`
 if you want the periodic worker to batch-vet relation edges ahead of time.
 
-When a long final answer hits the model token limit, Marginalia can continue it server-side and emit one merged answer event to the GUI. Tune `AGENT_FINAL_ANSWER_CONTINUE_TURNS` and `AGENT_FINAL_ANSWER_MAX_CHARS` for research-heavy deployments.
+When a long final answer hits the model token limit, Library can continue it server-side and emit one merged answer event to the GUI. Tune `AGENT_FINAL_ANSWER_CONTINUE_TURNS` and `AGENT_FINAL_ANSWER_MAX_CHARS` for research-heavy deployments.
 
 Chat events are committed to a per-conversation ledger before delivery. SSE
 frames carry monotonic `id` cursors; desktop and CLI clients reconnect from
@@ -512,7 +512,7 @@ outcomes, and durable chat events in bounded batches. During schema bootstrap,
 legacy duplicate active dedup keys are collapsed to
 the best executable task before the uniqueness constraint is installed.
 
-`MARGINALIA_UPLOAD_MAX_BYTES` is checked while multipart data is streaming,
+`LIBRARY_UPLOAD_MAX_BYTES` is checked while multipart data is streaming,
 before Starlette spools the file. File bytes are counted independently from a
 bounded amount of form metadata. Upload commit ambiguity triggers compensating
 cleanup, local `.part` files are removed, failed S3 multipart uploads are
@@ -525,12 +525,12 @@ statement names. `/live` checks only the process, while `/ready` concurrently
 checks database and storage with `READINESS_TIMEOUT_SECONDS` and returns 503
 when either dependency is unavailable. Local and desktop installs leave
 `RUNTIME_SCHEMA_BOOTSTRAP_ENABLED=true`; managed deployments can run
-`marginalia-db-prepare` once and set it to false so API and worker replicas do
+`library-db-prepare` once and set it to false so API and worker replicas do
 not run startup DDL concurrently.
 
 Features that require a different multi-tenant data model remain out of scope:
 organizations and users, ACL/RLS isolation, shared-library slugs, and an
-external job-queue database. Marginalia keeps single-library ownership and
+external job-queue database. Library keeps single-library ownership and
 polls its own `tasks` table, while durable chat delivery stays within that
 model.
 
@@ -539,9 +539,9 @@ model.
 Default local layout:
 
 ```text
-<MARGINALIA_HOME>/marginalia.db
-<MARGINALIA_HOME>/library/
-<MARGINALIA_HOME>/objects/
+<LIBRARY_HOME>/library.db
+<LIBRARY_HOME>/library/
+<LIBRARY_HOME>/objects/
 ```
 
 `STORAGE_BACKEND=mirror` stores files as a readable folder tree. `local` stores UUID-addressed objects. `s3` is for multi-host deployments.
@@ -549,16 +549,16 @@ Default local layout:
 Single-process mode:
 
 ```bash
-marginalia
+library
 ```
 
 Remote API mode:
 
 ```bash
-marginalia serve --host 0.0.0.0 --port 8000
-marginalia --server http://server:8000
-# If the server sets MARGINALIA_API_TOKEN:
-marginalia --server http://server:8000 --api-token "$MARGINALIA_API_TOKEN"
+library serve --host 0.0.0.0 --port 8000
+library --server http://server:8000
+# If the server sets LIBRARY_API_TOKEN:
+library --server http://server:8000 --api-token "$LIBRARY_API_TOKEN"
 ```
 
 Docker compose starts API, worker, Postgres, and MinIO:
@@ -572,14 +572,14 @@ Compose runs the one-shot database preparation service first, then starts API
 and worker with runtime schema bootstrap disabled.
 
 The compose file binds the API and MinIO console to `127.0.0.1` by default.
-If you deliberately expose the API on a LAN, set `MARGINALIA_API_TOKEN` and
+If you deliberately expose the API on a LAN, set `LIBRARY_API_TOKEN` and
 send `Authorization: Bearer <token>` from the CLI or desktop connection
 settings.
 
 ### Multi-device sync
 
 Do not use Dropbox, Syncthing, iCloud Drive, OneDrive, or similar file-sync
-tools to sync a live `MARGINALIA_HOME`. SQLite and the mirror/local storage
+tools to sync a live `LIBRARY_HOME`. SQLite and the mirror/local storage
 layout can be corrupted by concurrent replication. For multiple machines, use
 the remote deployment shape with Postgres and S3-compatible object storage.
 
@@ -604,7 +604,7 @@ This open-source project is linked with and recognized by the LINUX DO community
 
 LINUX DO: [https://linux.do/](https://linux.do/)
 
-Thanks to [Headroom](https://github.com/chopratejas/headroom) for the compression algorithms and architecture vendored into Marginalia's built-in compression path.
+Thanks to [Headroom](https://github.com/chopratejas/headroom) for the compression algorithms and architecture vendored into Library's built-in compression path.
 
 ## License
 

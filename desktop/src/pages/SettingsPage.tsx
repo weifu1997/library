@@ -30,7 +30,7 @@ import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { LlmSettings, OnConflict, ServerSettings, WebDavStatus } from "@/types/api";
 
-const STORAGE_KEY = "marginalia.api_base";
+const STORAGE_KEY = "library.api_base";
 
 type ServerNumberField =
   | "agent_plan_max_tokens"
@@ -391,7 +391,7 @@ function WebDavSection({ initial }: { initial: WebDavStatus | null }) {
   const [url, setUrl] = useState(initial?.url ?? "");
   const [username, setUsername] = useState(initial?.username ?? "");
   const [password, setPassword] = useState("");
-  const [remotePath, setRemotePath] = useState(initial?.remote_path ?? "/marginalia");
+  const [remotePath, setRemotePath] = useState(initial?.remote_path ?? "/library");
   const [autoSync, setAutoSync] = useState(Boolean(initial?.auto_sync_enabled));
   const [interval, setIntervalValue] = useState(String(initial?.auto_sync_interval_minutes ?? 60));
   const [busy, setBusy] = useState<"save" | "remote" | null>(null);
@@ -406,7 +406,7 @@ function WebDavSection({ initial }: { initial: WebDavStatus | null }) {
         setStatus(s);
         setUrl(s.url ?? "");
         setUsername(s.username ?? "");
-        setRemotePath(s.remote_path || "/marginalia");
+        setRemotePath(s.remote_path || "/library");
         setAutoSync(Boolean(s.auto_sync_enabled));
         setIntervalValue(String(s.auto_sync_interval_minutes ?? 60));
       },
@@ -429,7 +429,7 @@ function WebDavSection({ initial }: { initial: WebDavStatus | null }) {
       const patch: Record<string, string | number | boolean | null> = {
         webdav_url: url.trim() || null,
         webdav_username: username.trim() || null,
-        webdav_remote_path: remotePath.trim() || "/marginalia",
+        webdav_remote_path: remotePath.trim() || "/library",
         webdav_auto_sync_enabled: autoSync,
         webdav_auto_sync_interval_minutes: parseInt(interval, 10) || 60,
       };
@@ -485,7 +485,7 @@ function WebDavSection({ initial }: { initial: WebDavStatus | null }) {
           <input
             value={remotePath}
             onChange={(e) => setRemotePath(e.target.value)}
-            placeholder="/marginalia"
+            placeholder="/library"
             className="w-56 rounded border border-border bg-bg-base px-2 py-1 font-mono text-xs"
           />
         </Row>
@@ -1028,7 +1028,7 @@ function ServerSection({ ctx }: { ctx: ServerCtx }) {
       <Section title={t.settings.serverStatusTitle} subtitle={t.settings.serverStatusSubtitle}>
         <dl className="grid grid-cols-[1fr_2fr] gap-x-4 gap-y-2 text-sm">
           <Kv k={t.settings.kv.appEnv} v={server.app_env} />
-          <Kv k={t.settings.kv.home} v={server.marginalia_home} mono />
+          <Kv k={t.settings.kv.home} v={server.library_home} mono />
           <Kv k={t.settings.kv.db} v={server.db_backend} />
           <Kv k={t.settings.kv.storage} v={server.storage_backend} />
           <Kv k={t.settings.kv.worker} v={server.worker_enabled ? t.common.yes : t.common.no} />

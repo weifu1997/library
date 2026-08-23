@@ -25,10 +25,10 @@ import io
 import sys
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_ingest_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"  # we drive the runner manually below
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -39,21 +39,21 @@ from httpx import ASGITransport
 from sqlalchemy import select, text
 
 # Force settings cache reset and reset llm cached clients before tests touch them.
-from marginalia.config import get_settings  # noqa: E402
+from library.config import get_settings  # noqa: E402
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm  # noqa: E402
-from marginalia.db.engine import get_engine, get_session_factory  # noqa: E402
-from marginalia.db.models import (  # noqa: E402
+from library import llm  # noqa: E402
+from library.db.engine import get_engine, get_session_factory  # noqa: E402
+from library.db.models import (  # noqa: E402
     AuditEvent, Base, Catalog, EntryTag, File, FileEntry, Tag,
 )
-from marginalia.db.models.tasks import Task  # noqa: E402
-from marginalia.llm.types import (  # noqa: E402
+from library.db.models.tasks import Task  # noqa: E402
+from library.llm.types import (  # noqa: E402
     ChatRequest, ChatResponse, TokenUsage,
 )
-from marginalia.main import app  # noqa: E402
-from marginalia.tasks.kinds import KIND_INGEST_FILE  # noqa: E402
-from marginalia.tasks.runner import TaskRunner  # noqa: E402
+from library.main import app  # noqa: E402
+from library.tasks.kinds import KIND_INGEST_FILE  # noqa: E402
+from library.tasks.runner import TaskRunner  # noqa: E402
 
 
 # ---- fake LLM client --------------------------------------------------------
@@ -79,7 +79,7 @@ class _FakeChatClient:
         CALL_LOG.append(request)
         # Return the tagged-response format used by the real ingest prompt.
         tagged = """<summary>
-A short note describing how Marginalia handles ingestion.
+A short note describing how Library handles ingestion.
 </summary>
 <description>
 Overview of the ingestion note and its pipeline discussion.
@@ -94,9 +94,9 @@ Themes: indexing, summarization, structured output
 <entry_extra>
 Sits beside other research notes; references the ingest design.
 </entry_extra>
-<catalog_path>Research / Marginalia</catalog_path>
+<catalog_path>Research / Library</catalog_path>
 <tags>
-topic: marginalia, ingest-pipeline
+topic: library, ingest-pipeline
 form: markdown
 language: english
 </tags>"""
@@ -118,9 +118,9 @@ def _install_fake_llm() -> None:
         return fake
     llm.factory.get_chat_client = _fake_factory  # type: ignore[assignment]
     # text pipeline imports the symbol at module load — patch it there too.
-    import marginalia.pipelines.text as text_mod
+    import library.pipelines.text as text_mod
     text_mod.get_chat_client = _fake_factory  # type: ignore[assignment]
-    import marginalia.tasks.handlers.periodic_tick as pmod
+    import library.tasks.handlers.periodic_tick as pmod
 
     async def _no_periodic_bootstrap() -> None:
         return None
@@ -170,13 +170,13 @@ async def main() -> None:
             async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
                 # 1) upload a markdown doc — auto-creates folders, enqueues ingest
                 doc = (
-                    "# Overview\n\nMarginalia indexes documents using a small\n"
+                    "# Overview\n\nLibrary indexes documents using a small\n"
                     "library of pipelines.\n\n# Pipeline\n\nEach pipeline emits\n"
                     "structured JSON describing the document.\n"
                 ).encode("utf-8")
                 r = await c.post(
                     "/v1/upload",
-                    params={"remote_path": "/research/marginalia/notes.md"},
+                    params={"remote_path": "/research/library/notes.md"},
                     files={"file": ("notes.md", io.BytesIO(doc), "text/markdown")},
                 )
                 assert r.status_code == 201, r.text
@@ -224,7 +224,7 @@ async def main() -> None:
 
                 # catalog chain
                 cat = await s.get(Catalog, entry_row.catalog_id)
-                assert cat.name == "Marginalia"
+                assert cat.name == "Library"
                 parent = await s.get(Catalog, cat.parent_id)
                 assert parent.name == "Research"
                 assert parent.parent_id is None
@@ -239,7 +239,7 @@ async def main() -> None:
                 ).all()
                 tag_pairs = {(n, f) for n, f in tag_rows}
                 print("[tags]", tag_pairs)
-                assert ("marginalia", "topic") in tag_pairs
+                assert ("library", "topic") in tag_pairs
                 assert ("markdown", "form") in tag_pairs
                 assert ("english", "language") in tag_pairs
 
@@ -275,7 +275,7 @@ async def main() -> None:
                     )
                 ).scalar_one()
 
-            from marginalia.tasks.handlers.ingest_file import handle_ingest_file
+            from library.tasks.handlers.ingest_file import handle_ingest_file
             await handle_ingest_file({"file_id": file_id})
 
             async with factory() as s:

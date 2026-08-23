@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from marginalia.agent.tool_scheduler import (
+from library.agent.tool_scheduler import (
     ScheduledTool,
     run_tool_schedule,
     schedule_waves,

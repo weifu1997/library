@@ -35,7 +35,7 @@ _ENV_PREFIXES = (
     "EMBEDDING_",
     "EVIDENCE_",
     "LLM_",
-    "MARGINALIA_",
+    "LIBRARY_",
     "OPENAI_",
     "POSTGRES_",
     "RELATION_",
@@ -49,34 +49,34 @@ _ENV_PREFIXES = (
 
 _MISSING = object()
 _PATCH_TARGETS: dict[str, tuple[str, ...]] = {
-    "marginalia.agent.runtime": ("all_tool_defs", "get_chat_client", "get_tool"),
-    "marginalia.llm": ("get_audio_client", "get_chat_client", "reset_clients_cache"),
-    "marginalia.llm.factory": ("get_audio_client", "get_chat_client", "reset_clients_cache"),
-    "marginalia.pipelines._text_indexer": ("get_chat_client",),
-    "marginalia.pipelines.archive": ("get_chat_client",),
-    "marginalia.pipelines.image": ("get_chat_client",),
-    "marginalia.pipelines.pdf": (
+    "library.agent.runtime": ("all_tool_defs", "get_chat_client", "get_tool"),
+    "library.llm": ("get_audio_client", "get_chat_client", "reset_clients_cache"),
+    "library.llm.factory": ("get_audio_client", "get_chat_client", "reset_clients_cache"),
+    "library.pipelines._text_indexer": ("get_chat_client",),
+    "library.pipelines.archive": ("get_chat_client",),
+    "library.pipelines.image": ("get_chat_client",),
+    "library.pipelines.pdf": (
         "downscale_for_vlm",
         "get_chat_client",
         "has_vision_profile",
     ),
-    "marginalia.pipelines.text": ("get_chat_client",),
-    "marginalia.tasks.handlers.enrich_tags": ("get_chat_client",),
-    "marginalia.tasks.handlers.normalize_tags": ("get_chat_client",),
-    "marginalia.tasks.handlers.periodic_tick": ("bootstrap_periodic_tick",),
-    "marginalia.tasks.handlers.propose_views": ("get_chat_client",),
-    "marginalia.tasks.handlers.reflect_turn": ("get_chat_client",),
-    "marginalia.tasks.handlers.refresh_entry_extra": ("get_chat_client",),
-    "marginalia.tasks.handlers.restructure_catalogs": ("get_chat_client",),
-    "marginalia.tasks.handlers.summarize_session": ("get_chat_client",),
-    "marginalia.tasks.handlers.vet_relations": ("get_chat_client",),
+    "library.pipelines.text": ("get_chat_client",),
+    "library.tasks.handlers.enrich_tags": ("get_chat_client",),
+    "library.tasks.handlers.normalize_tags": ("get_chat_client",),
+    "library.tasks.handlers.periodic_tick": ("bootstrap_periodic_tick",),
+    "library.tasks.handlers.propose_views": ("get_chat_client",),
+    "library.tasks.handlers.reflect_turn": ("get_chat_client",),
+    "library.tasks.handlers.refresh_entry_extra": ("get_chat_client",),
+    "library.tasks.handlers.restructure_catalogs": ("get_chat_client",),
+    "library.tasks.handlers.summarize_session": ("get_chat_client",),
+    "library.tasks.handlers.vet_relations": ("get_chat_client",),
 }
 _PATCH_BASELINE: dict[tuple[str, str], object] = {}
 _SETTINGS_MODEL_CONFIG_BASELINE: dict[str, Any] | None = None
 _TESTS_ROOT = Path(__file__).resolve().parent
 _EXTERNAL_TESTS_ROOT = (
-    Path(os.environ["MARGINALIA_TEST_TMP"]).resolve()
-    if os.environ.get("MARGINALIA_TEST_TMP")
+    Path(os.environ["LIBRARY_TEST_TMP"]).resolve()
+    if os.environ.get("LIBRARY_TEST_TMP")
     else None
 )
 _RETRY_DELAYS_SECONDS = (0.05, 0.15, 0.35, 1.0, 2.0)
@@ -128,7 +128,7 @@ def remove_test_tree(path: str | os.PathLike[str]) -> None:
 def _module_test_home(module: Any) -> Path | None:
     raw = getattr(module, "_TEST_ROOT", None)
     if raw is None:
-        raw = os.environ.get("MARGINALIA_HOME")
+        raw = os.environ.get("LIBRARY_HOME")
     if raw is None:
         return None
     try:
@@ -300,10 +300,10 @@ def _restore_module_test_state(module: Any) -> None:
             else:
                 os.environ.pop(key, None)
 
-    from marginalia.config import get_settings
-    from marginalia.db.engine import dispose_engine
-    from marginalia.llm.factory import reset_clients_cache
-    from marginalia.storage import reset_storage_cache
+    from library.config import get_settings
+    from library.db.engine import dispose_engine
+    from library.llm.factory import reset_clients_cache
+    from library.storage import reset_storage_cache
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
     reset_clients_cache()
@@ -325,7 +325,7 @@ def _capture_global_patch_baseline() -> None:
             )
 
     try:
-        from marginalia.config import Settings
+        from library.config import Settings
     except Exception:
         return
     _SETTINGS_MODEL_CONFIG_BASELINE = dict(Settings.model_config)
@@ -347,7 +347,7 @@ def _restore_global_patches() -> None:
             setattr(imported, attr_name, original)
 
     if _SETTINGS_MODEL_CONFIG_BASELINE is not None:
-        from marginalia.config import Settings
+        from library.config import Settings
 
         Settings.model_config.clear()
         Settings.model_config.update(_SETTINGS_MODEL_CONFIG_BASELINE)

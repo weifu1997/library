@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from marginalia.llm.openai_adapter import _parse_tool_arguments
+from library.llm.openai_adapter import _parse_tool_arguments
 
 
 def test_tool_argument_parser_repairs_common_transport_syntax() -> None:

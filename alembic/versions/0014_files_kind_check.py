@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import _relax_files_kind_check
+from library.db.bootstrap import _relax_files_kind_check
 
 
 revision = "0014_files_kind_check"

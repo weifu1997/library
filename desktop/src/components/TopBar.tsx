@@ -11,7 +11,7 @@ export function TopBar() {
   return (
     <header className="flex h-12 items-center justify-between border-b border-border bg-bg-base/80 px-4 backdrop-blur">
       <div className="flex items-center gap-2 text-sm text-fg-muted">
-        <span className="font-medium text-fg-base">Marginalia</span>
+        <span className="font-medium text-fg-base">Library</span>
       </div>
 
       <div className="flex items-center gap-1 rounded-md border border-border bg-bg-subtle p-0.5">

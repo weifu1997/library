@@ -7,14 +7,14 @@ from datetime import datetime, timezone
 
 import pytest
 
-from marginalia import mcp_server
-from marginalia.config import get_settings
-from marginalia.db.bootstrap import bootstrap_schema
-from marginalia.db.engine import dispose_engine
-from marginalia.db.models import File, FileEntry, Folder
-from marginalia.db.session import session_scope
-from marginalia.storage import get_storage, reset_storage_cache
-from marginalia.utils.ids import new_id
+from library import mcp_server
+from library.config import get_settings
+from library.db.bootstrap import bootstrap_schema
+from library.db.engine import dispose_engine
+from library.db.models import File, FileEntry, Folder
+from library.db.session import session_scope
+from library.storage import get_storage, reset_storage_cache
+from library.utils.ids import new_id
 
 
 def _tool_payload(response: dict[str, object] | None) -> dict[str, object]:
@@ -40,7 +40,7 @@ async def test_mcp_search_metadata_then_read_files_uses_real_db_and_storage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     home = tmp_path / "mcp_e2e_home"
-    monkeypatch.setenv("MARGINALIA_HOME", str(home))
+    monkeypatch.setenv("LIBRARY_HOME", str(home))
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("WORKER_ENABLED", "false")
     get_settings.cache_clear()  # type: ignore[attr-defined]

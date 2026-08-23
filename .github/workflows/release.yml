@@ -16,7 +16,7 @@ name: Release
 #     compatible with Ubuntu 22.04-class systems. AppImage bundling sets
 #     NO_STRIP=true to avoid linuxdeploy's bundled strip failing on modern ELF
 #     relocation sections; see https://github.com/tauri-apps/tauri/issues/14796.
-#   - A multi-arch Docker image pushed to ghcr.io/<owner>/marginalia and
+#   - A multi-arch Docker image pushed to ghcr.io/<owner>/library and
 #     tagged with the version and latest.
 #
 # Desktop matrix jobs build in parallel and upload workflow artifacts. The
@@ -190,14 +190,14 @@ jobs:
 
           echo "Tauri DMG bundling failed after creating $temp_dmg."
           echo "Creating a plain fallback DMG directly from $app_bundle."
-          staging="${RUNNER_TEMP:-/tmp}/marginalia-dmg-staging"
+          staging="${RUNNER_TEMP:-/tmp}/library-dmg-staging"
           rm -rf "$staging"
           mkdir -p "$staging"
           ditto "$app_bundle" "$staging/$(basename "$app_bundle")"
           ln -s /Applications "$staging/Applications"
           mkdir -p "$dmg_dir"
           rm -f "$final_dmg"
-          hdiutil create -volname "Marginalia" -srcfolder "$staging" -ov -format UDZO "$final_dmg"
+          hdiutil create -volname "Library" -srcfolder "$staging" -ov -format UDZO "$final_dmg"
           test -f "$final_dmg"
           echo "Recovered DMG: $final_dmg"
 
@@ -252,7 +252,7 @@ jobs:
             throw "Expected exactly one portable zip in $nsisDir, found $($portables.Count)."
           }
           $expected = [System.IO.Path]::GetFullPath(
-            (Join-Path $nsisDir "marginalia-$env:TAG-$env:TARGET-portable.zip")
+            (Join-Path $nsisDir "library-$env:TAG-$env:TARGET-portable.zip")
           )
           if ($portables[0].FullName -ne $expected) {
             Move-Item -LiteralPath $portables[0].FullName -Destination $expected -Force
@@ -274,14 +274,14 @@ jobs:
             throw "Expected exactly one setup exe in $nsisDir, found $($setups.Count)."
           }
           Copy-Item -LiteralPath $setups[0].FullName `
-            -Destination (Join-Path $out "marginalia-$env:TAG-$env:TARGET-setup.exe") `
+            -Destination (Join-Path $out "library-$env:TAG-$env:TARGET-setup.exe") `
             -Force
           $portables = @(Get-ChildItem -LiteralPath $nsisDir -Filter "*portable*.zip")
           if ($portables.Count -ne 1) {
             throw "Expected exactly one portable zip in $nsisDir, found $($portables.Count)."
           }
           Copy-Item -LiteralPath $portables[0].FullName `
-            -Destination (Join-Path $out "marginalia-$env:TAG-$env:TARGET-portable.zip") `
+            -Destination (Join-Path $out "library-$env:TAG-$env:TARGET-portable.zip") `
             -Force
 
       - name: Stage macOS release assets
@@ -299,7 +299,7 @@ jobs:
             echo "Expected exactly one dmg, found ${#dmgs[@]}" >&2
             exit 1
           fi
-          cp "${dmgs[0]}" "release-assets/marginalia-$TAG-$TARGET.dmg"
+          cp "${dmgs[0]}" "release-assets/library-$TAG-$TARGET.dmg"
 
       - name: Stage Linux release assets
         if: matrix.platform == 'linux'
@@ -329,9 +329,9 @@ jobs:
             echo "Expected exactly one AppImage, found ${#appimages[@]}" >&2
             exit 1
           fi
-          cp "${debs[0]}" "release-assets/marginalia-$TAG-$TARGET.deb"
-          cp "${rpms[0]}" "release-assets/marginalia-$TAG-$TARGET.rpm"
-          cp "${appimages[0]}" "release-assets/marginalia-$TAG-$TARGET.AppImage"
+          cp "${debs[0]}" "release-assets/library-$TAG-$TARGET.deb"
+          cp "${rpms[0]}" "release-assets/library-$TAG-$TARGET.rpm"
+          cp "${appimages[0]}" "release-assets/library-$TAG-$TARGET.AppImage"
 
       - name: Upload desktop artifacts
         uses: actions/upload-artifact@v4
@@ -364,7 +364,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/marginalia
+          images: ghcr.io/${{ github.repository_owner }}/library
           tags: |
             type=ref,event=tag
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
@@ -438,12 +438,12 @@ jobs:
           Desktop targets: Windows x64/arm64, macOS x64/arm64, Linux x64/arm64.
           Linux targets include .deb, .rpm, and AppImage assets built on Ubuntu 22.04 runners.
           Each bundle ships a self-contained Python runtime; no system Python required.
-          Docker image: \`ghcr.io/${{ github.repository_owner }}/marginalia:$TAG\` (linux/amd64, linux/arm64)
+          Docker image: \`ghcr.io/${{ github.repository_owner }}/library:$TAG\` (linux/amd64, linux/arm64)
 
           ## First-Launch Notes For Unsigned Binaries
 
           - Windows: SmartScreen may say "Windows protected your PC". Click "More info" and then "Run anyway".
-          - macOS: Gatekeeper may refuse to open the .dmg. Run \`xattr -dr com.apple.quarantine /Applications/Marginalia.app\` after dragging it across.
+          - macOS: Gatekeeper may refuse to open the .dmg. Run \`xattr -dr com.apple.quarantine /Applications/Library.app\` after dragging it across.
           EOF
           } > release-notes.md
 
@@ -452,18 +452,18 @@ jobs:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           expected=(
-            "marginalia-$TAG-windows-x64-setup.exe"
-            "marginalia-$TAG-windows-x64-portable.zip"
-            "marginalia-$TAG-windows-arm64-setup.exe"
-            "marginalia-$TAG-windows-arm64-portable.zip"
-            "marginalia-$TAG-macos-x64.dmg"
-            "marginalia-$TAG-macos-arm64.dmg"
-            "marginalia-$TAG-linux-x64.deb"
-            "marginalia-$TAG-linux-x64.rpm"
-            "marginalia-$TAG-linux-x64.AppImage"
-            "marginalia-$TAG-linux-arm64.deb"
-            "marginalia-$TAG-linux-arm64.rpm"
-            "marginalia-$TAG-linux-arm64.AppImage"
+            "library-$TAG-windows-x64-setup.exe"
+            "library-$TAG-windows-x64-portable.zip"
+            "library-$TAG-windows-arm64-setup.exe"
+            "library-$TAG-windows-arm64-portable.zip"
+            "library-$TAG-macos-x64.dmg"
+            "library-$TAG-macos-arm64.dmg"
+            "library-$TAG-linux-x64.deb"
+            "library-$TAG-linux-x64.rpm"
+            "library-$TAG-linux-x64.AppImage"
+            "library-$TAG-linux-arm64.deb"
+            "library-$TAG-linux-arm64.rpm"
+            "library-$TAG-linux-arm64.AppImage"
           )
           assets="$(find release-assets -maxdepth 1 -type f -printf '%f\n' | sort)"
           missing=0
@@ -494,7 +494,7 @@ jobs:
             release_flags=(--prerelease --latest=false)
           fi
           gh release create "$TAG" release-assets/* \
-            --title "Marginalia $TAG" \
+            --title "Library $TAG" \
             --notes-file release-notes.md \
             "${release_flags[@]}"
 
@@ -505,18 +505,18 @@ jobs:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           expected=(
-            "marginalia-$TAG-windows-x64-setup.exe"
-            "marginalia-$TAG-windows-x64-portable.zip"
-            "marginalia-$TAG-windows-arm64-setup.exe"
-            "marginalia-$TAG-windows-arm64-portable.zip"
-            "marginalia-$TAG-macos-x64.dmg"
-            "marginalia-$TAG-macos-arm64.dmg"
-            "marginalia-$TAG-linux-x64.deb"
-            "marginalia-$TAG-linux-x64.rpm"
-            "marginalia-$TAG-linux-x64.AppImage"
-            "marginalia-$TAG-linux-arm64.deb"
-            "marginalia-$TAG-linux-arm64.rpm"
-            "marginalia-$TAG-linux-arm64.AppImage"
+            "library-$TAG-windows-x64-setup.exe"
+            "library-$TAG-windows-x64-portable.zip"
+            "library-$TAG-windows-arm64-setup.exe"
+            "library-$TAG-windows-arm64-portable.zip"
+            "library-$TAG-macos-x64.dmg"
+            "library-$TAG-macos-arm64.dmg"
+            "library-$TAG-linux-x64.deb"
+            "library-$TAG-linux-x64.rpm"
+            "library-$TAG-linux-x64.AppImage"
+            "library-$TAG-linux-arm64.deb"
+            "library-$TAG-linux-arm64.rpm"
+            "library-$TAG-linux-arm64.AppImage"
           )
           assets="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
           missing=0

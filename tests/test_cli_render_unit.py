@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from marginalia.cli.render import render_markdown
+from library.cli.render import render_markdown
 
 
 def test_render_markdown_unwraps_markdown_fenced_table() -> None:

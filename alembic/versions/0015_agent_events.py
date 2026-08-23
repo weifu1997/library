@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import _ensure_agent_events
+from library.db.bootstrap import _ensure_agent_events
 
 revision = "0015_agent_events"
 down_revision = "0014_files_kind_check"

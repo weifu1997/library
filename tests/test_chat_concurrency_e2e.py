@@ -23,10 +23,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_chat_concurrency_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -37,15 +37,15 @@ from httpx import ASGITransport
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import Base, Conversation, Session
-from marginalia.db.bootstrap import bootstrap_schema
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.utils.ids import new_id
-from marginalia.main import app
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import Base, Conversation, Session
+from library.db.bootstrap import bootstrap_schema
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.utils.ids import new_id
+from library.main import app
 
 
 async def _create_schema() -> None:
@@ -94,7 +94,7 @@ class _BarrierChat:
 
 
 def _install(client) -> None:
-    import marginalia.agent.runtime as r
+    import library.agent.runtime as r
     r.get_chat_client = lambda profile="chat": client  # type: ignore[assignment]
 
 

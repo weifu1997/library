@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from marginalia.eval.retrieval import run_load_eval_with_retriever
+from library.eval.retrieval import run_load_eval_with_retriever
 
 
 def test_load_eval_reports_latency_quality_and_thresholds() -> None:

@@ -1,7 +1,7 @@
 type FrontendLogLevel = "debug" | "info" | "warn" | "error";
 type InvokeFn = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 
-const FALLBACK_LOG_DIR = "~/Marginalia/logs";
+const FALLBACK_LOG_DIR = "~/LibraryData/logs";
 
 let installed = false;
 let invokeLoader: Promise<InvokeFn | null> | null = null;

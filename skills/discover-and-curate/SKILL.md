@@ -1,13 +1,13 @@
 ---
 name: discover-and-curate
-description: Find related entries to a seed file, build reading lists, and surface neighbour clusters Marginalia has discovered automatically. Use when the user is browsing rather than asking a specific question.
-compatibility: Requires the `marginalia` CLI (Python 3.11+), a configured LLM profile for relation vetting, and pre-ingested files. Relation mining needs at least one maintenance pass to produce results; new corpora have sparse relations initially.
+description: Find related entries to a seed file, build reading lists, and surface neighbour clusters Library has discovered automatically. Use when the user is browsing rather than asking a specific question.
+compatibility: Requires the `library` CLI (Python 3.11+), a configured LLM profile for relation vetting, and pre-ingested files. Relation mining needs at least one maintenance pass to produce results; new corpora have sparse relations initially.
 allowed-tools: bash read write
 ---
 
 # Discover and curate
 
-Marginalia runs background "tend" passes that mine the corpus for
+Library runs background "tend" passes that mine the corpus for
 relations: tag overlap, citation graph, semantic neighbours. This skill
 explains how to surface those relations from the CLI when the user
 wants to explore rather than search.
@@ -16,7 +16,7 @@ wants to explore rather than search.
 
 - The user has one file in mind and asks "what else is like this?"
 - The user wants to build a reading list around a topic.
-- The user asks "what is Marginalia learning about my corpus?"
+- The user asks "what is Library learning about my corpus?"
 
 ## Prerequisites
 
@@ -128,13 +128,13 @@ Reports the status of that specific run.
 All of the above can be driven non-interactively by an external agent:
 
 ```bash
-marginalia search "consensus protocols" --json
-marginalia info <full_entry_id> --json
-marginalia discover <full_entry_id> --json
-marginalia discover <full_entry_id> --top-k 12 --json
-marginalia download <entry_id> [dest]
-marginalia tend
-marginalia background --json
+library search "consensus protocols" --json
+library info <full_entry_id> --json
+library discover <full_entry_id> --json
+library discover <full_entry_id> --top-k 12 --json
+library download <entry_id> [dest]
+library tend
+library background --json
 ```
 
 Add `--json` for machine-parseable output. The CLI auto-discovers the backend

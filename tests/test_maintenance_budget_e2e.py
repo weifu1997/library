@@ -5,21 +5,21 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import select
 
-from marginalia.config import get_settings
-from marginalia.db.engine import dispose_engine, get_engine
-from marginalia.db.models import Base, Task
-from marginalia.db.models.task_outcomes import TaskOutcome
-from marginalia.db.session import session_scope
-from marginalia.repositories.task_outcomes import GLOBAL_OBJECT_ID, GLOBAL_OBJECT_KIND, record_outcome
-from marginalia.tasks.handlers.periodic_tick import handle_periodic_tick
-from marginalia.tasks.kinds import (
+from library.config import get_settings
+from library.db.engine import dispose_engine, get_engine
+from library.db.models import Base, Task
+from library.db.models.task_outcomes import TaskOutcome
+from library.db.session import session_scope
+from library.repositories.task_outcomes import GLOBAL_OBJECT_ID, GLOBAL_OBJECT_KIND, record_outcome
+from library.tasks.handlers.periodic_tick import handle_periodic_tick
+from library.tasks.kinds import (
     KIND_INGEST_FILE,
     KIND_MINE_RELATIONS,
     KIND_PERIODIC_TICK,
     KIND_REFLECT_TURN,
     KIND_TAG_QUALITY,
 )
-from marginalia.tasks.maintenance_budget import (
+from library.tasks.maintenance_budget import (
     LOW_PRIORITY_MAINTENANCE_KINDS,
     MAINTENANCE_BUDGET_SKIP_REASON,
     read_maintenance_budget,
@@ -27,7 +27,7 @@ from marginalia.tasks.maintenance_budget import (
 
 
 async def _prepare_home(monkeypatch: pytest.MonkeyPatch, tmp_path, *, budget: int) -> None:
-    monkeypatch.setenv("MARGINALIA_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("WORKER_ENABLED", "false")
     monkeypatch.setenv("AUTO_LIFECYCLE_ENABLED", "true")

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from marginalia.agent.tools.search_metadata import (
+from library.agent.tools.search_metadata import (
     _metadata_rank_score,
     _rank_terms,
 )

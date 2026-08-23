@@ -1,23 +1,23 @@
-//! Marginalia desktop shell.
+//! Library desktop shell.
 //!
 //! Wraps the React frontend in a Tauri window and:
 //!   - Spawns the bundled Python sidecar (a python-build-standalone
-//!     runtime carrying `marginalia` as an installed package) on launch.
+//!     runtime carrying `library` as an installed package) on launch.
 //!     Tears it down on quit.
 //!   - Hides the window to a system tray on close instead of exiting.
 //!   - Tray menu: Show / Hide / Quit.
 //!
 //! Sidecar resolution order, per environment variable, then bundle:
-//!   1. MARGINALIA_AUTOSTART_BACKEND=0 -> skip spawn entirely. Use this
-//!      in dev when you're running `uvicorn marginalia.main:app` in
+//!   1. LIBRARY_AUTOSTART_BACKEND=0 -> skip spawn entirely. Use this
+//!      in dev when you're running `uvicorn library.main:app` in
 //!      another terminal yourself.
-//!   2. MARGINALIA_BACKEND_CMD set -> split on whitespace; the first
+//!   2. LIBRARY_BACKEND_CMD set -> split on whitespace; the first
 //!      token is the binary, the rest are args. Honored verbatim, no
 //!      bundle lookup. Useful for pointing a dev build at a checkout.
 //!   3. Otherwise: read `<resource_dir>/backend/runtime-manifest.json`
-//!      and run `<resource_dir>/backend/<manifest.python> -m marginalia`.
+//!      and run `<resource_dir>/backend/<manifest.python> -m library`.
 //!
-//! Working directory is `MARGINALIA_HOME` (defaults to ~/Marginalia)
+//! Working directory is `LIBRARY_HOME` (defaults to ~/LibraryData)
 //! before spawn. pydantic-settings reads `.env` relative to CWD, so
 //! that's also where the packaged app picks up `.env` — users get one
 //! directory to manage (db + library + .env).
@@ -53,10 +53,10 @@ fn home_dir() -> PathBuf {
         .unwrap_or_default()
 }
 
-fn marginalia_home() -> PathBuf {
-    std::env::var_os("MARGINALIA_HOME")
+fn library_home() -> PathBuf {
+    std::env::var_os("LIBRARY_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|| home_dir().join("Marginalia"))
+        .unwrap_or_else(|| home_dir().join("LibraryData"))
 }
 
 #[derive(Debug, Deserialize)]
@@ -200,14 +200,14 @@ fn configured_env_value(home: &Path, key: &str) -> Option<String> {
 }
 
 fn configured_api_host(home: &Path) -> String {
-    configured_env_value(home, "MARGINALIA_API_HOST").unwrap_or_else(|| "127.0.0.1".to_string())
+    configured_env_value(home, "LIBRARY_API_HOST").unwrap_or_else(|| "127.0.0.1".to_string())
 }
 
 fn configured_api_port(home: &Path) -> Option<u16> {
-    configured_env_value(home, "MARGINALIA_API_PORT").and_then(|value| match value.parse::<u16>() {
+    configured_env_value(home, "LIBRARY_API_PORT").and_then(|value| match value.parse::<u16>() {
         Ok(port) => Some(port),
         Err(e) => {
-            log::warn!("ignoring invalid MARGINALIA_API_PORT={}: {}", value, e);
+            log::warn!("ignoring invalid LIBRARY_API_PORT={}: {}", value, e);
             None
         }
     })
@@ -313,7 +313,7 @@ fn backend_status(state: State<'_, BackendState>) -> BackendStatusInfo {
     if let Some(child) = child_guard.as_mut() {
         if let Ok(Some(exit)) = child.try_wait() {
             let message = format!("backend process exited ({})", exit);
-            append_launcher_log(&marginalia_home(), "error", &message);
+            append_launcher_log(&library_home(), "error", &message);
             *child_guard = None;
             let info = BackendStatusInfo {
                 state: "exited".to_string(),
@@ -329,7 +329,7 @@ fn backend_status(state: State<'_, BackendState>) -> BackendStatusInfo {
 
 #[tauri::command]
 fn restart_backend(app: AppHandle, state: State<'_, BackendState>) {
-    append_launcher_log(&marginalia_home(), "info", "backend restart requested from frontend");
+    append_launcher_log(&library_home(), "info", "backend restart requested from frontend");
     state.kill();
     state.spawn(&app);
 }
@@ -344,12 +344,12 @@ fn quit_app(app: AppHandle) {
 
 #[tauri::command]
 fn logs_dir() -> String {
-    marginalia_home().join("logs").display().to_string()
+    library_home().join("logs").display().to_string()
 }
 
 #[tauri::command]
 fn append_frontend_log(level: String, message: String) -> Result<(), String> {
-    append_named_log(&marginalia_home(), "frontend.log", &level, &message)
+    append_named_log(&library_home(), "frontend.log", &level, &message)
         .map_err(|e| format!("could not write frontend log: {}", e))
 }
 
@@ -363,29 +363,29 @@ impl BackendState {
 
     fn spawn(&self, app: &AppHandle) {
         self.set_status("starting", None);
-        let home = marginalia_home();
+        let home = library_home();
         if let Err(e) = std::fs::create_dir_all(&home) {
-            log::warn!("could not create MARGINALIA_HOME {}: {}", home.display(), e);
+            log::warn!("could not create LIBRARY_HOME {}: {}", home.display(), e);
         }
         append_launcher_log(
             &home,
             "info",
-            &format!("desktop launch using MARGINALIA_HOME={}", home.display()),
+            &format!("desktop launch using LIBRARY_HOME={}", home.display()),
         );
         // First-launch: drop a starter .env so users have somewhere to put
         // their LLM key. validate_llm_config still flags an empty key, but
-        // the desktop launch path soft-fails (MARGINALIA_DESKTOP=1) so the
+        // the desktop launch path soft-fails (LIBRARY_DESKTOP=1) so the
         // server still comes up and Settings → LLM Profile becomes reachable.
         ensure_starter_env(&home);
 
-        if let Ok(server) = std::env::var("MARGINALIA_SERVER") {
+        if let Ok(server) = std::env::var("LIBRARY_SERVER") {
             let server = normalize_base_url(&server);
             if !server.is_empty() {
-                log::info!("using backend from MARGINALIA_SERVER: {}", server);
+                log::info!("using backend from LIBRARY_SERVER: {}", server);
                 append_launcher_log(
                     &home,
                     "info",
-                    &format!("using backend from MARGINALIA_SERVER: {}", server),
+                    &format!("using backend from LIBRARY_SERVER: {}", server),
                 );
                 *self.base_url.lock().unwrap() = Some(server);
                 self.set_status("external", None);
@@ -408,15 +408,15 @@ impl BackendState {
             return;
         }
 
-        if std::env::var("MARGINALIA_AUTOSTART_BACKEND")
+        if std::env::var("LIBRARY_AUTOSTART_BACKEND")
             .map(|v| v == "0" || v.eq_ignore_ascii_case("false"))
             .unwrap_or(false)
         {
-            log::info!("MARGINALIA_AUTOSTART_BACKEND=0, skipping backend spawn");
+            log::info!("LIBRARY_AUTOSTART_BACKEND=0, skipping backend spawn");
             append_launcher_log(
                 &home,
                 "info",
-                "MARGINALIA_AUTOSTART_BACKEND=0, skipping backend spawn",
+                "LIBRARY_AUTOSTART_BACKEND=0, skipping backend spawn",
             );
             self.set_status("external", None);
             return;
@@ -436,11 +436,11 @@ impl BackendState {
                 }
             },
         };
-        // A fixed MARGINALIA_API_PORT is by-design (predictable port for
+        // A fixed LIBRARY_API_PORT is by-design (predictable port for
         // pure-backend deploys) — never fall back to an ephemeral one.
         // But if something else already owns it, uvicorn would exit
         // instantly with "address already in use". If the occupant is a
-        // healthy Marginalia backend (the pure-backend deploy the fixed
+        // healthy Library backend (the pure-backend deploy the fixed
         // port exists for), attach to it like discover_backend does;
         // only fail loudly when the port holder does not answer /health.
         if port_is_configured && port_in_use(&host, port) {
@@ -464,8 +464,8 @@ impl BackendState {
             }
             let message = format!(
                 "configured port {} is already in use by another process \
-                 that is not a Marginalia backend; \
-                 stop that service or change MARGINALIA_API_PORT in {}",
+                 that is not a Library backend; \
+                 stop that service or change LIBRARY_API_PORT in {}",
                 port,
                 home.join(".env").display()
             );
@@ -480,12 +480,12 @@ impl BackendState {
         log::info!("backend url = {}", base_url);
         append_launcher_log(&home, "info", &format!("backend url = {}", base_url));
 
-        let mut cmd = if let Ok(cmd_str) = std::env::var("MARGINALIA_BACKEND_CMD") {
+        let mut cmd = if let Ok(cmd_str) = std::env::var("LIBRARY_BACKEND_CMD") {
             let mut parts = cmd_str.split_whitespace();
             let Some(program) = parts.next() else {
-                log::error!("MARGINALIA_BACKEND_CMD is empty");
-                append_launcher_log(&home, "error", "MARGINALIA_BACKEND_CMD is empty");
-                self.set_status("error", Some("MARGINALIA_BACKEND_CMD is empty".to_string()));
+                log::error!("LIBRARY_BACKEND_CMD is empty");
+                append_launcher_log(&home, "error", "LIBRARY_BACKEND_CMD is empty");
+                self.set_status("error", Some("LIBRARY_BACKEND_CMD is empty".to_string()));
                 return;
             };
             let args: Vec<String> = parts.map(|s| s.to_string()).collect();
@@ -493,7 +493,7 @@ impl BackendState {
             append_launcher_log(
                 &home,
                 "info",
-                &format!("backend command from MARGINALIA_BACKEND_CMD: {}", cmd_str),
+                &format!("backend command from LIBRARY_BACKEND_CMD: {}", cmd_str),
             );
             let mut c = Command::new(program);
             c.args(&args);
@@ -501,22 +501,22 @@ impl BackendState {
         } else {
             let Some((backend_dir, python)) = resolve_bundled_python(app) else {
                 log::error!(
-                    "no bundled backend found and MARGINALIA_BACKEND_CMD not set; \
+                    "no bundled backend found and LIBRARY_BACKEND_CMD not set; \
                      the desktop build is missing its sidecar runtime"
                 );
                 append_launcher_log(
                     &home,
                     "error",
-                    "no bundled backend found and MARGINALIA_BACKEND_CMD not set",
+                    "no bundled backend found and LIBRARY_BACKEND_CMD not set",
                 );
                 self.set_status(
                     "error",
-                    Some("no bundled backend found and MARGINALIA_BACKEND_CMD not set".to_string()),
+                    Some("no bundled backend found and LIBRARY_BACKEND_CMD not set".to_string()),
                 );
                 return;
             };
             log::info!(
-                "spawning bundled sidecar: {} -m marginalia (backend dir: {})",
+                "spawning bundled sidecar: {} -m library (backend dir: {})",
                 python.display(),
                 backend_dir.display()
             );
@@ -524,13 +524,13 @@ impl BackendState {
                 &home,
                 "info",
                 &format!(
-                    "spawning bundled sidecar: {} -m marginalia (backend dir: {})",
+                    "spawning bundled sidecar: {} -m library (backend dir: {})",
                     python.display(),
                     backend_dir.display()
                 ),
             );
             let mut c = Command::new(&python);
-            c.arg("-m").arg("marginalia");
+            c.arg("-m").arg("library");
             // Help the interpreter find its own stdlib regardless of CWD,
             // and make sure the rest of the runtime tree (site-packages)
             // resolves cleanly when the user double-clicks the bundle.
@@ -540,18 +540,18 @@ impl BackendState {
             c
         };
 
-        // Redirect sidecar stdout/stderr to a log file under MARGINALIA_HOME
+        // Redirect sidecar stdout/stderr to a log file under LIBRARY_HOME
         // so the user (and we) can read what happened on a crash. Inheriting
         // from the parent doesn't help here — the windows-subsystem parent
         // has no console to inherit from on a packaged build.
         let (stdout_target, stderr_target) = open_backend_log_streams(&home);
 
         cmd.current_dir(&home)
-            .env("MARGINALIA_HOME", &home)
-            .env("MARGINALIA_API_HOST", &host)
-            .env("MARGINALIA_API_PORT", port.to_string())
-            .env("MARGINALIA_HTTP_SERVER", "1")
-            .env("MARGINALIA_DESKTOP", "1")
+            .env("LIBRARY_HOME", &home)
+            .env("LIBRARY_API_HOST", &host)
+            .env("LIBRARY_API_PORT", port.to_string())
+            .env("LIBRARY_HTTP_SERVER", "1")
+            .env("LIBRARY_DESKTOP", "1")
             .env("PYTHONUNBUFFERED", "1")
             .stdout(stdout_target)
             .stderr(stderr_target);
@@ -595,17 +595,17 @@ impl BackendState {
     }
 }
 
-/// Drop a starter `.env` into MARGINALIA_HOME on first launch so users
+/// Drop a starter `.env` into LIBRARY_HOME on first launch so users
 /// have somewhere obvious to paste their LLM key. We never overwrite an
 /// existing file. If the write fails (read-only home, perms, etc.) we
-/// just log — the server still comes up under MARGINALIA_DESKTOP=1.
+/// just log — the server still comes up under LIBRARY_DESKTOP=1.
 fn ensure_starter_env(home: &Path) {
     let env_path = home.join(".env");
     if env_path.exists() {
         return;
     }
     let template = "\
-# Marginalia configuration. Reload the desktop app after editing.
+# Library configuration. Reload the desktop app after editing.
 #
 # Pick a provider for the chat / reflect / ingest profiles. The
 # Settings page in the app writes these same fields — editing here
@@ -632,8 +632,8 @@ LLM_DEFAULT_MODEL=gpt-4o-mini
 LLM_DEFAULT_API_KEY=
 
 # Backend bind settings. Change the port if another local service uses 8000.
-MARGINALIA_API_HOST=127.0.0.1
-MARGINALIA_API_PORT=8000
+LIBRARY_API_HOST=127.0.0.1
+LIBRARY_API_PORT=8000
 ";
     match std::fs::write(&env_path, template) {
         Ok(_) => {
@@ -799,9 +799,9 @@ struct TrayMenuItems {
 
 fn tray_labels(lang: &str) -> (&'static str, &'static str, &'static str) {
     if lang.to_ascii_lowercase().starts_with("zh") {
-        ("显示 Marginalia", "隐藏窗口", "退出")
+        ("显示 Library", "隐藏窗口", "退出")
     } else {
-        ("Show Marginalia", "Hide window", "Quit")
+        ("Show Library", "Hide window", "Quit")
     }
 }
 
@@ -816,7 +816,7 @@ fn set_ui_language(state: State<'_, TrayMenuState>, lang: String) {
 }
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
-    let show_i = MenuItem::with_id(app, "show", "Show Marginalia", true, None::<&str>)?;
+    let show_i = MenuItem::with_id(app, "show", "Show Library", true, None::<&str>)?;
     let hide_i = MenuItem::with_id(app, "hide", "Hide window", true, None::<&str>)?;
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     if let Some(state) = app.try_state::<TrayMenuState>() {
@@ -829,7 +829,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let menu = Menu::with_items(app, &[&show_i, &hide_i, &quit_i])?;
 
     let _tray = TrayIconBuilder::with_id("main-tray")
-        .tooltip("Marginalia")
+        .tooltip("Library")
         .icon(app.default_window_icon().cloned().unwrap())
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -868,7 +868,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // Singleton: a second `Marginalia.exe` double-click hands its
+        // Singleton: a second `Library.exe` double-click hands its
         // argv to this callback and exits. Without it each launch spins
         // up a fresh Rust process, fresh webview, and fresh Python
         // sidecar on a different ephemeral port — multiple task runners

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import (
+from library.db.bootstrap import (
     QUERY_PERFORMANCE_INDEXES,
     _ensure_query_performance_indexes,
 )

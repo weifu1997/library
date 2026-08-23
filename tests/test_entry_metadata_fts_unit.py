@@ -8,12 +8,12 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from marginalia.db import bootstrap as bootstrap_module
-from marginalia.db.bootstrap import bootstrap_schema_sync
-from marginalia.db.fts import ENTRY_METADATA_FTS_TABLE
-from marginalia.db.models import File, FileEntry
-from marginalia.repositories import entries as entries_repo
-from marginalia.utils.ids import new_id
+from library.db import bootstrap as bootstrap_module
+from library.db.bootstrap import bootstrap_schema_sync
+from library.db.fts import ENTRY_METADATA_FTS_TABLE
+from library.db.models import File, FileEntry
+from library.repositories import entries as entries_repo
+from library.utils.ids import new_id
 
 
 def _now() -> datetime:

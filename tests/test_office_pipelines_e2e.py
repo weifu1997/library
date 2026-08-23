@@ -26,10 +26,10 @@ import io
 import sys
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_office_pipelines_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -37,18 +37,18 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from sqlalchemy import select
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import Base, File, FileEntry
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.pipelines.docx import DocxPipeline
-from marginalia.pipelines.pptx import PptxPipeline
-from marginalia.pipelines.registry import resolve_pipeline
-from marginalia.pipelines.spreadsheet import SpreadsheetPipeline
-from marginalia.storage import get_storage
+from library import llm
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import Base, File, FileEntry
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.pipelines.docx import DocxPipeline
+from library.pipelines.pptx import PptxPipeline
+from library.pipelines.registry import resolve_pipeline
+from library.pipelines.spreadsheet import SpreadsheetPipeline
+from library.storage import get_storage
 
 
 # ---- fake LLM ---------------------------------------------------------------
@@ -100,7 +100,7 @@ def _install_fakes() -> None:
     docx_fake = _make_fake("docx")
     pptx_fake = _make_fake("pptx")
     spreadsheet_fake = _make_fake("spreadsheet")
-    import marginalia.pipelines._text_indexer as imod
+    import library.pipelines._text_indexer as imod
 
     # Both pipelines route through index_extracted_text → get_chat_client.
     # We pick which fake to use by walking the call stack — index_extracted_text
@@ -127,7 +127,7 @@ def _build_docx() -> bytes:
     from docx import Document  # type: ignore
 
     doc = Document()
-    doc.add_heading("Marginalia Test Document", level=1)
+    doc.add_heading("Library Test Document", level=1)
     doc.add_paragraph(
         "This is the introduction paragraph. It mentions raft consensus."
     )
@@ -206,7 +206,7 @@ async def _seed_file(
     *, body: bytes, mime: str, name: str,
 ) -> tuple[str, str]:
     """Use the real upload service so Folder + FileEntry get wired correctly."""
-    from marginalia.services.upload import upload
+    from library.services.upload import upload
 
     storage = get_storage()
 
@@ -227,7 +227,7 @@ async def _seed_file(
 
 async def _ingest(file_id: str) -> None:
     """Run the file through ingest_file handler."""
-    from marginalia.tasks.handlers.ingest_file import handle_ingest_file
+    from library.tasks.handlers.ingest_file import handle_ingest_file
     await handle_ingest_file({"file_id": file_id})
 
 
@@ -316,7 +316,7 @@ async def go() -> None:
         storage=storage,
     )
     assert seg.error is None, seg.error
-    assert "Marginalia Test Document" in seg.text
+    assert "Library Test Document" in seg.text
     assert seg.extras["paragraph_start"] == 1
     assert seg.extras["paragraph_end"] == 2
     assert seg.extras["total_paragraphs"] >= 5

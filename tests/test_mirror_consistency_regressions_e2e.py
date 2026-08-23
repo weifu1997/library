@@ -35,24 +35,24 @@ from uuid import uuid4
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_mirror_consistency_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
 _VAULT = _TEST_ROOT / "library"
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "mirror"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
 os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
-from marginalia.config import get_settings  # noqa: E402
+from library.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory  # noqa: E402
-from marginalia.db.models import Base, File, FileEntry  # noqa: E402
-from marginalia.storage import MirrorStorage, get_storage  # noqa: E402
-from marginalia.utils.ids import new_id  # noqa: E402
+from library.db.engine import get_engine, get_session_factory  # noqa: E402
+from library.db.models import Base, File, FileEntry  # noqa: E402
+from library.storage import MirrorStorage, get_storage  # noqa: E402
+from library.utils.ids import new_id  # noqa: E402
 
 
 # ---- helpers ---------------------------------------------------------------
@@ -74,7 +74,7 @@ async def _upload(
     remote_path: str | None = None,
     folder_id: str | None = None,
 ):
-    from marginalia.services.upload import upload
+    from library.services.upload import upload
 
     storage = get_storage()
     assert isinstance(storage, MirrorStorage)
@@ -95,7 +95,7 @@ async def _upload(
 
 
 async def _make_folder(segments: list[str]) -> str:
-    from marginalia.services.folders import resolve_or_create_folder
+    from library.services.folders import resolve_or_create_folder
 
     factory = get_session_factory()
     async with factory() as s:
@@ -201,7 +201,7 @@ async def test_collision_suffix_identical_on_disk_and_in_db() -> None:
 # ---- 3a. PATCH-level: move_entry(new_folder_id=None) → vault root (bug #20)
 
 async def test_move_entry_to_root_via_service() -> None:
-    from marginalia.services.entries import move_entry
+    from library.services.entries import move_entry
 
     r = await _upload(b"patch move body\n", name="patchfile.txt",
                       remote_path="/patchsrc/")
@@ -222,8 +222,8 @@ async def test_move_entry_to_root_via_service() -> None:
 # ---- 3b. Disk-side move to root: scan + apply_moved converge (bug #20) ----
 
 async def test_scan_apply_moved_handles_move_to_vault_root() -> None:
-    from marginalia.services.scan import scan_vault
-    from marginalia.services.sync import apply_moved
+    from library.services.scan import scan_vault
+    from library.services.sync import apply_moved
 
     r = await _upload(b"root move body\n", name="rootmove.txt",
                       remote_path="/movesrc/")
@@ -260,7 +260,7 @@ async def test_scan_apply_moved_handles_move_to_vault_root() -> None:
 # ---- 4. Non-hydrated WebDAV placeholder rename/move (bugs #21/#37) --------
 
 async def test_non_hydrated_webdav_entry_rename_and_move() -> None:
-    from marginalia.services.entries import move_entry, rename_entry
+    from library.services.entries import move_entry, rename_entry
 
     folder_id = await _make_folder(["dav"])
     entry_id, file_id = await _seed_webdav_placeholder(
@@ -292,8 +292,8 @@ async def test_non_hydrated_webdav_entry_rename_and_move() -> None:
 # ---- 5. Folder rename relocates the vault directory (bug #38) -------------
 
 async def test_folder_rename_relocates_mirror_vault_directory() -> None:
-    from marginalia.services.folders import rename_folder
-    from marginalia.services.scan import scan_vault
+    from library.services.folders import rename_folder
+    from library.services.scan import scan_vault
 
     team_id = await _make_folder(["team"])
     await _make_folder(["team", "sub"])
@@ -337,7 +337,7 @@ async def test_folder_rename_relocates_mirror_vault_directory() -> None:
 # ---- 6. Zip member sanitization (bug #76, zip side) ------------------------
 
 async def test_folder_zip_members_neutralize_traversal_display_name() -> None:
-    from marginalia.services.user_files import collect_folder_entries
+    from library.services.user_files import collect_folder_entries
 
     folder_id = await _make_folder(["zips"])
     factory = get_session_factory()
@@ -378,7 +378,7 @@ async def test_folder_zip_members_neutralize_traversal_display_name() -> None:
 # (last on purpose: it leaves a missing entry behind)
 
 async def test_scan_does_not_claim_siblings_path_for_deleted_duplicate() -> None:
-    from marginalia.services.scan import scan_vault
+    from library.services.scan import scan_vault
 
     body = b"identical duplicate body\n"
     ra = await _upload(body, name="dupA.txt", remote_path="/dup/")

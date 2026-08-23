@@ -28,41 +28,41 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_chat_attachments_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
 
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
 os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
-os.environ["MARGINALIA_CHAT_IMAGE_MAX_COUNT"] = "4"
-os.environ["MARGINALIA_CHAT_IMAGE_MAX_BYTES"] = "5000"
+os.environ["LIBRARY_CHAT_IMAGE_MAX_COUNT"] = "4"
+os.environ["LIBRARY_CHAT_IMAGE_MAX_BYTES"] = "5000"
 # Direct-send path (images reach the chat model): skip the auto probe so the
 # saved images are the ones actually passed into run_turn.
-os.environ["MARGINALIA_CHAT_VISION"] = "on"
+os.environ["LIBRARY_CHAT_VISION"] = "on"
 
 import httpx
 from httpx import ASGITransport
 from sqlalchemy import select
 
-from marginalia.config import get_settings
+from library.config import get_settings
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.bootstrap import bootstrap_schema
-from marginalia.db.engine import get_session_factory
-from marginalia.db.models import Conversation
-from marginalia.llm.types import (
+from library.db.bootstrap import bootstrap_schema
+from library.db.engine import get_session_factory
+from library.db.models import Conversation
+from library.llm.types import (
     ChatMessage,
     ChatRequest,
     ChatResponse,
     ImageBlock,
     TokenUsage,
 )
-from marginalia.main import app
-from marginalia.services.attachments import attachments_root, read_attachment
+from library.main import app
+from library.services.attachments import attachments_root, read_attachment
 
 # A real 1x1 transparent PNG (~70 bytes decoded).
 _PNG_B64 = (
@@ -105,7 +105,7 @@ class _FakeChat:
 
 
 def _install(fake: _FakeChat) -> None:
-    import marginalia.agent.runtime as r
+    import library.agent.runtime as r
     r.get_chat_client = lambda profile="chat": fake  # type: ignore[assignment]
 
 

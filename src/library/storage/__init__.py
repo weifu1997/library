@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+from functools import lru_cache
+
+from library.config import get_settings
+from library.storage.base import StorageBackend
+from library.storage.decompress import (
+    ArchiveMember,
+    ArchiveSession,
+    DecompressionError,
+    detect_compression,
+    is_archive_suffix,
+    iter_archive_members,
+    open_archive,
+)
+from library.storage.local import LocalStorage
+from library.storage.mirror import MirrorStorage
+from library.storage.s3 import S3Storage
+
+
+@lru_cache(maxsize=1)
+def get_storage() -> StorageBackend:
+    settings = get_settings()
+    if settings.storage_backend == "mirror":
+        return MirrorStorage(settings.mirror_vault_root)
+    if settings.storage_backend == "local":
+        return LocalStorage(settings.local_storage_root)
+    return S3Storage(
+        bucket=settings.s3_bucket,
+        endpoint_url=settings.s3_endpoint_url,
+        access_key=settings.s3_access_key,
+        secret_key=settings.s3_secret_key,
+        region=settings.s3_region,
+    )
+
+
+def reset_storage_cache() -> None:
+    """Test helper — reset the lru_cache so tests can swap backends
+    between cases."""
+    get_storage.cache_clear()
+
+
+__all__ = [
+    "StorageBackend", "LocalStorage", "MirrorStorage", "S3Storage",
+    "get_storage", "reset_storage_cache",
+    "open_archive", "iter_archive_members",
+    "ArchiveMember", "ArchiveSession",
+    "detect_compression", "is_archive_suffix",
+    "DecompressionError",
+]

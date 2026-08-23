@@ -4,22 +4,22 @@ from types import SimpleNamespace
 
 import pytest
 
-from marginalia.agent.tools import ToolContext
-from marginalia.agent.tools.recall_knowledge import (
+from library.agent.tools import ToolContext
+from library.agent.tools.recall_knowledge import (
     _candidate_entry_ids,
     apply_rerank_hits,
     score_recall_entries,
     select_evidence_entry_ids,
     select_quota_entry_ids,
 )
-from marginalia.semantic.rerank import RerankHit
+from library.semantic.rerank import RerankHit
 
 
 @pytest.mark.asyncio
 async def test_recall_knowledge_overfetches_before_final_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import marginalia.agent.tools.recall_knowledge as module
+    import library.agent.tools.recall_knowledge as module
 
     seen_limits: list[int] = []
 
@@ -60,10 +60,10 @@ async def test_recall_knowledge_skips_semantic_without_embedding_key(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
-    import marginalia.agent.tools.recall_knowledge as module
-    from marginalia.config import get_settings
+    import library.agent.tools.recall_knowledge as module
+    from library.config import get_settings
 
-    monkeypatch.setenv("MARGINALIA_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "true")
     monkeypatch.setenv("EMBEDDING_API_KEY", "")
     get_settings.cache_clear()  # type: ignore[attr-defined]
@@ -102,7 +102,7 @@ async def test_recall_knowledge_skips_semantic_without_embedding_key(
 async def test_recall_backfills_only_confident_lexical_sections(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import marginalia.agent.tools.recall_knowledge as module
+    import library.agent.tools.recall_knowledge as module
 
     async def fake_search_metadata(db, ctx, args):  # noqa: ANN001
         return {

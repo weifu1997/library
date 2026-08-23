@@ -25,14 +25,14 @@ from pathlib import Path
 from uuid import uuid4
 
 _TEST_PARENT = Path(os.environ.get(
-    "MARGINALIA_TEST_TMP",
+    "LIBRARY_TEST_TMP",
     str(Path(__file__).resolve().parent),
 ))
 _TEST_PARENT.mkdir(parents=True, exist_ok=True)
 _TEST_ROOT = _TEST_PARENT / f"_mine_citation_graph_e2e_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
 atexit.register(lambda: shutil.rmtree(_TEST_ROOT, ignore_errors=True))
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -40,18 +40,18 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from sqlalchemy import select, text  # noqa: E402
 
-from marginalia.config import get_settings  # noqa: E402
+from library.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory  # noqa: E402
-from marginalia.db.models import (  # noqa: E402
+from library.db.engine import get_engine, get_session_factory  # noqa: E402
+from library.db.models import (  # noqa: E402
     Base, Conversation, EntryRelation, File, FileEntry, Folder, Session,
 )
-from marginalia.tasks.handlers.mine_citation_graph import (  # noqa: E402
+from library.tasks.handlers.mine_citation_graph import (  # noqa: E402
     handle_mine_citation_graph,
 )
-from marginalia.utils.ids import new_id  # noqa: E402
+from library.utils.ids import new_id  # noqa: E402
 
 
 def _now() -> datetime:

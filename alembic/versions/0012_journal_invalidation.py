@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import _ensure_journal_invalidation
+from library.db.bootstrap import _ensure_journal_invalidation
 
 
 revision = "0012_journal_invalidation"

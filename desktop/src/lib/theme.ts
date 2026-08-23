@@ -12,7 +12,7 @@ interface ThemeState {
   init: () => () => void;
 }
 
-const STORAGE_KEY = "marginalia.theme";
+const STORAGE_KEY = "library.theme";
 
 function systemPrefersDark(): boolean {
   return typeof window !== "undefined"

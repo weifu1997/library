@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
 
 
 class _FakeIngestClient:
@@ -86,21 +86,21 @@ async def test_import_beir_runs_ingest_and_eval_metrics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     home = tmp_path / "home"
-    monkeypatch.setenv("MARGINALIA_HOME", str(home))
+    monkeypatch.setenv("LIBRARY_HOME", str(home))
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("WORKER_ENABLED", "false")
     monkeypatch.setenv("LLM_DEFAULT_API_KEY", "sk-fake")
     monkeypatch.setenv("LLM_DEFAULT_MODEL", "fake-model")
 
-    from marginalia.config import get_settings
-    from marginalia.db.engine import dispose_engine
-    from marginalia.storage import reset_storage_cache
+    from library.config import get_settings
+    from library.db.engine import dispose_engine
+    from library.storage import reset_storage_cache
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
     reset_storage_cache()
     await dispose_engine()
 
-    import marginalia.pipelines.text as text_pipeline
+    import library.pipelines.text as text_pipeline
 
     monkeypatch.setattr(
         text_pipeline,
@@ -141,7 +141,7 @@ async def test_import_beir_runs_ingest_and_eval_metrics(
         encoding="utf-8",
     )
 
-    import marginalia.eval.core as eval_core
+    import library.eval.core as eval_core
 
     imported = await eval_core.import_beir_dataset(
         name="tiny",
@@ -183,7 +183,7 @@ async def test_import_beir_runs_ingest_and_eval_metrics(
     assert "full_recall" in ablation_text
 
     monkeypatch.setattr(
-        "marginalia.eval.prompts.get_chat_client",
+        "library.eval.prompts.get_chat_client",
         lambda profile="chat": _FakeAnswerClient(),
     )
     answer = await eval_core.run_answer_probe(
@@ -238,21 +238,21 @@ async def test_import_beir_runs_cjk_short_term_eval(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     home = tmp_path / "home-cjk"
-    monkeypatch.setenv("MARGINALIA_HOME", str(home))
+    monkeypatch.setenv("LIBRARY_HOME", str(home))
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("WORKER_ENABLED", "false")
     monkeypatch.setenv("LLM_DEFAULT_API_KEY", "sk-fake")
     monkeypatch.setenv("LLM_DEFAULT_MODEL", "fake-model")
 
-    from marginalia.config import get_settings
-    from marginalia.db.engine import dispose_engine
-    from marginalia.storage import reset_storage_cache
+    from library.config import get_settings
+    from library.db.engine import dispose_engine
+    from library.storage import reset_storage_cache
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
     reset_storage_cache()
     await dispose_engine()
 
-    import marginalia.pipelines.text as text_pipeline
+    import library.pipelines.text as text_pipeline
 
     monkeypatch.setattr(
         text_pipeline,
@@ -286,7 +286,7 @@ async def test_import_beir_runs_cjk_short_term_eval(
         encoding="utf-8",
     )
 
-    import marginalia.eval.core as eval_core
+    import library.eval.core as eval_core
 
     imported = await eval_core.import_beir_dataset(
         name="cjk-tiny",

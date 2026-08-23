@@ -8,15 +8,15 @@ import pytest
 from httpx import ASGITransport
 from sqlalchemy import select
 
-from marginalia.config import get_settings
-from marginalia.db.engine import dispose_engine, get_engine
-from marginalia.db.models import Base, EntryRelation, File, FileEntry, Folder, Task
-from marginalia.db.models.task_outcomes import TaskOutcome
-from marginalia.db.session import session_scope
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.tasks.handlers.periodic_tick import handle_periodic_tick
-from marginalia.tasks.kinds import KIND_PERIODIC_TICK, KIND_VET_RELATIONS
-from marginalia.utils.ids import new_id
+from library.config import get_settings
+from library.db.engine import dispose_engine, get_engine
+from library.db.models import Base, EntryRelation, File, FileEntry, Folder, Task
+from library.db.models.task_outcomes import TaskOutcome
+from library.db.session import session_scope
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.tasks.handlers.periodic_tick import handle_periodic_tick
+from library.tasks.kinds import KIND_PERIODIC_TICK, KIND_VET_RELATIONS
+from library.utils.ids import new_id
 
 
 class _FakeOnDemandVet:
@@ -67,7 +67,7 @@ def _request_text(request: ChatRequest) -> str:
 
 
 async def _prepare_home(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    monkeypatch.setenv("MARGINALIA_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("WORKER_ENABLED", "false")
     monkeypatch.setenv("LLM_DEFAULT_API_KEY", "sk-fake")
@@ -176,12 +176,12 @@ async def test_discover_explicit_vet_queues_background_task(
 ) -> None:
     await _prepare_home(monkeypatch, tmp_path)
     fake = _FakeOnDemandVet()
-    import marginalia.tasks.handlers.vet_relations as vet_mod
+    import library.tasks.handlers.vet_relations as vet_mod
 
     vet_mod.get_chat_client = lambda profile="ingest": fake  # type: ignore[assignment]
     ids = await _seed_unvetted_graph()
 
-    from marginalia.main import app
+    from library.main import app
 
     transport = ASGITransport(app=app)
     async with app.router.lifespan_context(app):
@@ -206,7 +206,7 @@ async def test_discover_explicit_vet_queues_background_task(
             assert task_id
             assert fake.calls == 0
 
-    from marginalia.tasks.handlers.vet_relations import handle_vet_relations
+    from library.tasks.handlers.vet_relations import handle_vet_relations
 
     async with session_scope() as db:
         task = await db.get(Task, task_id)
@@ -241,8 +241,8 @@ async def test_explicit_vetting_skips_enqueue_when_seed_has_no_raw_edges(
     tmp_path,
 ) -> None:
     await _prepare_home(monkeypatch, tmp_path)
-    from marginalia.repositories import entry_relations as relations_repo
-    from marginalia.services.relation_vetting import schedule_direct_relation_vetting
+    from library.repositories import entry_relations as relations_repo
+    from library.services.relation_vetting import schedule_direct_relation_vetting
 
     async def _fail_detail_query(*_args, **_kwargs):
         raise AssertionError("candidate detail query should be skipped")

@@ -4,12 +4,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.pipelines import _text_indexer as indexer
-from marginalia.pipelines.base import PipelineContext
-from marginalia.pipelines.docx import _docx_sections
-from marginalia.pipelines.pptx import _slide_sections
-from marginalia.pipelines.spreadsheet import _sheet_sections
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.pipelines import _text_indexer as indexer
+from library.pipelines.base import PipelineContext
+from library.pipelines.docx import _docx_sections
+from library.pipelines.pptx import _slide_sections
+from library.pipelines.spreadsheet import _sheet_sections
 
 
 def _ctx() -> PipelineContext:

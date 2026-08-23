@@ -7,9 +7,9 @@ import sqlalchemy as sa
 from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from marginalia.config import get_settings
-from marginalia.db.engine import get_engine
-from marginalia.db.models import Base  # registers all tables
+from library.config import get_settings
+from library.db.engine import get_engine
+from library.db.models import Base  # registers all tables
 
 config = context.config
 if config.config_file_name is not None:

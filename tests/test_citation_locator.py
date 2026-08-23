@@ -43,7 +43,7 @@ def _import_runtime():
     src = Path(__file__).resolve().parent.parent / "src"
     if str(src) not in sys.path:
         sys.path.insert(0, str(src))
-    from marginalia.agent import runtime  # noqa: WPS433
+    from library.agent import runtime  # noqa: WPS433
     return runtime
 
 
@@ -189,7 +189,7 @@ def _check_regex():
 
 def _check_quote_matching():
     _import_runtime()
-    from marginalia.citations import quote_matches_source_text  # noqa: WPS433
+    from library.citations import quote_matches_source_text  # noqa: WPS433
 
     assert quote_matches_source_text(
         "This note says leader-election is central.",

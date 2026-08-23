@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from marginalia.semantic.index import _resume_state
-from marginalia.tasks.handlers import rebuild_semantic_index as handler_module
+from library.semantic.index import _resume_state
+from library.tasks.handlers import rebuild_semantic_index as handler_module
 
 
 def test_resume_state_is_bound_to_embedding_configuration(tmp_path) -> None:

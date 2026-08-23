@@ -45,7 +45,7 @@ def _download_with_retries(url: str, output_path: pathlib.Path, retries: int = 3
 def _build_request(url: str) -> urllib.request.Request:
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "marginalia-desktop-tauri",
+        "User-Agent": "library-desktop-tauri",
     }
     github_token = (
         os.environ.get("GITHUB_TOKEN")
@@ -155,9 +155,9 @@ def main() -> None:
     )
     expected_sha256 = _resolve_expected_sha256(release, asset_name)
 
-    target_runtime_root = runner_temp / "marginalia-cpython-runtime"
+    target_runtime_root = runner_temp / "library-cpython-runtime"
     download_archive_path = runner_temp / asset_name
-    extract_root = runner_temp / "marginalia-cpython-runtime-extract"
+    extract_root = runner_temp / "library-cpython-runtime-extract"
 
     if target_runtime_root.exists():
         shutil.rmtree(target_runtime_root)
@@ -188,8 +188,8 @@ def main() -> None:
     _run_probe(runtime_python, ["-V"], "version")
     _run_probe(runtime_python, ["-c", "import ssl"], "ssl")
 
-    print(f"MARGINALIA_DESKTOP_CPYTHON_HOME={target_runtime_root}")
-    print(f"MARGINALIA_DESKTOP_CPYTHON_ASSET={asset_name}")
+    print(f"LIBRARY_DESKTOP_CPYTHON_HOME={target_runtime_root}")
+    print(f"LIBRARY_DESKTOP_CPYTHON_ASSET={asset_name}")
 
 
 if __name__ == "__main__":

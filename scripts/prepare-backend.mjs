@@ -1,13 +1,13 @@
 // Build-time helper: prepare a self-contained Python runtime + the
-// installed marginalia package under `desktop/src-tauri/resources/backend/`.
+// installed library package under `desktop/src-tauri/resources/backend/`.
 // Tauri's bundle.resources picks this directory up and copies it into the
 // final installer / .app / AppImage. At runtime, src-tauri/src/lib.rs
-// resolves the resource dir and spawns `<dir>/python(.exe) -m marginalia`.
+// resolves the resource dir and spawns `<dir>/python(.exe) -m library`.
 //
 // Inspired by AstrBotDevs/AstrBot-desktop's prepare-resources pipeline
 // (AGPL-3.0). See scripts/UPSTREAM.md for the full attribution. We dropped
 // the AstrBot mode dispatcher / dual-repo source fetch / IPC bridge checks
-// because Marginalia is single-repo and reuses Tauri's standard
+// because Library is single-repo and reuses Tauri's standard
 // beforeBuildCommand for the frontend; the only thing left worth keeping
 // is "fetch a known-good standalone CPython, install our package into it,
 // drop a manifest, copy to bundle.resources".
@@ -21,8 +21,8 @@ import { spawnSync } from 'node:child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
 
-const PBS_RELEASE = process.env.MARGINALIA_PBS_RELEASE || '20260211';
-const PBS_VERSION = process.env.MARGINALIA_PBS_VERSION || '3.12.12';
+const PBS_RELEASE = process.env.LIBRARY_PBS_RELEASE || '20260211';
+const PBS_VERSION = process.env.LIBRARY_PBS_VERSION || '3.12.12';
 
 const PLATFORM_MAP = { linux: 'linux', darwin: 'mac', win32: 'windows' };
 const TARGET_MAP = {
@@ -69,7 +69,7 @@ const resolveRuntimePython = (root) => {
 const ensureCpythonRuntime = () => {
   const target = resolvePbsTarget();
   const runtimeBase = path.join(projectRoot, 'runtime', `${target}-${PBS_VERSION}`);
-  const runtimeRoot = path.join(runtimeBase, 'marginalia-cpython-runtime');
+  const runtimeRoot = path.join(runtimeBase, 'library-cpython-runtime');
 
   if (existsSync(runtimeRoot)) {
     console.log(`[prepare-backend] CPython runtime cached at ${runtimeRoot}`);
@@ -100,9 +100,9 @@ const ensureCpythonRuntime = () => {
   throw new Error('Cannot find a Python interpreter to bootstrap the standalone runtime.');
 };
 
-const installMarginaliaInto = (runtimeRoot) => {
+const installLibraryInto = (runtimeRoot) => {
   const py = resolveRuntimePython(runtimeRoot);
-  console.log(`[prepare-backend] Installing marginalia into ${runtimeRoot} via ${py}`);
+  console.log(`[prepare-backend] Installing library into ${runtimeRoot} via ${py}`);
   runChecked(py, ['-m', 'pip', 'install', '--upgrade', 'pip'], projectRoot);
 
   // Locked install: export the exact versions CI resolved from uv.lock, install
@@ -111,7 +111,7 @@ const installMarginaliaInto = (runtimeRoot) => {
   // needed because two deps are git+https refs pip can't hash. The requirements
   // file is written to the runtime's parent dir so it is NOT copied into the
   // bundle by copyRuntimeToBundleResources.
-  const reqPath = path.join(path.dirname(runtimeRoot), 'marginalia-requirements.txt');
+  const reqPath = path.join(path.dirname(runtimeRoot), 'library-requirements.txt');
   // uv is required to export the locked requirements. Fail with an actionable
   // message instead of a raw ENOENT stack if it isn't installed.
   const uvCheck = spawnSync('uv', ['--version'], { stdio: 'ignore' });
@@ -158,7 +158,7 @@ const readPackageVersion = () => {
 
 const main = async () => {
   const runtimeRoot = ensureCpythonRuntime();
-  installMarginaliaInto(runtimeRoot);
+  installLibraryInto(runtimeRoot);
   await copyRuntimeToBundleResources(runtimeRoot);
   console.log('[prepare-backend] done.');
 };

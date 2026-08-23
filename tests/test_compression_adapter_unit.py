@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from marginalia.agent import compression_adapter as mod
+from library.agent import compression_adapter as mod
 
 
 def _settings(**overrides):

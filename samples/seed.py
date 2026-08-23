@@ -1,4 +1,4 @@
-"""Seed Marginalia with the bundled sample files.
+"""Seed Library with the bundled sample files.
 
 Run after the API server (and ideally the worker) are up:
 
@@ -60,9 +60,9 @@ async def _poll(client: httpx.AsyncClient, entry_id: str,
 
 
 async def main() -> int:
-    parser = argparse.ArgumentParser(description="Seed Marginalia samples.")
+    parser = argparse.ArgumentParser(description="Seed Library samples.")
     parser.add_argument("--server", default="http://127.0.0.1:8000",
-                        help="Marginalia server base URL")
+                        help="Library server base URL")
     parser.add_argument("--timeout", type=float, default=120.0,
                         help="Per-file ingest poll timeout in seconds")
     args = parser.parse_args()
@@ -74,7 +74,7 @@ async def main() -> int:
             r.raise_for_status()
         except Exception as e:
             print(f"  could not reach server: {e}")
-            print("  is uvicorn running? try: uvicorn marginalia.main:app")
+            print("  is uvicorn running? try: uvicorn library.main:app")
             return 2
 
         results: list[tuple[str, dict]] = []
@@ -109,10 +109,10 @@ async def main() -> int:
             print("      API server) and re-run this script to refresh.")
         else:
             print("all samples ingested. try the CLI:")
-            print(f"  marginalia --server {args.server}")
-            print("  marginalia> /tree")
-            print("  marginalia> /search consensus")
-            print("  marginalia> 帮我对比 Raft 和 Paxos")
+            print(f"  library --server {args.server}")
+            print("  library> /tree")
+            print("  library> /search consensus")
+            print("  library> 帮我对比 Raft 和 Paxos")
         return 0
 
 

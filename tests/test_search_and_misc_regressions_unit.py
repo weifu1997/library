@@ -21,13 +21,13 @@ import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from marginalia.db.bootstrap import bootstrap_schema_sync
-from marginalia.db.fts import (
+from library.db.bootstrap import bootstrap_schema_sync
+from library.db.fts import (
     ENTRY_METADATA_FTS_TABLE,
     ENTRY_METADATA_FTS_TRIGGERS,
 )
-from marginalia.db.models import File, FileEntry
-from marginalia.utils.ids import new_id
+from library.db.models import File, FileEntry
+from library.utils.ids import new_id
 
 
 def _now() -> datetime:
@@ -96,7 +96,7 @@ async def _fts_present(session) -> bool:
 # ---------------------------------------------------------------------------
 
 def test_short_non_cjk_terms_are_rescued_as_like_terms() -> None:
-    from marginalia.repositories.entries import _metadata_short_like_terms
+    from library.repositories.entries import _metadata_short_like_terms
 
     # Pre-fix this was _metadata_short_cjk_like_terms, which required
     # _contains_cjk(term) and therefore dropped every ASCII short term.
@@ -107,7 +107,7 @@ def test_short_non_cjk_terms_are_rescued_as_like_terms() -> None:
 async def test_entries_search_matches_ai_only_entry_via_like_rescue(
     tmp_path: Path,
 ) -> None:
-    from marginalia.repositories import entries as entries_repo
+    from library.repositories import entries as entries_repo
 
     engine, factory = await _bootstrap(tmp_path / "fts29.db")
     try:
@@ -142,7 +142,7 @@ async def test_entries_search_matches_ai_only_entry_via_like_rescue(
 async def test_entries_like_fallback_escapes_underscore_wildcard(
     tmp_path: Path,
 ) -> None:
-    from marginalia.repositories import entries as entries_repo
+    from library.repositories import entries as entries_repo
 
     engine, factory = await _bootstrap(tmp_path / "esc64.db")
     try:
@@ -180,8 +180,8 @@ async def test_entries_like_fallback_escapes_underscore_wildcard(
 
 @pytest.mark.asyncio
 async def test_journal_search_escapes_percent_wildcard(tmp_path: Path) -> None:
-    from marginalia.db.models import Journal
-    from marginalia.repositories import journal as journal_repo
+    from library.db.models import Journal
+    from library.repositories import journal as journal_repo
 
     engine, factory = await _bootstrap(tmp_path / "journal64.db")
     try:
@@ -231,8 +231,8 @@ async def test_journal_search_escapes_percent_wildcard(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 def test_rank_and_score_terms_keep_short_cjk() -> None:
-    from marginalia.agent.tools.recall_knowledge import _score_terms
-    from marginalia.agent.tools.search_metadata import _rank_terms
+    from library.agent.tools.recall_knowledge import _score_terms
+    from library.agent.tools.search_metadata import _rank_terms
 
     # 2- and 3-char CJK words have no digit/uppercase, so the len<4 filter
     # used to drop them entirely; they must now be kept.
@@ -253,7 +253,7 @@ def test_rank_and_score_terms_keep_short_cjk() -> None:
 @dataclass
 class _FakeEmbeddingClient:
     async def embed(self, texts: list[str], *, text_type: str):
-        from marginalia.semantic.embeddings import EmbeddingResult
+        from library.semantic.embeddings import EmbeddingResult
 
         return EmbeddingResult(
             vectors=[[1.0, 0.0, 0.0] for _ in texts], total_tokens=len(texts),
@@ -261,12 +261,12 @@ class _FakeEmbeddingClient:
 
 
 def _configure_semantic_env(monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
-    monkeypatch.setenv("MARGINALIA_HOME", str(home))
+    monkeypatch.setenv("LIBRARY_HOME", str(home))
     monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "true")
     monkeypatch.setenv("EMBEDDING_API_KEY", "fake-key")
     monkeypatch.setenv("EMBEDDING_DIMENSIONS", "3")
     monkeypatch.setenv("SEMANTIC_INDEX_BACKEND", "file")
-    from marginalia.config import get_settings
+    from library.config import get_settings
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
 
@@ -275,9 +275,9 @@ def _configure_semantic_env(monkeypatch: pytest.MonkeyPatch, home: Path) -> None
 async def test_first_refresh_enqueues_full_rebuild_not_single_file_index(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from marginalia.db.models.tasks import Task
-    from marginalia.semantic import index as sem
-    from marginalia.tasks.kinds import KIND_REBUILD_SEMANTIC_INDEX
+    from library.db.models.tasks import Task
+    from library.semantic import index as sem
+    from library.tasks.kinds import KIND_REBUILD_SEMANTIC_INDEX
 
     _configure_semantic_env(monkeypatch, tmp_path / "home")
     engine, factory = await _bootstrap(tmp_path / "sem30.db")
@@ -334,7 +334,7 @@ async def test_first_refresh_enqueues_full_rebuild_not_single_file_index(
 async def test_load_indexable_entries_empty_list_is_not_full_scan(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from marginalia.semantic import index as sem
+    from library.semantic import index as sem
 
     _configure_semantic_env(monkeypatch, tmp_path / "home")
     engine, factory = await _bootstrap(tmp_path / "sem31.db")
@@ -362,7 +362,7 @@ async def test_load_indexable_entries_empty_list_is_not_full_scan(
 # ---------------------------------------------------------------------------
 
 def test_entry_text_is_truncated_to_embedding_cap() -> None:
-    from marginalia.semantic.index import EMBEDDING_TEXT_MAX_CHARS, _entry_text
+    from library.semantic.index import EMBEDDING_TEXT_MAX_CHARS, _entry_text
 
     entry = SimpleNamespace(display_name="d.txt", extra="")
     file_row = SimpleNamespace(
@@ -379,7 +379,7 @@ def test_entry_text_is_truncated_to_embedding_cap() -> None:
 # ---------------------------------------------------------------------------
 
 def test_score_loaded_vectors_rejects_empty_or_mismatched_query() -> None:
-    from marginalia.semantic.index import _score_loaded_vectors
+    from library.semantic.index import _score_loaded_vectors
 
     data = array("f", [0.0, 1.0, 0.0])
     # Empty query vector: pre-fix math.sumprod raised on unequal lengths.
@@ -391,7 +391,7 @@ def test_score_loaded_vectors_rejects_empty_or_mismatched_query() -> None:
 
 
 def test_read_query_cache_ignores_zero_length_vectors(tmp_path: Path) -> None:
-    from marginalia.semantic.index import _read_query_cache
+    from library.semantic.index import _read_query_cache
 
     cache_path = tmp_path / "query_cache.jsonl"
     cache_path.write_text(
@@ -408,8 +408,8 @@ def test_read_query_cache_ignores_zero_length_vectors(tmp_path: Path) -> None:
 async def test_empty_query_embedding_not_written_to_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from marginalia.semantic import index as sem
-    from marginalia.semantic.embeddings import EmbeddingResult
+    from library.semantic import index as sem
+    from library.semantic.embeddings import EmbeddingResult
 
     _configure_semantic_env(monkeypatch, tmp_path / "home")
 
@@ -436,7 +436,7 @@ async def test_empty_query_embedding_not_written_to_cache(
 # ---------------------------------------------------------------------------
 
 def test_validate_and_normalize_passes_null_clears_through() -> None:
-    from marginalia.services.config_overlay import validate_and_normalize
+    from library.services.config_overlay import validate_and_normalize
 
     # int field: pre-fix int(None) raised OverlayValidationError (422).
     assert validate_and_normalize({"embedding_dimensions": None}) == {
@@ -463,25 +463,25 @@ def test_validate_and_normalize_passes_null_clears_through() -> None:
 async def _run_upload(home: Path, max_bytes: int | None) -> dict:
     import os
 
-    os.environ["MARGINALIA_HOME"] = str(home)
+    os.environ["LIBRARY_HOME"] = str(home)
     os.environ["STORAGE_BACKEND"] = "local"
     os.environ["WORKER_ENABLED"] = "false"
     os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
     os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
     if max_bytes is None:
-        os.environ.pop("MARGINALIA_UPLOAD_MAX_BYTES", None)
+        os.environ.pop("LIBRARY_UPLOAD_MAX_BYTES", None)
     else:
-        os.environ["MARGINALIA_UPLOAD_MAX_BYTES"] = str(max_bytes)
+        os.environ["LIBRARY_UPLOAD_MAX_BYTES"] = str(max_bytes)
 
-    from marginalia.config import get_settings
-    from marginalia.db.engine import dispose_engine, get_engine, get_session_factory
-    from marginalia.storage import reset_storage_cache
+    from library.config import get_settings
+    from library.db.engine import dispose_engine, get_engine, get_session_factory
+    from library.storage import reset_storage_cache
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
     reset_storage_cache()
     await dispose_engine()
 
-    from marginalia.db.models import Base
+    from library.db.models import Base
 
     engine = get_engine()
     async with engine.begin() as conn:
@@ -490,7 +490,7 @@ async def _run_upload(home: Path, max_bytes: int | None) -> dict:
     import httpx
     from httpx import ASGITransport
 
-    from marginalia.main import app
+    from library.main import app
 
     out: dict = {}
     transport = ASGITransport(app=app)
@@ -552,7 +552,7 @@ async def test_upload_default_zero_cap_is_unlimited(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 def test_decode_text_uses_cp1252_fallback_not_utf16_mojibake() -> None:
-    from marginalia.pipelines.text import _decode_text
+    from library.pipelines.text import _decode_text
 
     # b"Caf\xe9" is 4 bytes; a bare utf-16 attempt "succeeds" and produces
     # mojibake. The fix only tries utf-16 on a BOM, then cp1252/latin-1.
@@ -560,6 +560,6 @@ def test_decode_text_uses_cp1252_fallback_not_utf16_mojibake() -> None:
 
 
 def test_decode_text_still_handles_utf16_bom() -> None:
-    from marginalia.pipelines.text import _decode_text
+    from library.pipelines.text import _decode_text
 
     assert _decode_text("Café résumé".encode("utf-16")) == "Café résumé"

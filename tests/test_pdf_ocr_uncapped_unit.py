@@ -4,8 +4,8 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from marginalia.pipelines import pdf as pdf_module
-from marginalia.pipelines.pdf import PdfPipeline
+from library.pipelines import pdf as pdf_module
+from library.pipelines.pdf import PdfPipeline
 
 
 def test_ocr_ingest_default_is_uncapped() -> None:

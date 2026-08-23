@@ -23,10 +23,10 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_dispatcher_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["WORKER_POLL_INTERVAL_SECONDS"] = "0.1"
@@ -38,28 +38,28 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from sqlalchemy import select, text
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import AuditEvent, Base
-from marginalia.db.models.tasks import Task
-from marginalia.repositories import tasks as tasks_repo
-from marginalia.tasks.handlers.periodic_tick import (
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import AuditEvent, Base
+from library.db.models.tasks import Task
+from library.repositories import tasks as tasks_repo
+from library.tasks.handlers.periodic_tick import (
     TICK_INTERVAL_SECONDS,
     bootstrap_periodic_tick,
     handle_periodic_tick,
     KIND_PERIODIC_TICK,
     periodic_tick_dedup_key,
 )
-from marginalia.tasks.handlers.prune import handle_prune
-from marginalia.tasks.handlers.recover_stuck_tasks import handle_recover_stuck_tasks
-from marginalia.tasks.kinds import (
+from library.tasks.handlers.prune import handle_prune
+from library.tasks.handlers.recover_stuck_tasks import handle_recover_stuck_tasks
+from library.tasks.kinds import (
     KIND_PRUNE,
     KIND_RECOVER_STUCK_TASKS,
     PERIODIC_INTERVALS,
 )
-from marginalia.utils.ids import new_id
+from library.utils.ids import new_id
 
 
 def _now() -> datetime:

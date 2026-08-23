@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from marginalia.eval.core import (
+from library.eval.core import (
     _eval_entry_sort_key,
     _merge_eval_entries,
     _report_compare_result,

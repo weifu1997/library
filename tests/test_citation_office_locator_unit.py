@@ -4,7 +4,7 @@ import asyncio
 from io import BytesIO
 from types import SimpleNamespace
 
-from marginalia.agent import runtime
+from library.agent import runtime
 
 
 def _file(**overrides):

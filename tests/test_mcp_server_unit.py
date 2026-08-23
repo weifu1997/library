@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from marginalia.agent.tools import ToolContext, ToolRegistration
-from marginalia import mcp_server
+from library.agent.tools import ToolContext, ToolRegistration
+from library import mcp_server
 
 
 @pytest.mark.asyncio
@@ -30,7 +30,7 @@ async def test_mcp_initialize_and_lists_readonly_tools() -> None:
         "search_metadata",
         "search_journal",
         "read_entries_metadata",
-        "ask_marginalia",
+        "ask_library",
         "upload_file",
         "download_file",
         "download_folder",

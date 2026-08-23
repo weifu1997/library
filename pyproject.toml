@@ -1,15 +1,15 @@
 [project]
-name = "marginalia"
+name = "library"
 version = "0.3.6"
 description = "A library-science-inspired personal knowledge management system with LLM agents."
 requires-python = ">=3.11"
-license = "AGPL-3.0-or-later"
+license = "MIT"
 license-files = ["LICENSE"]
 authors = [
-    { name = "shenmintao" },
+    { name = "weifu1997" },
 ]
 classifiers = [
-    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -43,15 +43,15 @@ dependencies = [
     "python-pptx>=1.0",
     "openpyxl>=3.1",
     "py7zz>=1.3.1",
-    "markitdown[xls,outlook] @ git+https://github.com/shenmintao/markitdown.git@f48c7dd2e34d3c2fb25194d14347186f052aae6d#subdirectory=packages/markitdown",
-    "glowpy @ git+https://github.com/shenmintao/glowpy.git@57f07158c6bbeb3d24d6939df705388f9839a4b9",
+    "markitdown[xls,outlook] @ git+https://github.com/weifu1997/markitdown.git@f48c7dd2e34d3c2fb25194d14347186f052aae6d#subdirectory=packages/markitdown",
+    "glowpy @ git+https://github.com/weifu1997/glowpy.git@57f07158c6bbeb3d24d6939df705388f9839a4b9",
 ]
 
 [project.scripts]
-marginalia = "marginalia.cli.repl:main"
-marginalia-worker = "marginalia.worker:main"
-marginalia-mcp = "marginalia.mcp_server:main"
-marginalia-db-prepare = "marginalia.db.cli:main"
+library = "library.cli.repl:main"
+library-worker = "library.worker:main"
+library-mcp = "library.mcp_server:main"
+library-db-prepare = "library.db.cli:main"
 
 [project.optional-dependencies]
 semantic = [
@@ -74,7 +74,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/marginalia"]
+packages = ["src/library"]
 
 [tool.hatch.build.targets.sdist]
 exclude = [

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from marginalia.pipelines.base import PipelineContext
-from marginalia.pipelines.docx import DocxPipeline
-from marginalia.pipelines import pptx as pptx_module
-from marginalia.pipelines.pptx import PptxPipeline
-from marginalia.pipelines.spreadsheet import SpreadsheetPipeline
+from library.pipelines.base import PipelineContext
+from library.pipelines.docx import DocxPipeline
+from library.pipelines import pptx as pptx_module
+from library.pipelines.pptx import PptxPipeline
+from library.pipelines.spreadsheet import SpreadsheetPipeline
 
 
 OLD_DOCX_XLSX_CAP = 30 * 1024 * 1024
@@ -61,7 +61,7 @@ async def test_docx_ingest_no_longer_rejects_by_package_size(monkeypatch):
         )
 
     monkeypatch.setattr(DocxPipeline, "_parse_paragraphs_from_bytes", staticmethod(fake_parse))
-    monkeypatch.setattr("marginalia.pipelines.docx.index_extracted_text", fake_index)
+    monkeypatch.setattr("library.pipelines.docx.index_extracted_text", fake_index)
 
     result = await DocxPipeline().run(
         ctx=_ctx("docx", size),
@@ -99,7 +99,7 @@ async def test_spreadsheet_ingest_no_longer_rejects_by_package_size(monkeypatch)
         "_render_from_bytes_with_coverage",
         staticmethod(fake_render),
     )
-    monkeypatch.setattr("marginalia.pipelines.spreadsheet.index_extracted_text", fake_index)
+    monkeypatch.setattr("library.pipelines.spreadsheet.index_extracted_text", fake_index)
 
     result = await SpreadsheetPipeline().run(
         ctx=_ctx("xlsx", size),
@@ -134,7 +134,7 @@ async def test_pptx_ingest_no_longer_rejects_by_package_size(monkeypatch):
         )
 
     monkeypatch.setattr(PptxPipeline, "_render_from_bytes_with_coverage", staticmethod(fake_render))
-    monkeypatch.setattr("marginalia.pipelines.pptx.index_extracted_text", fake_index)
+    monkeypatch.setattr("library.pipelines.pptx.index_extracted_text", fake_index)
 
     result = await PptxPipeline().run(
         ctx=_ctx("pptx", size),

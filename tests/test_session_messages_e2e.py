@@ -15,10 +15,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_session_messages_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -27,16 +27,16 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 import httpx
 from httpx import ASGITransport
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import (
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import (
     Base, Conversation, File, FileEntry, Folder, Session,
 )
-from marginalia.main import app
-from marginalia.storage import get_storage
-from marginalia.utils.ids import new_id
+from library.main import app
+from library.storage import get_storage
+from library.utils.ids import new_id
 
 
 def _now() -> datetime:

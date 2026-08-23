@@ -26,35 +26,35 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_multimodal_chat_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
 
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
 os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 # Small caps so the over-count / over-size checks are cheap to trigger.
-os.environ["MARGINALIA_CHAT_IMAGE_MAX_COUNT"] = "2"
-os.environ["MARGINALIA_CHAT_IMAGE_MAX_BYTES"] = "500"
+os.environ["LIBRARY_CHAT_IMAGE_MAX_COUNT"] = "2"
+os.environ["LIBRARY_CHAT_IMAGE_MAX_BYTES"] = "500"
 # These e2e cases exercise the direct-send path (images reach the chat model);
 # force it so run_turn does not first fire the auto capability probe. The
 # probe/fallback logic is covered by test_vision_capability_probe below.
-os.environ["MARGINALIA_CHAT_VISION"] = "on"
+os.environ["LIBRARY_CHAT_VISION"] = "on"
 
 import httpx
 from httpx import ASGITransport
 from sqlalchemy import select
 
-from marginalia.config import get_settings
+from library.config import get_settings
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.bootstrap import bootstrap_schema
-from marginalia.db.engine import get_session_factory
-from marginalia.db.models import Conversation
-from marginalia.llm.types import (
+from library.db.bootstrap import bootstrap_schema
+from library.db.engine import get_session_factory
+from library.db.models import Conversation
+from library.llm.types import (
     ChatMessage,
     ChatRequest,
     ChatResponse,
@@ -62,7 +62,7 @@ from marginalia.llm.types import (
     TextBlock,
     TokenUsage,
 )
-from marginalia.main import app
+from library.main import app
 
 # A real 1x1 transparent PNG (~70 bytes decoded — well under the 500 cap).
 _PNG_B64 = (
@@ -105,7 +105,7 @@ class _FakeChat:
 
 
 def _install(fake: _FakeChat) -> None:
-    import marginalia.agent.runtime as r
+    import library.agent.runtime as r
     r.get_chat_client = lambda profile="chat": fake  # type: ignore[assignment]
 
 
@@ -343,7 +343,7 @@ class _ProbeClient:
 
 async def test_vision_capability_probe() -> None:
     # (chat_vision="auto") The probe classifies a model once and caches it.
-    import marginalia.agent.runtime as r
+    import library.agent.runtime as r
     saved = r.get_chat_client
     try:
         r._vision_capability.clear()

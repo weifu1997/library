@@ -30,23 +30,23 @@ import io
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_mirror_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
 _VAULT = _TEST_ROOT / "library"
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "mirror"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
 os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
-from marginalia.config import get_settings  # noqa: E402
+from library.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory  # noqa: E402
-from marginalia.db.models import Base, File, FileEntry  # noqa: E402
-from marginalia.storage import (  # noqa: E402
+from library.db.engine import get_engine, get_session_factory  # noqa: E402
+from library.db.models import Base, File, FileEntry  # noqa: E402
+from library.storage import (  # noqa: E402
     MirrorStorage, get_storage, reset_storage_cache,
 )
 
@@ -60,7 +60,7 @@ async def _create_schema():
 
 
 async def _upload(body: bytes, *, name: str, remote_path: str) -> dict:
-    from marginalia.services.upload import upload
+    from library.services.upload import upload
     storage = get_storage()
 
     async def _stream():
@@ -151,7 +151,7 @@ async def _main() -> None:
     print(f"[5] reserved: 'CON.txt' → 'CON_.txt'")
 
     # 6. Soft delete keeps disk file alive.
-    from marginalia.services.entries import soft_delete_entry
+    from library.services.entries import soft_delete_entry
     factory = get_session_factory()
     async with factory() as s:
         await soft_delete_entry(s, entry_id=r1["entry_id"])
@@ -164,7 +164,7 @@ async def _main() -> None:
     print(f"[6] soft delete leaves disk file in place")
 
     # 7. Rename moves the on-disk file too.
-    from marginalia.services.entries import rename_entry, move_entry
+    from library.services.entries import rename_entry, move_entry
     async with factory() as s:
         await rename_entry(s, entry_id=r4["entry_id"],
                            new_name="Q3 final.pdf")
@@ -178,7 +178,7 @@ async def _main() -> None:
     print(f"[7] rename moves disk file: 'Q3 report_ draft.pdf' → 'Q3 final.pdf'")
 
     # 8. Move-to-different-folder relocates disk file.
-    from marginalia.services.folders import resolve_or_create_folder
+    from library.services.folders import resolve_or_create_folder
     async with factory() as s:
         new_folder = await resolve_or_create_folder(
             s, segments=["archive", "old"]

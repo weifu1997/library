@@ -6,10 +6,10 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from marginalia.db.models import Base, EntryTag, File, FileEntry, Tag
-from marginalia.pipelines.base import PipelineResult, TagSuggestion
-from marginalia.tasks.handlers.ingest_file import _persist
-from marginalia.utils.ids import new_id
+from library.db.models import Base, EntryTag, File, FileEntry, Tag
+from library.pipelines.base import PipelineResult, TagSuggestion
+from library.tasks.handlers.ingest_file import _persist
+from library.utils.ids import new_id
 
 
 def _now() -> datetime:

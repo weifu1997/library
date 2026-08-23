@@ -1,4 +1,4 @@
-# Marginalia 升级计划（2026-06）
+# Library 升级计划（2026-06）
 
 本计划由代码审查 + 设计评估 + 2026 前沿对照得出，供执行 Agent 分任务实施。
 每个任务卡独立可交付：自带背景、改动点（具体到 file:line）、验收标准、依赖、规模。
@@ -77,7 +77,7 @@
 ## Phase 1 — 安全修复（成本极低）
 
 ### T4. DuckDB SQL 工具引擎级沙箱 【S】
-- 背景：`src/marginalia/agent/tools/query_sql.py:55-65` 用正则黑名单拦 LLM 生成的 SQL，
+- 背景：`src/library/agent/tools/query_sql.py:55-65` 用正则黑名单拦 LLM 生成的 SQL，
   但 DuckDB 有黑名单覆盖不到的本地文件读取途径：`SELECT * FROM 'D:/path/file.csv'`
   （FROM 子句路径字面量，不经函数）、`parquet_scan`/`csv_scan` 别名、`glob()` 列目录；
   正则也未拦 `SET`。连接建于 `query_sql.py:272`。
@@ -96,7 +96,7 @@
 - 改动：
   - compose 默认改 `"127.0.0.1:8000:8000"`、`"127.0.0.1:9001:9001"`；
     在 compose 注释和 `README.md` 部署节说明如何显式开放。
-  - 中期（M）：加可选 bearer 中间件——`MARGINALIA_API_TOKEN` 设置存在时，
+  - 中期（M）：加可选 bearer 中间件——`LIBRARY_API_TOKEN` 设置存在时，
     `main.py` 注册一个校验 `Authorization: Bearer` 的中间件（`/health` 豁免）；
     未设置则保持现状（嵌入式/桌面默认免认证）。CLI/desktop client 支持带 token。
 - 验收：默认 compose 起栈后宿主外网卡无法访问 8000/9001；设置 token 后无 token 请求 401。
@@ -189,7 +189,7 @@
   - 短词不再静默丢弃：<3 字符 CJK 词用 LIKE 子句 OR 进 FTS 查询（混合查询里补充，
     不是替代）。
   - 构建小型中文 eval 集（可用公开中文检索数据集转 BEIR 格式，或自建 30-50 query），
-    纳入 `marginalia eval` 流程。
+    纳入 `library eval` 流程。
   - 跑中文集，记录 recall_knowledge / +rerank 的指标，写入 DESIGN.md §8（有界声明）。
 - 验收：中文双字词查询能命中预期文档；中文 eval 报告产出且数字入文档。
 - 依赖：T9（Postgres 用户的中文检索同样依赖 FTS 实现）。
@@ -238,7 +238,7 @@
 - 背景：eval 基础设施（BEIR 导入、answer probe、盲评对比）是同类项目稀有资产，但现在
   只回答"整体打不打得过 one-shot RAG"。架构有多个贵赌注（两阶段 plan、关系挖掘、
   journal 召回、semantic recall、rerank）全靠端到端总分背书。
-- 改动：在 `marginalia eval` 加消融开关矩阵——plan 阶段开/关、关系扩展开/关、
+- 改动：在 `library eval` 加消融开关矩阵——plan 阶段开/关、关系扩展开/关、
   semantic recall 开/关、rerank 开/关，输出每个子系统对最终质量的边际贡献。
 - 验收：能跑出一张消融表（各配置 × 指标）；结果写入 DESIGN.md §8。
 - 价值：边际成本最低、信息量最大；为 T6/T7/T11 提供度量。**建议 P0/P1 之后立即做。**
@@ -247,7 +247,7 @@
 ### T15. MCP server 暴露检索工具集 【M/L】★战略
 - 背景：精心设计的漏斗（`recall_knowledge`/`read_files`/`search_journal` 等 13 个工具）
   目前只有自家 agent 能用。暴露为 MCP server 后，Claude Desktop 或任何前沿 agent 可把
-  Marginalia 当"个人图书馆后端"。对冲长期风险：前沿模型内建 agent 能力会持续超过自建
+  Library 当"个人图书馆后端"。对冲长期风险：前沿模型内建 agent 能力会持续超过自建
   ReAct loop，护城河应从"agent 本身"转移到"数据模型 + 检索工具集"。
 - 改动：新增 MCP server 入口（复用现有 tool 实现与 schema），暴露只读检索工具
   （recall/read_files/search_metadata/search_journal/read_entries_metadata 等）。
@@ -273,7 +273,7 @@
 - 背景：mirror vault + SQLite 被 Syncthing 类工具同步会损坏数据库，local-first 用户
   迟早踩。多设备同步是真实缺口。
 - 改动：`README.md`/`USAGE.md` 增加"多设备同步"小节，明确：不要用文件同步工具同步
-  `MARGINALIA_HOME`（SQLite 会损坏）；多设备请用 remote（Postgres+S3）部署形态。
+  `LIBRARY_HOME`（SQLite 会损坏）；多设备请用 remote（Postgres+S3）部署形态。
 - 验收：文档存在且中英文一致。
 - 依赖：无。
 
@@ -282,7 +282,7 @@
 ## Phase 6 — 模块健康（穿插进行）
 
 ### T18. eval/core.py 拆分 【M】
-- 背景：`src/marginalia/eval/core.py` 3198 行混了五种职责（dataclass 定义、BEIR 导入、
+- 背景：`src/library/eval/core.py` 3198 行混了五种职责（dataclass 定义、BEIR 导入、
   运行、序列化、格式化输出）。
 - 改动：拆为 `eval/types.py`（dataclass）、`eval/io.py`（BEIR 导入/迭代器）、
   `eval/runner.py`（run/answer/compare）、`eval/format.py`（to_dict/format_*）。

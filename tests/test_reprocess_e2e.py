@@ -32,14 +32,14 @@ from pathlib import Path
 from uuid import uuid4
 
 _TEST_PARENT = Path(os.environ.get(
-    "MARGINALIA_TEST_TMP",
+    "LIBRARY_TEST_TMP",
     str(Path(__file__).resolve().parent),
 ))
 _TEST_PARENT.mkdir(parents=True, exist_ok=True)
 _TEST_ROOT = _TEST_PARENT / f"_reprocess_e2e_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
 atexit.register(lambda: shutil.rmtree(_TEST_ROOT, ignore_errors=True))
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -49,19 +49,19 @@ import httpx
 from httpx import ASGITransport
 from sqlalchemy import select, text
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import (
+from library import llm
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import (
     Base, EntryRelation, EntryTag, File, FileEntry, Tag,
 )
-from marginalia.llm.types import ChatRequest, ChatResponse, TokenUsage
-from marginalia.main import app
-from marginalia.tasks.kinds import KIND_INGEST_FILE
-from marginalia.tasks.runner import TaskRunner
-from marginalia.utils.ids import new_id
+from library.llm.types import ChatRequest, ChatResponse, TokenUsage
+from library.main import app
+from library.tasks.kinds import KIND_INGEST_FILE
+from library.tasks.runner import TaskRunner
+from library.utils.ids import new_id
 
 
 # Two canned LLM payloads — first vs. reprocessed. Different summary
@@ -139,16 +139,16 @@ def _install_fake_llm() -> None:
     # The periodic tick may schedule restructure/normalize/etc. while
     # this test is running; each of those imported `get_chat_client`
     # at module load. Patch them all so nothing tries the real network.
-    import marginalia.pipelines.text as text_mod
+    import library.pipelines.text as text_mod
     text_mod.get_chat_client = _fake_factory  # type: ignore[assignment]
     for mod_name in (
-        "marginalia.tasks.handlers.restructure_catalogs",
-        "marginalia.tasks.handlers.normalize_tags",
-        "marginalia.tasks.handlers.enrich_tags",
-        "marginalia.tasks.handlers.propose_views",
-        "marginalia.tasks.handlers.refresh_entry_extra",
-        "marginalia.tasks.handlers.vet_relations",
-        "marginalia.tasks.handlers.summarize_session",
+        "library.tasks.handlers.restructure_catalogs",
+        "library.tasks.handlers.normalize_tags",
+        "library.tasks.handlers.enrich_tags",
+        "library.tasks.handlers.propose_views",
+        "library.tasks.handlers.refresh_entry_extra",
+        "library.tasks.handlers.vet_relations",
+        "library.tasks.handlers.summarize_session",
     ):
         try:
             mod = __import__(mod_name, fromlist=["get_chat_client"])

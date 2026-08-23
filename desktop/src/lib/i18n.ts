@@ -9,7 +9,7 @@ const en = {
     zh: "Chinese",
   },
   common: {
-    appName: "Marginalia",
+    appName: "Library",
     personalLibrary: "personal library",
     save: "Save",
     saved: "Saved",
@@ -103,7 +103,7 @@ const en = {
     },
   },
   backend: {
-    starting: "Starting Marginalia...",
+    starting: "Starting Library...",
     waiting: "Waiting for the local backend to come up.",
     slow: (seconds: number) =>
       `The backend hasn't responded in ${seconds}s. It usually starts within a few seconds.`,
@@ -116,7 +116,7 @@ const en = {
     quit: "Quit",
     customBaseTitle: "A custom backend URL is active",
     customBaseBody:
-      "This must point to a Marginalia backend, not an Ollama or LM Studio model endpoint. Clear it to reconnect to the backend bundled with the desktop app.",
+      "This must point to a Library backend, not an Ollama or LM Studio model endpoint. Clear it to reconnect to the backend bundled with the desktop app.",
     useBundled: "Use bundled backend",
   },
   chat: {
@@ -413,7 +413,7 @@ const en = {
     faq: [
       {
         q: "Do I need to manually chunk documents?",
-        a: "No. Import the original files. Marginalia splits long Markdown, PDF, Office, and text files internally when it analyzes them.",
+        a: "No. Import the original files. Library splits long Markdown, PDF, Office, and text files internally when it analyzes them.",
       },
       {
         q: "Do I need an embedding model before asking questions?",
@@ -443,7 +443,7 @@ const en = {
       connectionDescription: "Only change these when the GUI talks to a separate backend.",
       apiBaseUrlMeaning: "Where the desktop or browser UI sends API requests.",
       apiBaseUrlRecommended: "Leave empty in the packaged desktop app. Use http://host:8000 only for a remote backend.",
-      apiTokenMeaning: "Optional password-like token for a backend that set MARGINALIA_API_TOKEN.",
+      apiTokenMeaning: "Optional password-like token for a backend that set LIBRARY_API_TOKEN.",
       apiTokenRecommended: "Leave empty for a local single-user desktop setup.",
       preferencesTitle: "Preferences",
       preferencesDescription: "Local UI behavior and conservative runtime limits.",
@@ -534,7 +534,7 @@ const en = {
       evidenceSelectionRecommended: "quota for source diversity; rerank only if you trust the reranker strongly.",
       serverStatusTitle: "Server status",
       serverStatusDescription: "Read-only diagnostics. These help support and troubleshooting.",
-      homeMeaning: "Where Marginalia stores database, library files, logs, and overlay settings.",
+      homeMeaning: "Where Library stores database, library files, logs, and overlay settings.",
       homeRecommended: "Use the default per-user folder unless you need a shared or backed-up drive.",
       dbMeaning: "Database engine.",
       dbRecommended: "sqlite for desktop/single user; postgres only for server deployments.",
@@ -555,7 +555,7 @@ const en = {
     checkLatest: "Check latest version",
     checkingLatest: "Checking...",
     latestIdle:
-      "Click the button to query GitHub Releases. Marginalia does not check automatically on startup.",
+      "Click the button to query GitHub Releases. Library does not check automatically on startup.",
     latestFailed: "Could not check latest version",
     latestInvalid: "Latest release response did not include a valid version.",
     updateAvailable: (tag: string) => `New version available: ${tag}`,
@@ -569,7 +569,7 @@ const en = {
     license: "License",
     privacyTitle: "Network and data",
     privacyBody:
-      "Your library stays on this computer unless you connect Marginalia to remote model providers or a remote backend. The version check contacts GitHub only when you click Check latest version.",
+      "Your library stays on this computer unless you connect Library to remote model providers or a remote backend. The version check contacts GitHub only when you click Check latest version.",
   },
   settings: {
     title: "Settings",
@@ -598,7 +598,7 @@ const en = {
     guideEmbeddingBody:
       "Basic library search and grounded Q&A do not require an embedding model. Enable Semantic recall, set an embedding key, and rebuild the semantic index only when you want vector recall.",
     connectionTitle: "Connection",
-    connectionSubtitle: "How the GUI reaches the Marginalia backend.",
+    connectionSubtitle: "How the GUI reaches the Library backend.",
     apiBaseUrl: "API base URL",
     apiBaseHelp:
       "Leave empty to use the dev proxy (recommended in browser). Set to",
@@ -607,18 +607,18 @@ const en = {
       "Do not enter an Ollama or LM Studio URL here. Configure model endpoints under LLM profiles.",
     apiBaseValidating: "Checking...",
     apiBaseValidationFailed: (detail: string) =>
-      `Not saved: this URL is not a reachable Marginalia backend (${detail}).`,
+      `Not saved: this URL is not a reachable Library backend (${detail}).`,
     apiBasePlaceholder: "(empty = same-origin / proxy)",
     apiToken: "API bearer token",
     apiTokenHelp:
-      "Only needed when the server sets MARGINALIA_API_TOKEN. Stored locally in this browser.",
+      "Only needed when the server sets LIBRARY_API_TOKEN. Stored locally in this browser.",
     apiTokenPlaceholder: "(empty = no Authorization header)",
     webdavTitle: "WebDAV sync",
     webdavSubtitle:
       "Publish knowledge-pack snapshots to WebDAV, pull metadata from another device, and hydrate files on demand.",
     webdavUrl: "WebDAV URL",
     webdavRemotePath: "Remote path",
-    webdavRemotePathHint: "Folder under the WebDAV root used by Marginalia.",
+    webdavRemotePathHint: "Folder under the WebDAV root used by Library.",
     webdavUsername: "Username",
     webdavPassword: "Password",
     webdavPasswordHint: "Use an app password if your provider supports it.",
@@ -724,7 +724,7 @@ const en = {
     llmProfilesSubtitle: "Per-task model overrides. Empty fields inherit the default profile.",
     kv: {
       appEnv: "App env",
-      home: "Marginalia home",
+      home: "Library home",
       db: "Database backend",
       storage: "Storage backend",
       worker: "Worker enabled",
@@ -780,7 +780,7 @@ const zh: I18nStrings = {
     zh: "中文",
   },
   common: {
-    appName: "Marginalia",
+    appName: "Library",
     personalLibrary: "个人资料库",
     save: "保存",
     saved: "已保存",
@@ -874,7 +874,7 @@ const zh: I18nStrings = {
     },
   },
   backend: {
-    starting: "正在启动 Marginalia...",
+    starting: "正在启动 Library...",
     waiting: "正在等待本地后端启动。",
     slow: (seconds: number) =>
       `后端已经 ${seconds} 秒没有响应。通常几秒内会启动完成。`,
@@ -887,7 +887,7 @@ const zh: I18nStrings = {
     quit: "退出",
     customBaseTitle: "当前启用了自定义后端地址",
     customBaseBody:
-      "这里必须指向 Marginalia 后端，不能填写 Ollama 或 LM Studio 模型地址。清除该地址即可重新连接桌面应用自带的后端。",
+      "这里必须指向 Library 后端，不能填写 Ollama 或 LM Studio 模型地址。清除该地址即可重新连接桌面应用自带的后端。",
     useBundled: "使用内置后端",
   },
   chat: {
@@ -1181,7 +1181,7 @@ const zh: I18nStrings = {
     faq: [
       {
         q: "需要手动给文档分块吗？",
-        a: "不需要。直接导入原始文件。Marginalia 在分析 Markdown、PDF、Office 和文本文件时，会在内部自动处理长文档分块。",
+        a: "不需要。直接导入原始文件。Library 在分析 Markdown、PDF、Office 和文本文件时，会在内部自动处理长文档分块。",
       },
       {
         q: "提问前必须配置 embedding 模型吗？",
@@ -1211,7 +1211,7 @@ const zh: I18nStrings = {
       connectionDescription: "只有 GUI 需要连接另一台机器上的后端时才需要改。",
       apiBaseUrlMeaning: "桌面端或浏览器界面发送 API 请求的位置。",
       apiBaseUrlRecommended: "打包桌面版保持为空。只有连接远程后端时才填 http://host:8000。",
-      apiTokenMeaning: "后端设置了 MARGINALIA_API_TOKEN 时使用的访问令牌。",
+      apiTokenMeaning: "后端设置了 LIBRARY_API_TOKEN 时使用的访问令牌。",
       apiTokenRecommended: "本机单用户桌面环境保持为空。",
       preferencesTitle: "偏好",
       preferencesDescription: "本地界面行为和较保守的运行限制。",
@@ -1302,7 +1302,7 @@ const zh: I18nStrings = {
       evidenceSelectionRecommended: "quota 保留来源多样性；非常信任 reranker 时再选 rerank。",
       serverStatusTitle: "服务端状态",
       serverStatusDescription: "只读诊断信息。主要用于排障和支持。",
-      homeMeaning: "Marginalia 存放数据库、资料库文件、日志和覆盖设置的目录。",
+      homeMeaning: "Library 存放数据库、资料库文件、日志和覆盖设置的目录。",
       homeRecommended: "使用默认用户目录；只有需要共享盘或备份盘时才改。",
       dbMeaning: "数据库引擎。",
       dbRecommended: "桌面/单用户用 sqlite；服务器部署才用 postgres。",
@@ -1323,7 +1323,7 @@ const zh: I18nStrings = {
     checkLatest: "检查最新版本",
     checkingLatest: "检查中...",
     latestIdle:
-      "点击按钮后才会查询 GitHub Releases。Marginalia 不会在启动时自动检查更新。",
+      "点击按钮后才会查询 GitHub Releases。Library 不会在启动时自动检查更新。",
     latestFailed: "无法检查最新版本",
     latestInvalid: "最新 release 响应中没有有效版本号。",
     updateAvailable: (tag: string) => `发现新版本：${tag}`,
@@ -1366,7 +1366,7 @@ const zh: I18nStrings = {
     guideEmbeddingBody:
       "基础资料库检索和带引用问答不要求 embedding 模型。只有需要语义向量召回时，才启用语义召回、填写 embedding key，并重建 semantic index。",
     connectionTitle: "连接",
-    connectionSubtitle: "GUI 如何连接 Marginalia 后端。",
+    connectionSubtitle: "GUI 如何连接 Library 后端。",
     apiBaseUrl: "API 基础 URL",
     apiBaseHelp: "留空则使用开发代理（浏览器中推荐）。连接远端服务器时设置为",
     apiBaseHelpTail: "。",
@@ -1374,17 +1374,17 @@ const zh: I18nStrings = {
       "不要在这里填写 Ollama 或 LM Studio 地址；模型服务地址应在 LLM 配置中设置。",
     apiBaseValidating: "正在检查...",
     apiBaseValidationFailed: (detail: string) =>
-      `未保存：该地址不是可访问的 Marginalia 后端（${detail}）。`,
+      `未保存：该地址不是可访问的 Library 后端（${detail}）。`,
     apiBasePlaceholder: "（留空 = 同源 / 代理）",
     apiToken: "API bearer token",
-    apiTokenHelp: "仅在服务器设置 MARGINALIA_API_TOKEN 时需要。只保存在当前浏览器本地。",
+    apiTokenHelp: "仅在服务器设置 LIBRARY_API_TOKEN 时需要。只保存在当前浏览器本地。",
     apiTokenPlaceholder: "（留空 = 不发送 Authorization 头）",
     webdavTitle: "WebDAV 同步",
     webdavSubtitle:
       "将知识库快照发布到 WebDAV，从其他设备拉取 metadata，并按需下载原始文件。",
     webdavUrl: "WebDAV URL",
     webdavRemotePath: "远端路径",
-    webdavRemotePathHint: "Marginalia 在 WebDAV 根目录下使用的文件夹。",
+    webdavRemotePathHint: "Library 在 WebDAV 根目录下使用的文件夹。",
     webdavUsername: "用户名",
     webdavPassword: "密码",
     webdavPasswordHint: "如果服务商支持，建议使用应用专用密码。",
@@ -1481,7 +1481,7 @@ const zh: I18nStrings = {
     llmProfilesSubtitle: "按任务覆盖模型配置。空字段继承 default profile。",
     kv: {
       appEnv: "应用环境",
-      home: "Marginalia Home",
+      home: "Library Home",
       db: "数据库后端",
       storage: "存储后端",
       worker: "Worker 启用",

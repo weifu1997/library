@@ -20,9 +20,9 @@ interface PrefsState {
   setLanguage: (v: LanguagePreference) => void;
 }
 
-const KEY_POLL = "marginalia.prefs.status_poll_ms";
-const KEY_COMPACT = "marginalia.prefs.compact_sidebar";
-const KEY_LANGUAGE = "marginalia.prefs.language";
+const KEY_POLL = "library.prefs.status_poll_ms";
+const KEY_COMPACT = "library.prefs.compact_sidebar";
+const KEY_LANGUAGE = "library.prefs.language";
 
 function readPollMs(): number {
   if (typeof localStorage === "undefined") return 4000;

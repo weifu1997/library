@@ -13,19 +13,19 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from marginalia.api import routes_upload
-from marginalia.capacity import CapacityExceeded
-from marginalia.config import Settings
-from marginalia.db.bootstrap import bootstrap_schema_sync
-from marginalia.db.models import File
-from marginalia.db.models.tasks import Task
-from marginalia.services.upload import UploadResult, upload
-from marginalia.storage import s3 as s3_module
-from marginalia.storage.local import LocalStorage
-from marginalia.storage.s3 import S3Storage
-from marginalia.tasks.kinds import KIND_INGEST_FILE, KIND_REFRESH_SEMANTIC_FILE
-from marginalia import upload_limits
-from marginalia.utils.ids import new_id
+from library.api import routes_upload
+from library.capacity import CapacityExceeded
+from library.config import Settings
+from library.db.bootstrap import bootstrap_schema_sync
+from library.db.models import File
+from library.db.models.tasks import Task
+from library.services.upload import UploadResult, upload
+from library.storage import s3 as s3_module
+from library.storage.local import LocalStorage
+from library.storage.s3 import S3Storage
+from library.tasks.kinds import KIND_INGEST_FILE, KIND_REFRESH_SEMANTIC_FILE
+from library import upload_limits
+from library.utils.ids import new_id
 
 
 async def _chunks(*values: bytes) -> AsyncIterator[bytes]:
@@ -366,7 +366,7 @@ async def test_new_upload_capacity_rejects_and_removes_written_object(
     storage = LocalStorage(tmp_path / "capacity-objects")
     now = datetime.now(timezone.utc)
     monkeypatch.setattr(
-        "marginalia.services.upload.get_settings",
+        "library.services.upload.get_settings",
         lambda: Settings(library_document_limit=1),
     )
     try:
@@ -414,7 +414,7 @@ async def test_deduplicated_upload_does_not_consume_document_capacity(
     body = b"same body"
     file_id = new_id()
     monkeypatch.setattr(
-        "marginalia.services.upload.get_settings",
+        "library.services.upload.get_settings",
         lambda: Settings(library_document_limit=1),
     )
     try:

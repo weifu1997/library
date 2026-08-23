@@ -21,10 +21,10 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_purge_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -32,16 +32,16 @@ os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
 from sqlalchemy import select, text
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import Base, File, FileEntry, Folder, Task
-from marginalia.storage import get_storage
-from marginalia.tasks.handlers.delete_storage_object import handle_delete_storage_object
-from marginalia.tasks.handlers.purge_deleted_files import handle_purge_deleted_files
-from marginalia.tasks.kinds import KIND_DELETE_STORAGE_OBJECT
-from marginalia.utils.ids import new_id
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import Base, File, FileEntry, Folder, Task
+from library.storage import get_storage
+from library.tasks.handlers.delete_storage_object import handle_delete_storage_object
+from library.tasks.handlers.purge_deleted_files import handle_purge_deleted_files
+from library.tasks.kinds import KIND_DELETE_STORAGE_OBJECT
+from library.utils.ids import new_id
 
 
 def _now() -> datetime:
@@ -63,7 +63,7 @@ async def _seed():
     # write a fake storage object
     storage_key = "00/aa/test-blob"
     async def _stream():
-        yield b"hello marginalia"
+        yield b"hello library"
     await storage.put(storage_key, _stream(), content_type="text/plain")
 
     async with factory() as s:

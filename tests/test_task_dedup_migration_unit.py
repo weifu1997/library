@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from marginalia.db.bootstrap import COLLAPSE_ACTIVE_TASK_DUPLICATES_SQL
+from library.db.bootstrap import COLLAPSE_ACTIVE_TASK_DUPLICATES_SQL
 
 
 def test_duplicate_task_migration_keeps_the_most_executable_delivery() -> None:

@@ -1,6 +1,6 @@
-# Marginalia Design
+# Library Design
 
-Marginalia is a local-first research agent for a private heterogeneous
+Library is a local-first research agent for a private heterogeneous
 knowledge base. It is built around five commitments:
 
 1. **Structured retrieval before raw reading**: the agent narrows candidates through journals, folders, catalogs, tags, views, summaries, extra fields, high-level recall, and relation discovery before opening source files.
@@ -13,7 +13,7 @@ This document describes current code behavior. It is not a product roadmap.
 
 ## 1. Retrieval Model
 
-Marginalia deliberately avoids a vector-first design. The core retrieval path
+Library deliberately avoids a vector-first design. The core retrieval path
 is a funnel, with `recall_knowledge` as the preferred first-pass tool for broad
 material location:
 
@@ -64,7 +64,7 @@ Embedding recall is optional and never reuses chat, vision, or ingest keys.
 
 ### 1.2 Capability Boundary
 
-Marginalia is strongest for source-grounded investigation over a personal
+Library is strongest for source-grounded investigation over a personal
 library: finding relevant materials, reading the right slices, reconciling
 evidence, and producing a cited report. For quick factual lookup it behaves
 like a hybrid RAG system. For research-style questions, the full ReAct workflow
@@ -429,13 +429,13 @@ Important retrieval tools:
 
 ### 5.1 MCP Read-Only Surface
 
-`marginalia mcp` / `marginalia-mcp` runs a stdio MCP server for external
+`library mcp` / `library-mcp` runs a stdio MCP server for external
 agents. It reuses the same registered tool schemas and handlers, but exposes
 only read-only retrieval tools: `recall_knowledge`, `read_files`,
 `search_metadata`, `search_journal`, `read_entries_metadata`, `list_folder`,
 `list_catalogs`, `read_catalog`, `resolve_tag`, and `materialize_view`.
 Write-side tools, artifact generators, logs, SQL execution, and archive
-analysis remain internal to the Marginalia agent/API surface unless they are
+analysis remain internal to the Library agent/API surface unless they are
 explicitly added later. MCP calls use synthetic `mcp-*` tool contexts and do
 not write conversation history or journal memory.
 
@@ -539,7 +539,7 @@ LLM-dependent task kinds fail fast when required profile credentials are missing
 Evaluation is part of the design because the system's goal is a final
 source-grounded report, not only a ranked list.
 
-`marginalia eval` has three layers:
+`library eval` has three layers:
 
 ```text
 run
@@ -583,7 +583,7 @@ end-to-end report comparison, 30 queries:
   ReAct wins 26, one-shot RAG wins 2, ties 2, timeouts 1
 ```
 
-These results justify describing Marginalia as strong for personal-library
+These results justify describing Library as strong for personal-library
 research reports, while keeping the claim bounded to local validation and the
 tested comparison setup.
 
@@ -591,22 +591,22 @@ tested comparison setup.
 
 Backends:
 
-- `mirror`: readable folder tree under `<MARGINALIA_HOME>/library`.
-- `local`: UUID-flat object pool under `<MARGINALIA_HOME>/objects`.
+- `mirror`: readable folder tree under `<LIBRARY_HOME>/library`.
+- `local`: UUID-flat object pool under `<LIBRARY_HOME>/objects`.
 - `s3`: remote object storage for multi-host deployments.
 
 The app checks storage-key shape at startup so switching backend without migration fails clearly. Migration is handled by:
 
 ```bash
-marginalia storage migrate --from mirror --to local
-marginalia storage migrate --from local --to mirror
+library storage migrate --from mirror --to local
+library storage migrate --from local --to mirror
 ```
 
 S3 is intended for Postgres-backed deployments.
 
 Live multi-device use should not be implemented by file-syncing
-`MARGINALIA_HOME`. SQLite plus mirror/local object files are safe to back up
-after Marginalia is stopped, but concurrent replication tools can corrupt the
+`LIBRARY_HOME`. SQLite plus mirror/local object files are safe to back up
+after Library is stopped, but concurrent replication tools can corrupt the
 database or split file/database state. Multi-device deployments use Postgres
 plus S3-compatible object storage.
 
@@ -651,7 +651,7 @@ This preserves personal worker intent. Shared deployments may enable background 
 Embedded default:
 
 ```text
-marginalia CLI
+library CLI
   -> in-process ASGI app
   -> in-process TaskRunner
   -> SQLite + mirror/local storage
@@ -666,7 +666,7 @@ CLI or desktop
   -> Postgres + S3 or shared storage
 ```
 
-Remote API deployments can set `MARGINALIA_API_TOKEN`; when present, all
+Remote API deployments can set `LIBRARY_API_TOKEN`; when present, all
 routes except `/health`, `/live`, `/ready`, and CORS preflight require
 `Authorization: Bearer`.
 Docker compose starts API, worker, Postgres, and MinIO, and binds published

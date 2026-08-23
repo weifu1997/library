@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from marginalia.db.bootstrap import _relax_file_entries_folder_id_nullable
+from library.db.bootstrap import _relax_file_entries_folder_id_nullable
 
 
 revision = "0003_file_entries_folder_id_nullable"

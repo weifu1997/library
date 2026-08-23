@@ -22,26 +22,26 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_generate_chart_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
 os.environ["LLM_DEFAULT_MODEL"] = "fake-model"
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import Base, Session
-from marginalia.llm.types import (
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import Base, Session
+from library.llm.types import (
     ChatRequest, ChatResponse, TokenUsage, ToolCall,
 )
-from marginalia.utils.ids import new_id
-import marginalia.agent.runtime as runtime
-from marginalia.agent.tools.generate_chart import generate_chart, SCHEMA
+from library.utils.ids import new_id
+import library.agent.runtime as runtime
+from library.agent.tools.generate_chart import generate_chart, SCHEMA
 
 
 async def _create_schema() -> None:

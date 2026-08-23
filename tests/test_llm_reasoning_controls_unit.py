@@ -4,12 +4,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from marginalia.config import LlmProfile, ModelCapabilities
-from marginalia.llm.anthropic_adapter import AnthropicChatClient
-from marginalia.llm.factory import _UsageRecordingChatClient
-from marginalia.llm.model_controls import should_disable_thinking_by_default
-from marginalia.llm.openai_adapter import OpenAIChatClient
-from marginalia.llm.types import ChatMessage, ChatRequest, ChatResponse, TokenUsage, ToolDef
+from library.config import LlmProfile, ModelCapabilities
+from library.llm.anthropic_adapter import AnthropicChatClient
+from library.llm.factory import _UsageRecordingChatClient
+from library.llm.model_controls import should_disable_thinking_by_default
+from library.llm.openai_adapter import OpenAIChatClient
+from library.llm.types import ChatMessage, ChatRequest, ChatResponse, TokenUsage, ToolDef
 
 
 async def _capture_openai_kwargs(

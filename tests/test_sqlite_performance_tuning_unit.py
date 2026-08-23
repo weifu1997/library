@@ -3,13 +3,13 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import create_engine, inspect
 
-from marginalia.config import Settings
-from marginalia.db.bootstrap import (
+from library.config import Settings
+from library.db.bootstrap import (
     QUERY_PERFORMANCE_INDEXES,
     bootstrap_schema_sync,
 )
-from marginalia.db.engine import _build_engine
-from marginalia.db.models import Base
+from library.db.engine import _build_engine
+from library.db.models import Base
 
 
 def test_query_performance_indexes_are_modelled_and_bootstrapped(tmp_path) -> None:
@@ -21,7 +21,7 @@ def test_query_performance_indexes_are_modelled_and_bootstrapped(tmp_path) -> No
     for index_name, _table_name, _columns in QUERY_PERFORMANCE_INDEXES:
         assert index_name in metadata_indexes
 
-    engine = create_engine(f"sqlite:///{tmp_path / 'marginalia.db'}")
+    engine = create_engine(f"sqlite:///{tmp_path / 'library.db'}")
     try:
         with engine.begin() as conn:
             bootstrap_schema_sync(conn)
@@ -38,7 +38,7 @@ def test_query_performance_indexes_are_modelled_and_bootstrapped(tmp_path) -> No
 
 @pytest.mark.asyncio
 async def test_sqlite_engine_sets_performance_pragmas(tmp_path) -> None:
-    settings = Settings(marginalia_home=str(tmp_path))
+    settings = Settings(library_home=str(tmp_path))
     engine = _build_engine(settings)
     try:
         async with engine.connect() as conn:
@@ -68,7 +68,7 @@ async def test_sqlite_engine_sets_performance_pragmas(tmp_path) -> None:
 
 
 def test_postgres_engine_uses_configured_pool_limits(monkeypatch) -> None:
-    from marginalia.db import engine as engine_module
+    from library.db import engine as engine_module
 
     captured: dict[str, object] = {}
     sentinel = object()

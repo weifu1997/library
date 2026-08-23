@@ -27,10 +27,10 @@ import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_image_pipeline_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -41,18 +41,18 @@ import httpx
 from httpx import ASGITransport
 from sqlalchemy import select, text
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import Base, EntryTag, File, FileEntry, Tag
-from marginalia.llm.types import (
+from library import llm
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import Base, EntryTag, File, FileEntry, Tag
+from library.llm.types import (
     ChatRequest, ChatResponse, ImageBlock, TextBlock, TokenUsage,
 )
-from marginalia.main import app
-from marginalia.tasks.kinds import KIND_INGEST_FILE
-from marginalia.tasks.runner import TaskRunner
+from library.main import app
+from library.tasks.kinds import KIND_INGEST_FILE
+from library.tasks.runner import TaskRunner
 
 
 CALL_LOG: list[ChatRequest] = []
@@ -124,9 +124,9 @@ def _install_fake() -> None:
     fake = _FakeVision()
     def _factory(profile: str = "ingest"):
         return fake
-    import marginalia.pipelines.image as imod
+    import library.pipelines.image as imod
     imod.get_chat_client = _factory  # type: ignore[assignment]
-    import marginalia.tasks.handlers.periodic_tick as pmod
+    import library.tasks.handlers.periodic_tick as pmod
 
     async def _no_periodic_bootstrap() -> None:
         return None
@@ -241,7 +241,7 @@ async def main():
         assert f.ingested_at is not None
 
         # entry catalog path → Tests/Images
-        from marginalia.db.models import Catalog
+        from library.db.models import Catalog
         cat = await s.get(Catalog, e.catalog_id)
         assert cat.name == "Images"
         parent = await s.get(Catalog, cat.parent_id)

@@ -1,8 +1,8 @@
-# Marginalia Architecture Overview
+# Library Architecture Overview
 
 This document is a developer-facing architecture sketch. It complements the full design in `DESIGN.md`.
 
-Marginalia's current architecture is optimized for a personal-library research
+Library's current architecture is optimized for a personal-library research
 agent rather than a pure vector database. The system can behave like hybrid
 RAG for quick lookup, but its strongest path is multi-step ReAct
 investigation: locate candidate materials, verify metadata, read original
@@ -14,7 +14,7 @@ source windows, follow related evidence, and produce a cited report.
 CLI / desktop / HTTP client
         |
         v
-FastAPI app (`marginalia.main`)
+FastAPI app (`library.main`)
         |
         +-- synchronous request handlers
         |     upload, folders, entries, search, chat, export, settings
@@ -27,7 +27,7 @@ FastAPI app (`marginalia.main`)
 Default mode embeds everything in one process:
 
 ```text
-marginalia
+library
   -> CLI REPL
   -> httpx ASGITransport
   -> FastAPI app
@@ -37,9 +37,9 @@ marginalia
 Remote mode runs the API separately:
 
 ```text
-marginalia --server http://host:8000
+library --server http://host:8000
   -> HTTP
-  -> uvicorn marginalia.main:app
+  -> uvicorn library.main:app
 ```
 
 ## 2. Layers
@@ -302,7 +302,7 @@ eval build-semantic-index --concurrency N --resume
 
 ## 8. Evaluation and Validation
 
-`marginalia eval` has three layers:
+`library eval` has three layers:
 
 ```text
 run
@@ -318,7 +318,7 @@ compare-report
   -> blind pairwise judge, with gold labels prioritized when available
 ```
 
-This split matters architecturally. Marginalia is not trying to be only the
+This split matters architecturally. Library is not trying to be only the
 best ranker; the product outcome is a source-grounded investigation report.
 Ranking metrics are diagnostics for the candidate pool, while answer/report
 metrics test whether the system can actually use evidence.
@@ -405,7 +405,7 @@ directly upload to the same Release, while preserving parallel build time.
 
 ## 12. Design Boundaries
 
-Marginalia is not a vector search engine, a chat memory database, or a document summarizer that treats summaries as final evidence.
+Library is not a vector search engine, a chat memory database, or a document summarizer that treats summaries as final evidence.
 
 The intended contract is:
 

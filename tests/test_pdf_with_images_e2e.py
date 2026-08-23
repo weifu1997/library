@@ -24,10 +24,10 @@ import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 
-_TEST_PARENT = Path(os.environ.get("MARGINALIA_TEST_TMP", Path(__file__).resolve().parent))
+_TEST_PARENT = Path(os.environ.get("LIBRARY_TEST_TMP", Path(__file__).resolve().parent))
 _TEST_ROOT = _TEST_PARENT / f"_pdf_with_images_e2e_data_{os.getpid()}_{uuid4().hex[:8]}"
 _TEST_ROOT.mkdir(parents=True)
-os.environ["MARGINALIA_HOME"] = str(_TEST_ROOT)
+os.environ["LIBRARY_HOME"] = str(_TEST_ROOT)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["WORKER_ENABLED"] = "false"
 os.environ["LLM_DEFAULT_API_KEY"] = "sk-fake"
@@ -38,17 +38,17 @@ import httpx
 from httpx import ASGITransport
 from sqlalchemy import select, text
 
-from marginalia.config import get_settings
+from library.config import get_settings
 get_settings.cache_clear()  # type: ignore[attr-defined]
 
-from marginalia import llm
-from marginalia.db.engine import get_engine, get_session_factory
-from marginalia.db.models import Base, EntryTag, File, FileEntry
-from marginalia.llm.types import (
+from library import llm
+from library.db.engine import get_engine, get_session_factory
+from library.db.models import Base, EntryTag, File, FileEntry
+from library.llm.types import (
     ChatRequest, ChatResponse, ImageBlock, TextBlock, TokenUsage,
 )
-from marginalia.main import app
-from marginalia.tasks.runner import TaskRunner
+from library.main import app
+from library.tasks.runner import TaskRunner
 
 
 VISION_CALL_LOG: list[ChatRequest] = []
@@ -274,7 +274,7 @@ def _install_fakes() -> None:
     llm.reset_clients_cache()
     vision = _FakeVision()
     ingest = _FakeIngest()
-    import marginalia.pipelines.pdf as pmod
+    import library.pipelines.pdf as pmod
     # PDF image extraction + VLM description live in pdf.py too. Patch
     # `get_chat_client` once: the fake decides by profile name. Ingest
     # path asks for "ingest"; image-describer asks for "vision".
@@ -284,7 +284,7 @@ def _install_fakes() -> None:
             return vision
         return ingest
     pmod.get_chat_client = _pick_client  # type: ignore
-    import marginalia.tasks.handlers.periodic_tick as tickmod
+    import library.tasks.handlers.periodic_tick as tickmod
 
     async def _no_periodic_bootstrap() -> None:
         return None

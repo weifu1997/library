@@ -6,11 +6,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from marginalia.pipelines.archive import ArchivePipeline
-from marginalia.pipelines.docx import DocxPipeline
-from marginalia.pipelines.markitdown import MarkItDownPipeline
-from marginalia.pipelines.pptx import PptxPipeline
-from marginalia.pipelines.spreadsheet import SpreadsheetPipeline
+from library.pipelines.archive import ArchivePipeline
+from library.pipelines.docx import DocxPipeline
+from library.pipelines.markitdown import MarkItDownPipeline
+from library.pipelines.pptx import PptxPipeline
+from library.pipelines.spreadsheet import SpreadsheetPipeline
 
 
 class _MemoryStorage:
@@ -90,7 +90,7 @@ def _pptx_with_empty_tail() -> bytes:
 async def test_markitdown_heading_read_uses_full_extracted_text(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import marginalia.pipelines.markitdown as mod
+    import library.pipelines.markitdown as mod
 
     monkeypatch.setattr(
         mod,
@@ -176,7 +176,7 @@ async def test_docx_question_prefers_extracted_text(
         raise AssertionError("readable DOCX text must bypass vision")
 
     monkeypatch.setattr(
-        "marginalia.pipelines.docx.answer_document_image_question",
+        "library.pipelines.docx.answer_document_image_question",
         forbidden_vision,
     )
     result = await DocxPipeline().read_segment(
@@ -201,7 +201,7 @@ async def test_pptx_question_prefers_extracted_text(
         raise AssertionError("readable PPTX text must bypass vision")
 
     monkeypatch.setattr(
-        "marginalia.pipelines.pptx.answer_document_image_question",
+        "library.pipelines.pptx.answer_document_image_question",
         forbidden_vision,
     )
     result = await PptxPipeline().read_segment(
