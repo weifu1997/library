@@ -647,17 +647,29 @@ async def list_llm_models(
         )
     if payload.backup:
         base = resolve_backup(s, payload.profile)
-        if base is None:
-            return {
-                "ok": False,
-                "error": "backup model not configured",
-                "duration_ms": 0.0,
-            }
     else:
         base = resolve_profile(s, payload.profile)
-    eff_provider = (payload.provider or "").strip() or base.provider
-    eff_base_url = (payload.base_url or "").strip() or (base.base_url or "")
-    eff_api_key = (payload.api_key or "").strip() or (base.api_key or "")
+
+    # A masked placeholder ("sk-***CA") is the stored key rendered for
+    # display, never a real credential. Treat it as absent so we fall back
+    # to the resolved key instead of calling the provider with the mask.
+    raw_override = (payload.api_key or "").strip()
+    if "***" in raw_override:
+        raw_override = ""
+    has_live = bool(
+        (payload.provider or "").strip()
+        or (payload.base_url or "").strip()
+        or raw_override
+    )
+
+    if base is None and not has_live:
+        # No persisted backup target and no live form override to list
+        # against — there is nothing to fetch.
+        return {"ok": False, "error": "backup model not configured", "duration_ms": 0.0}
+
+    eff_provider = (payload.provider or "").strip() or (base.provider if base else "")
+    eff_base_url = (payload.base_url or "").strip() or ((base.base_url or "") if base else "")
+    eff_api_key = raw_override or ((base.api_key or "") if base else "")
     if eff_provider not in _VALID_PROVIDERS:
         raise HTTPException(
             status_code=422, detail=f"unsupported provider: {eff_provider!r}",

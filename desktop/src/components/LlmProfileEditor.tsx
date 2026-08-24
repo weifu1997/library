@@ -19,7 +19,7 @@
  *  masks it), so the input shows a placeholder telling the user a key
  *  is set. Typing replaces it; leaving it blank keeps whatever's
  *  already configured. */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Save,
   RotateCcw,
@@ -58,6 +58,13 @@ const BACKUP_FIELDS = [
 const FORM_FIELDS = [...EDITABLE_FIELDS, ...BACKUP_FIELDS] as const;
 
 type FormState = Partial<Record<string, string>>;
+
+/** Server masks stored api_keys in GET responses ("sk-***CA"), so the form
+ *  never holds a raw credential — a masked placeholder must never be sent
+ *  back as a live value (fetching would 401, saving would overwrite the
+ *  real stored key). Empty / unmasked values still pass through. */
+const isMaskedKey = (v: string | undefined | null): boolean =>
+  !!v && v.includes("***");
 
 /** A one-click provider shortcut that fills the default profile's
  *  provider / model / base_url. Every field stays editable afterwards. */
@@ -324,8 +331,14 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
   const isDefault = name === "default";
   const profile = isDefault ? null : data.profiles[name];
   const overlay = data.overlay;
-  const overlayKey = (suffix: string) =>
-    isDefault ? `llm_default_${suffix}` : `llm_${name}_${suffix}`;
+  // Must be stable across renders: `initialForm`'s useMemo and the form-sync
+  // effect depend on it, and a fresh function every render would re-run the
+  // effect and wipe user edits on every keystroke.
+  const overlayKey = useCallback(
+    (suffix: string) =>
+      isDefault ? `llm_default_${suffix}` : `llm_${name}_${suffix}`,
+    [isDefault, name],
+  );
 
   const view = isDefault ? data.defaults : (profile ?? data.defaults);
 
@@ -406,12 +419,15 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
     setE(null);
     setM(null);
     try {
+      const rawKey = form[`${p}api_key`];
       const res = await settingsApi.fetchLlmModels({
         profile: name,
         backup: isBackup,
         provider: form[`${p}provider`] || null,
         base_url: form[`${p}base_url`] || null,
-        api_key: form[`${p}api_key`] || null,
+        // A masked placeholder is the saved key, not a live override —
+        // send null so the server resolves the real stored key.
+        api_key: isMaskedKey(rawKey) ? null : (rawKey?.trim() || null),
       });
       if (!res.ok) {
         setE(res.error ?? "fetch failed");
@@ -443,6 +459,12 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
       for (const f of fields) {
         if (f in form) {
           const val = form[f]?.trim();
+          // Masked placeholder = the already-stored key; skip it so the
+          // real key in the overlay is preserved (a blank field still
+          // clears, as before).
+          if ((f === "api_key" || f === "backup_api_key") && isMaskedKey(val)) {
+            continue;
+          }
           patch[overlayKey(f)] = val === "" ? null : (val ?? null);
         }
       }
@@ -580,22 +602,18 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
 
             <div>
               <Field label={t.llm.model}>
-                <input
+                <ModelListPicker
+                  fetching={fetching}
+                  error={fetchErr}
+                  models={models}
                   value={form.model ?? ""}
-                  onChange={(e) => updateField("model", e.target.value)}
+                  onPick={(v) => updateField("model", v)}
+                  onManual={() => setModels([])}
+                  onFetch={() => fetchModels("model")}
+                  labels={{ fetch: t.llm.fetchModels, fetching: t.llm.fetchingModels, pick: t.llm.pickModel, manual: t.llm.typeModel }}
                   placeholder={isDefault ? "e.g. gpt-4o-mini, deepseek-chat, qwen-plus" : (view.model || undefined)}
-                  className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
                 />
               </Field>
-              <ModelListPicker
-                fetching={fetching}
-                error={fetchErr}
-                models={models}
-                value={form.model ?? ""}
-                onPick={(v) => updateField("model", v)}
-                onFetch={() => fetchModels("model")}
-                labels={{ fetch: t.llm.fetchModels, fetching: t.llm.fetchingModels, pick: t.llm.pickModel }}
-              />
             </div>
 
             <div className="sm:col-span-2">
@@ -738,22 +756,18 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
 
               <div>
                 <Field label={t.llm.model}>
-                  <input
+                  <ModelListPicker
+                    fetching={fetchingBackup}
+                    error={fetchErrBackup}
+                    models={backupModels}
                     value={form.backup_model ?? ""}
-                    onChange={(e) => updateField("backup_model", e.target.value)}
+                    onPick={(v) => updateField("backup_model", v)}
+                    onManual={() => setBackupModels([])}
+                    onFetch={() => fetchModels("backup_model")}
+                    labels={{ fetch: t.llm.fetchModels, fetching: t.llm.fetchingModels, pick: t.llm.pickModel, manual: t.llm.typeModel }}
                     placeholder={backupPlaceholder(backupView?.model)}
-                    className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
                   />
                 </Field>
-                <ModelListPicker
-                  fetching={fetchingBackup}
-                  error={fetchErrBackup}
-                  models={backupModels}
-                  value={form.backup_model ?? ""}
-                  onPick={(v) => updateField("backup_model", v)}
-                  onFetch={() => fetchModels("backup_model")}
-                  labels={{ fetch: t.llm.fetchModels, fetching: t.llm.fetchingModels, pick: t.llm.pickModel }}
-                />
               </div>
 
               <div className="sm:col-span-2">
@@ -886,28 +900,69 @@ function CapabilitySelect({
   );
 }
 
-/** Fetch button + model dropdown for a model field. Mirrors the top-level
- *  test button's loading/error pattern; the dropdown only appears once a
- *  fetch succeeded. Picking an option writes it back via `onPick`. */
+/** Single model control for a model field — a text input until a fetch
+ *  succeeds, then the input is *replaced* by a dropdown (never two controls).
+ *  The fetch button + error sit below. Picking writes back via `onPick`; the
+ *  "type manually" escape falls back to the input via `onManual`. */
 function ModelListPicker({
   fetching,
   error,
   models,
   value,
   onPick,
+  onManual,
   onFetch,
   labels,
+  placeholder,
 }: {
   fetching: boolean;
   error: string | null;
   models: LlmModelInfo[] | null;
   value: string;
   onPick: (v: string) => void;
+  onManual: () => void;
   onFetch: () => void;
-  labels: { fetch: string; fetching: string; pick: string };
+  labels: { fetch: string; fetching: string; pick: string; manual: string };
+  placeholder?: string;
 }) {
+  const list = models ?? [];
+  const hasModels = list.length > 0;
+  const controlClass =
+    "h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20";
   return (
-    <div className="mt-2 space-y-1.5">
+    <div className="space-y-1.5">
+      {hasModels ? (
+        <select
+          value={value}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "__manual__") {
+              onManual();
+            } else {
+              onPick(v);
+            }
+          }}
+          className={controlClass}
+        >
+          <option value="">{labels.pick}…</option>
+          {value && !list.some((m) => m.id === value) && (
+            <option value={value}>{value}</option>
+          )}
+          {list.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.display_name ?? m.id}
+            </option>
+          ))}
+          <option value="__manual__">{labels.manual}</option>
+        </select>
+      ) : (
+        <input
+          value={value}
+          onChange={(e) => onPick(e.target.value)}
+          placeholder={placeholder}
+          className={controlClass}
+        />
+      )}
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -928,23 +983,6 @@ function ModelListPicker({
           </span>
         )}
       </div>
-      {models && models.length > 0 && (
-        <select
-          value={value}
-          onChange={(e) => onPick(e.target.value)}
-          className="h-9 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
-        >
-          <option value="">{labels.pick}…</option>
-          {value && !models.some((m) => m.id === value) && (
-            <option value={value}>{value}</option>
-          )}
-          {models.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.display_name ?? m.id}
-            </option>
-          ))}
-        </select>
-      )}
     </div>
   );
 }

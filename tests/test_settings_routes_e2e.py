@@ -757,6 +757,44 @@ async def test_llm_models_endpoint_lists_models() -> None:
                     ("openai", "https://api.openai.com/v1", "sk-default-key-XXXX"),
                 ]
                 assert "sk-default-key-XXXX" not in r.text
+
+                # A masked placeholder ("sk-***XXXX") is the stored key
+                # rendered for display, never a real credential — it must not
+                # override the resolved key (the bug that 401'd OneHub).
+                seen.clear()
+                r = await c.post(
+                    "/v1/settings/llm/models",
+                    json={
+                        "profile": "default",
+                        "provider": "openai",
+                        "base_url": "https://api.openai.com/v1",
+                        "api_key": "sk-***XXXX",
+                    },
+                )
+                assert r.status_code == 200, r.text
+                assert seen == [
+                    ("openai", "https://api.openai.com/v1", "sk-default-key-XXXX"),
+                ]
+
+                # Backup fetch with live form overrides works even though no
+                # backup is persisted (_ensure_test_env scrubs backup env):
+                # the endpoint lists against the form values instead of
+                # short-circuiting to "backup model not configured".
+                seen.clear()
+                r = await c.post(
+                    "/v1/settings/llm/models",
+                    json={
+                        "profile": "default",
+                        "backup": True,
+                        "provider": "openai",
+                        "base_url": "https://api.openai.com/v1",
+                        "api_key": "sk-live-backup-key",
+                    },
+                )
+                assert r.status_code == 200, r.text
+                assert seen == [
+                    ("openai", "https://api.openai.com/v1", "sk-live-backup-key"),
+                ]
         print("[10] POST /llm/models returns the provider model list")
     finally:
         rs._list_llm_models = original

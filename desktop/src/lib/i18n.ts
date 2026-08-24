@@ -835,6 +835,7 @@ const en = {
     fetchModels: "Fetch models",
     fetchingModels: "Fetching…",
     pickModel: "Pick a model…",
+    typeModel: "Type a model manually…",
   },
 };
 
@@ -1655,6 +1656,7 @@ const zh: I18nStrings = {
     fetchModels: "获取模型列表",
     fetchingModels: "获取中…",
     pickModel: "选择模型…",
+    typeModel: "手动输入模型名…",
   },
 };
 
