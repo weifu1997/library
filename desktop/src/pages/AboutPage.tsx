@@ -1,5 +1,19 @@
 import { useState } from "react";
-import { AlertCircle, CheckCircle2, ExternalLink, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+  RefreshCw,
+  Sparkles,
+  ShieldCheck,
+  Code2,
+  BookOpen,
+  FolderGit2,
+  FileCode2,
+  Cpu,
+  Database,
+  Lock,
+} from "lucide-react";
 
 import { APP_VERSION } from "@/lib/appVersion";
 import { useI18n } from "@/lib/i18n";
@@ -51,63 +65,117 @@ export function AboutPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto px-8 py-8">
+    <div className="h-full overflow-y-auto px-6 py-8">
       <div className="mx-auto max-w-3xl space-y-6">
-        <header>
-          <h1 className="text-xl font-semibold">{t.about.title}</h1>
-          <p className="mt-1 text-sm text-fg-muted">{t.about.subtitle}</p>
-        </header>
-
-        <section className="rounded-md border border-border bg-bg-subtle p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">{t.about.versionTitle}</h2>
-              <p className="mt-1 font-mono text-lg">v{APP_VERSION}</p>
+        {/* Hero Card */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-bg-card via-bg-card to-accent/5 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/25 ring-1 ring-white/20">
+                <BookOpen size={30} strokeWidth={2.2} className="drop-shadow-xs" />
+                <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-bg-card text-accent border border-accent/20">
+                  <Sparkles size={11} />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h1 className="text-2xl font-bold tracking-tight text-fg-base">
+                    Library
+                  </h1>
+                  <span className="rounded-full bg-accent/10 px-3 py-0.5 font-mono text-xs font-bold text-accent border border-accent/20">
+                    v{APP_VERSION}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-xs text-fg-muted">
+                  {t.about.subtitle || "Personal AI knowledge workbench with local storage and multimodal retrieval."}
+                </p>
+              </div>
             </div>
+
             <button
               type="button"
               disabled={state.status === "checking"}
               onClick={() => void checkLatest()}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg",
-                "hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60",
+                "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-xs font-semibold text-accent-fg shadow-xs",
+                "hover:bg-accent-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 transition-all shadow-indigo-500/20",
               )}
             >
               <RefreshCw
-                className={cn("h-4 w-4", state.status === "checking" && "animate-spin")}
+                className={cn("h-3.5 w-3.5", state.status === "checking" && "animate-spin")}
               />
-              {state.status === "checking"
-                ? t.about.checkingLatest
-                : t.about.checkLatest}
+              <span>
+                {state.status === "checking"
+                  ? t.about.checkingLatest
+                  : t.about.checkLatest}
+              </span>
             </button>
           </div>
 
           <LatestVersionResult state={state} />
-        </section>
+        </div>
 
-        <section className="rounded-md border border-border bg-bg-subtle p-4">
-          <h2 className="text-sm font-semibold">{t.about.linksTitle}</h2>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <ExternalLinkButton href="https://github.com/weifu1997/library">
-              {t.about.projectHomepage}
-            </ExternalLinkButton>
-            <ExternalLinkButton href={RELEASES_URL}>
-              {t.about.downloadReleases}
-            </ExternalLinkButton>
-            <ExternalLinkButton href="https://github.com/weifu1997/library/issues">
-              {t.about.reportIssue}
-            </ExternalLinkButton>
-            <ExternalLinkButton href="https://github.com/weifu1997/library/blob/main/LICENSE">
-              {t.about.license}
-            </ExternalLinkButton>
+        {/* Resources Grid — min-h-[56px] cards */}
+        <section className="rounded-2xl border border-border/80 bg-bg-card p-6 sm:p-7 shadow-xs">
+          <h2 className="text-sm font-bold text-fg-base tracking-tight mb-4">
+            {t.about.linksTitle}
+          </h2>
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            <ExternalLinkButton
+              icon={FolderGit2}
+              href="https://github.com/weifu1997/library"
+              title={t.about.projectHomepage}
+              subtitle="Source code & repository"
+            />
+            <ExternalLinkButton
+              icon={Sparkles}
+              href={RELEASES_URL}
+              title={t.about.downloadReleases}
+              subtitle="Installers & release notes"
+            />
+            <ExternalLinkButton
+              icon={Code2}
+              href="https://github.com/weifu1997/library/issues"
+              title={t.about.reportIssue}
+              subtitle="Bug reports & feature requests"
+            />
+            <ExternalLinkButton
+              icon={FileCode2}
+              href="https://github.com/weifu1997/library/blob/main/LICENSE"
+              title={t.about.license}
+              subtitle="Open Source MIT License"
+            />
           </div>
         </section>
 
-        <section className="rounded-md border border-border bg-bg-subtle p-4">
-          <h2 className="text-sm font-semibold">{t.about.privacyTitle}</h2>
-          <p className="mt-2 text-sm leading-6 text-fg-muted">
+        {/* Privacy & Local Architecture */}
+        <section className="rounded-2xl border border-border/80 bg-bg-card p-6 sm:p-7 shadow-xs">
+          <div className="flex items-center gap-3 mb-3.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent/10 text-accent border border-accent/20 shadow-xs">
+              <ShieldCheck size={18} />
+            </div>
+            <h2 className="text-sm font-bold text-fg-base tracking-tight">
+              {t.about.privacyTitle}
+            </h2>
+          </div>
+          <p className="text-xs leading-relaxed text-fg-muted pl-11">
             {t.about.privacyBody}
           </p>
+
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-border/60">
+            <div className="flex h-11 items-center gap-2.5 rounded-xl border border-border/60 bg-bg-subtle/40 px-3.5 text-xs">
+              <Lock size={15} className="text-accent shrink-0" />
+              <span className="font-semibold text-fg-base">Local-First Storage</span>
+            </div>
+            <div className="flex h-11 items-center gap-2.5 rounded-xl border border-border/60 bg-bg-subtle/40 px-3.5 text-xs">
+              <Database size={15} className="text-accent shrink-0" />
+              <span className="font-semibold text-fg-base">SQLite & Vector DB</span>
+            </div>
+            <div className="flex h-11 items-center gap-2.5 rounded-xl border border-border/60 bg-bg-subtle/40 px-3.5 text-xs">
+              <Cpu size={15} className="text-accent shrink-0" />
+              <span className="font-semibold text-fg-base">Direct LLM Calling</span>
+            </div>
+          </div>
         </section>
       </div>
     </div>
@@ -118,15 +186,17 @@ function LatestVersionResult({ state }: { state: CheckState }) {
   const { t, localeTag } = useI18n();
   if (state.status === "idle" || state.status === "checking") {
     return (
-      <p className="mt-3 text-sm text-fg-subtle">{t.about.latestIdle}</p>
+      <div className="mt-5 pt-4 border-t border-border/60 text-xs text-fg-subtle">
+        {t.about.latestIdle}
+      </div>
     );
   }
   if (state.status === "error") {
     return (
-      <div className="mt-3 flex items-start gap-2 rounded-md bg-danger/10 px-3 py-2 text-sm">
+      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-danger/20 bg-danger/10 p-4 text-xs text-danger">
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
         <div>
-          <div className="font-medium text-fg-base">{t.about.latestFailed}</div>
+          <div className="font-bold text-fg-base">{t.about.latestFailed}</div>
           <p className="mt-0.5 text-fg-muted">{state.message}</p>
         </div>
       </div>
@@ -139,30 +209,30 @@ function LatestVersionResult({ state }: { state: CheckState }) {
     : null;
 
   return (
-    <div className="mt-3 flex items-start gap-2 rounded-md bg-bg-base px-3 py-2 text-sm">
+    <div className="mt-5 flex items-start gap-3.5 rounded-2xl border border-border/70 bg-bg-card p-4 text-xs shadow-xs">
       <CheckCircle2
         className={cn(
-          "mt-0.5 h-4 w-4 shrink-0",
+          "mt-0.5 h-4.5 w-4.5 shrink-0",
           state.updateAvailable ? "text-accent" : "text-fg-muted",
         )}
       />
-      <div>
-        <div className="font-medium text-fg-base">
+      <div className="flex-1">
+        <div className="font-bold text-fg-base text-sm">
           {state.updateAvailable
             ? t.about.updateAvailable(tag)
             : t.about.upToDate(tag)}
         </div>
         {published && (
-          <p className="mt-0.5 text-fg-muted">{t.about.publishedAt(published)}</p>
+          <p className="mt-1 text-xs text-fg-muted">{t.about.publishedAt(published)}</p>
         )}
         <a
           href={state.release.html_url || RELEASES_URL}
           target="_blank"
           rel="noreferrer"
           onClick={(e) => interceptExternalLink(e, state.release.html_url || RELEASES_URL)}
-          className="mt-2 inline-flex items-center gap-1 text-xs text-accent hover:underline"
+          className="mt-2.5 inline-flex h-9 items-center gap-1.5 rounded-xl bg-accent px-4 text-xs font-semibold text-accent-fg hover:bg-accent-hover transition-all active:scale-95 shadow-xs"
         >
-          {t.about.openLatestRelease}
+          <span>{t.about.openLatestRelease}</span>
           <ExternalLink className="h-3 w-3" />
         </a>
       </div>
@@ -171,11 +241,15 @@ function LatestVersionResult({ state }: { state: CheckState }) {
 }
 
 function ExternalLinkButton({
+  icon: Icon,
   href,
-  children,
+  title,
+  subtitle,
 }: {
+  icon: React.ElementType;
   href: string;
-  children: React.ReactNode;
+  title: React.ReactNode;
+  subtitle: string;
 }) {
   return (
     <a
@@ -183,10 +257,22 @@ function ExternalLinkButton({
       target="_blank"
       rel="noreferrer"
       onClick={(e) => interceptExternalLink(e, href)}
-      className="inline-flex items-center justify-between gap-2 rounded-md border border-border bg-bg-base px-3 py-2 text-sm text-fg-muted hover:bg-bg-muted hover:text-fg-base"
+      className="group flex min-h-[56px] items-center justify-between gap-3.5 rounded-2xl border border-border/70 bg-bg-subtle/40 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-bg-subtle/70 hover:shadow-xs active:scale-[0.99]"
     >
-      <span>{children}</span>
-      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+      <div className="flex items-center gap-3.5 min-w-0">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-bg-card border border-border/60 text-fg-muted group-hover:text-accent group-hover:border-accent/30 transition-colors shadow-xs">
+          <Icon size={17} />
+        </div>
+        <div className="min-w-0">
+          <div className="text-xs font-bold text-fg-base group-hover:text-accent transition-colors truncate">
+            {title}
+          </div>
+          <div className="text-[11px] text-fg-subtle truncate mt-0.5">
+            {subtitle}
+          </div>
+        </div>
+      </div>
+      <ExternalLink className="h-4 w-4 shrink-0 text-fg-subtle group-hover:text-accent transition-colors" />
     </a>
   );
 }

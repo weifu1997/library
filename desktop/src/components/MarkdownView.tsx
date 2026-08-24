@@ -228,7 +228,7 @@ function CodeBlock({ language, text }: { language: string; text: string }) {
         <span className="font-mono">{language}</span>
         <button
           onClick={onCopy}
-          className="flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-bg-muted hover:text-fg-base"
+          className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold text-fg-subtle hover:bg-bg-card hover:text-fg-base active:scale-95 transition-all shadow-xs border border-border/50"
           title={t.common.copy}
         >
           {copied

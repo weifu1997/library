@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "验收质量门禁：幂等、并发安全、异常不破坏设置写入"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "启停失败 worker_error 语义与设置写失败 422 的错误处理约束"}

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from typing import Literal
 
@@ -190,6 +190,16 @@ class Settings(BaseSettings):
         "max_tokens", "max_completion_tokens"
     ] = "max_tokens"
 
+    # Optional backup model for the default profile: when the primary
+    # exhausts its transient-error retries (rate limit / timeout / 5xx /
+    # overload), the chat client fails over to this model once. A backup
+    # only needs the four fields that reach a different endpoint; its
+    # capabilities inherit from the primary (see resolve_backup).
+    llm_default_backup_provider: LlmProvider | None = None
+    llm_default_backup_api_key: str | None = None
+    llm_default_backup_base_url: str | None = None
+    llm_default_backup_model: str | None = None
+
     # --- Per-profile overrides (chat / reflect / ingest / vision / audio) ---
     # Any field left blank inherits the corresponding `llm_default_*` value.
     # `audio` is text-transcription only (Whisper et al.) — provider must be
@@ -209,6 +219,11 @@ class Settings(BaseSettings):
         "max_tokens", "max_completion_tokens"
     ] | None = None
 
+    llm_chat_backup_provider: LlmProvider | None = None
+    llm_chat_backup_api_key: str | None = None
+    llm_chat_backup_base_url: str | None = None
+    llm_chat_backup_model: str | None = None
+
     llm_reflect_provider: LlmProvider | None = None
     llm_reflect_api_key: str | None = None
     llm_reflect_base_url: str | None = None
@@ -223,6 +238,11 @@ class Settings(BaseSettings):
     llm_reflect_token_limit_param: Literal[
         "max_tokens", "max_completion_tokens"
     ] | None = None
+
+    llm_reflect_backup_provider: LlmProvider | None = None
+    llm_reflect_backup_api_key: str | None = None
+    llm_reflect_backup_base_url: str | None = None
+    llm_reflect_backup_model: str | None = None
 
     llm_ingest_provider: LlmProvider | None = None
     llm_ingest_api_key: str | None = None
@@ -239,6 +259,11 @@ class Settings(BaseSettings):
         "max_tokens", "max_completion_tokens"
     ] | None = None
 
+    llm_ingest_backup_provider: LlmProvider | None = None
+    llm_ingest_backup_api_key: str | None = None
+    llm_ingest_backup_base_url: str | None = None
+    llm_ingest_backup_model: str | None = None
+
     llm_vision_provider: LlmProvider | None = None
     llm_vision_api_key: str | None = None
     llm_vision_base_url: str | None = None
@@ -253,6 +278,11 @@ class Settings(BaseSettings):
     llm_vision_token_limit_param: Literal[
         "max_tokens", "max_completion_tokens"
     ] | None = None
+
+    llm_vision_backup_provider: LlmProvider | None = None
+    llm_vision_backup_api_key: str | None = None
+    llm_vision_backup_base_url: str | None = None
+    llm_vision_backup_model: str | None = None
 
     llm_audio_provider: LlmProvider | None = None  # only "openai" makes sense
     llm_audio_api_key: str | None = None
@@ -420,9 +450,10 @@ def _profile_field(settings: Settings, profile: str, field: str) -> object:
 
 
 def resolve_profile(settings: Settings, profile: str) -> LlmProfile:
-    """Resolve `profile` (one of LLM_PROFILES) against `LLM_<PROFILE>_*`
-    overrides, falling back to `LLM_DEFAULT_*` per-field."""
-    if profile not in LLM_PROFILES:
+    """Resolve `profile` (one of LLM_PROFILES, or "default" for the
+    `LLM_DEFAULT_*` fields themselves) against `LLM_<PROFILE>_*` overrides,
+    falling back to `LLM_DEFAULT_*` per-field."""
+    if profile not in LLM_PROFILES and profile != "default":
         raise ValueError(f"unknown LLM profile: {profile!r}")
     provider = _profile_field(settings, profile, "provider")  # type: ignore[assignment]
     base_url = _profile_field(settings, profile, "base_url")  # type: ignore[assignment]
@@ -441,6 +472,64 @@ def resolve_profile(settings: Settings, profile: str) -> LlmProfile:
             model=str(model or ""),
         ),
         capabilities=capabilities,
+    )
+
+
+def _provider_family(provider: str) -> str:
+    """Normalize a provider to its request-dialect family. Dialects drive
+    request construction (max_tokens vs max_completion_tokens, thinking
+    controls), so they must match the endpoint actually being called."""
+    if provider == "anthropic":
+        return "anthropic"
+    if provider == "openai":
+        return "openai"
+    return "openai-compatible"
+
+
+def resolve_backup(settings: Settings, profile: str) -> LlmProfile | None:
+    """Resolve the optional failover target for `profile` (a member of
+    LLM_PROFILES, or "default" for the `LLM_DEFAULT_BACKUP_*` fields).
+
+    Returns ``None`` when no backup model is configured (neither on the
+    profile itself nor inherited from the default's backup). The backup
+    only carries the four fields that reach a different endpoint
+    (provider / api_key / base_url / model); its capabilities inherit the
+    primary's resolved capabilities, with the dialect kept when the
+    provider family matches the primary's and re-derived otherwise, and
+    ``token_limit_param`` pinned to ``max_tokens`` for an Anthropic
+    backup (its SDK always uses ``max_tokens``)."""
+    model = _profile_field(settings, profile, "backup_model")
+    if not model:
+        return None
+    provider = str(_profile_field(settings, profile, "backup_provider") or "").strip()
+    provider = provider or "openai-compatible"
+    base_url = _profile_field(settings, profile, "backup_base_url")
+    api_key = _profile_field(settings, profile, "backup_api_key")
+    primary = resolve_profile(settings, profile)
+    cap = primary.capabilities
+    dialect = (
+        cap.dialect
+        if _provider_family(provider) == _provider_family(primary.provider)
+        else _provider_family(provider)
+    )
+    token_limit_param = (
+        "max_tokens" if _provider_family(provider) == "anthropic" else cap.token_limit_param
+    )
+    return LlmProfile(
+        name=f"{profile}.backup",
+        provider=provider,  # type: ignore[arg-type]
+        api_key=api_key,  # type: ignore[arg-type]
+        base_url=base_url if isinstance(base_url, str) else None,  # type: ignore[arg-type]
+        model=str(model),
+        tps=_effective_llm_tps(
+            settings,
+            provider=provider,
+            base_url=base_url if isinstance(base_url, str) else None,
+            model=str(model),
+        ),
+        capabilities=replace(
+            cap, dialect=dialect, token_limit_param=token_limit_param
+        ),
     )
 
 

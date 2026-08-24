@@ -1,17 +1,5 @@
-/** Left rail for ChatPage — lists recent sessions, lets the user click
- *  one to load its transcript into the workbench, and starts a fresh
- *  one with "+ New chat".
- *
- *  Reads via:
- *    GET /v1/sessions               (sessions.list)
- *    GET /v1/sessions/{id}/messages (sessions.messages)
- *
- *  The list refreshes when `refreshSignal` changes — ChatPage bumps
- *  it when a new session opens and again when the planner writes the
- *  final title, so the entry appears immediately and then gets renamed.
- */
 import { useCallback, useEffect, useState } from "react";
-import { Plus, MessageSquare, Loader2, Lock, Trash2 } from "lucide-react";
+import { Plus, MessageSquare, Loader2, Lock, Trash2, MessagesSquare } from "lucide-react";
 
 import { sessions as sessionsApi } from "@/api/client";
 import type { SessionListEntry } from "@/types/api";
@@ -26,7 +14,10 @@ interface Props {
 }
 
 export function SessionList({
-  activeSessionId, onSelect, onNewChat, refreshSignal,
+  activeSessionId,
+  onSelect,
+  onNewChat,
+  refreshSignal,
 }: Props) {
   const [entries, setEntries] = useState<SessionListEntry[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -37,76 +28,100 @@ export function SessionList({
     let cancelled = false;
     sessionsApi
       .list(50)
-      .then((r) => { if (!cancelled) setEntries(r.sessions); })
-      .catch((e) => { if (!cancelled) setErr(e instanceof Error ? e.message : String(e)); });
-    return () => { cancelled = true; };
+      .then((r) => {
+        if (!cancelled) setEntries(r.sessions);
+      })
+      .catch((e) => {
+        if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [refreshSignal]);
 
-  const handleDelete = useCallback(async (entry: SessionListEntry) => {
-    const label = entry.preview ? `"${entry.preview.slice(0, 60)}"` : t.common.emptyName;
-    if (!confirm(t.chat.deleteConfirm(label))) return;
+  const handleDelete = useCallback(
+    async (entry: SessionListEntry) => {
+      const label = entry.preview ? `"${entry.preview.slice(0, 60)}"` : t.common.emptyName;
+      if (!confirm(t.chat.deleteConfirm(label))) return;
 
-    setDeletingId(entry.session_id);
-    setErr(null);
-    try {
-      await sessionsApi.delete(entry.session_id);
-      setEntries((prev) =>
-        prev ? prev.filter((s) => s.session_id !== entry.session_id) : prev,
-      );
-      if (entry.session_id === activeSessionId) onNewChat();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDeletingId(null);
-    }
-  }, [activeSessionId, onNewChat, t]);
+      setDeletingId(entry.session_id);
+      setErr(null);
+      try {
+        await sessionsApi.delete(entry.session_id);
+        setEntries((prev) =>
+          prev ? prev.filter((s) => s.session_id !== entry.session_id) : prev,
+        );
+        if (entry.session_id === activeSessionId) onNewChat();
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [activeSessionId, onNewChat, t],
+  );
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-bg-subtle">
-      <div className="border-b border-border p-3">
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border/80 bg-bg-subtle/80 select-none">
+      {/* New Chat Button — Apple HIG 44px standard, prominent, high aesthetic */}
+      <div className="p-3.5 border-b border-border/60">
         <button
           onClick={onNewChat}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-bg-base px-3 py-2 text-sm hover:bg-bg-muted"
+          className="group relative flex h-11 w-full items-center justify-center gap-2.5 rounded-xl bg-accent px-4 text-sm font-semibold text-accent-fg shadow-xs transition-all duration-150 hover:bg-accent-hover active:scale-[0.98]"
+          type="button"
         >
-          <Plus size={13} /> {t.chat.newChat}
+          <Plus size={16} strokeWidth={2.5} className="transition-transform group-hover:rotate-90 duration-200" />
+          <span>{t.chat.newChat}</span>
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 py-2">
+      {/* Session List */}
+      <div className="flex-1 overflow-y-auto px-2.5 py-2.5 space-y-1">
         {entries === null && !err && (
-          <div className="flex items-center gap-2 px-2 py-3 text-xs text-fg-muted">
-            <Loader2 size={12} className="animate-spin" /> {t.common.loading}
+          <div className="flex items-center justify-center gap-2 py-10 text-xs text-fg-subtle">
+            <Loader2 size={14} className="animate-spin text-accent" />
+            <span>{t.common.loading}</span>
           </div>
         )}
         {err && (
-          <div className="rounded-md border border-danger/30 bg-danger/10 p-2 text-xs text-danger">
+          <div className="m-1 rounded-xl border border-danger/30 bg-danger-subtle/80 p-3 text-xs text-danger">
             {err}
           </div>
         )}
         {entries && entries.length === 0 && (
-          <div className="px-2 py-3 text-xs text-fg-subtle">
-            {t.chat.noSessions}
+          <div className="flex flex-col items-center justify-center py-14 text-center text-fg-subtle gap-2.5 px-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-bg-muted/80 text-fg-subtle border border-border/60">
+              <MessagesSquare size={20} />
+            </div>
+            <p className="text-xs font-semibold text-fg-muted">{t.chat.noSessions}</p>
           </div>
         )}
-        {entries && entries.map((s) => (
-          <SessionRow
-            key={s.session_id}
-            entry={s}
-            active={s.session_id === activeSessionId}
-            deleting={deletingId === s.session_id}
-            onClick={() => onSelect(s.session_id)}
-            onDelete={() => handleDelete(s)}
-            t={t}
-            localeTag={localeTag}
-          />
-        ))}
+        {entries &&
+          entries.map((s) => (
+            <SessionRow
+              key={s.session_id}
+              entry={s}
+              active={s.session_id === activeSessionId}
+              deleting={deletingId === s.session_id}
+              onClick={() => onSelect(s.session_id)}
+              onDelete={() => handleDelete(s)}
+              t={t}
+              localeTag={localeTag}
+            />
+          ))}
       </div>
     </aside>
   );
 }
 
 function SessionRow({
-  entry, active, deleting, onClick, onDelete, t, localeTag,
+  entry,
+  active,
+  deleting,
+  onClick,
+  onDelete,
+  t,
+  localeTag,
 }: {
   entry: SessionListEntry;
   active: boolean;
@@ -123,45 +138,67 @@ function SessionRow({
   return (
     <div
       className={cn(
-        "group relative mb-0.5 flex items-start gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
+        "group relative flex min-h-[46px] items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs transition-all duration-150",
         active
-          ? "bg-accent-subtle text-accent"
-          : "text-fg-muted hover:bg-bg-muted hover:text-fg-base",
+          ? "bg-bg-elevated text-fg-base shadow-xs ring-1 ring-border/90"
+          : "text-fg-muted hover:bg-bg-muted/60 hover:text-fg-base",
       )}
     >
+      {/* Active Indicator Bar */}
+      {active && (
+        <span className="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-1 rounded-full bg-accent" />
+      )}
+
       <button
         onClick={onClick}
-        className="flex min-w-0 flex-1 items-start gap-2 text-left"
+        className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
         title={preview}
+        type="button"
       >
-        <MessageSquare size={12} className="mt-0.5 shrink-0" />
+        <MessageSquare
+          size={14}
+          strokeWidth={active ? 2.2 : 1.8}
+          className={cn(
+            "mt-0.5 shrink-0 transition-colors",
+            active ? "text-accent" : "text-fg-subtle group-hover:text-fg-muted",
+          )}
+        />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1">
-            <div className="truncate font-medium">{preview}</div>
-            {closed && <Lock size={9} className="shrink-0 text-fg-subtle" />}
+          <div className="flex items-center gap-1.5">
+            <span className={cn("truncate font-semibold leading-snug text-xs", active ? "text-fg-base" : "text-fg-base/85")}>
+              {preview}
+            </span>
+            {closed && <Lock size={10} className="shrink-0 text-fg-subtle opacity-70" />}
           </div>
-          <div className="mt-0.5 flex items-center gap-2 text-[10.5px] text-fg-subtle">
+          <div className="mt-0.75 flex items-center gap-1.5 text-[10.5px] text-fg-subtle font-normal">
             <span>{when}</span>
             <span>·</span>
             <span>{t.chat.turn(entry.turn_count)}</span>
           </div>
         </div>
       </button>
+
       <button
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
         disabled={deleting}
         title={t.chat.deleteSessionTitle}
         aria-label={t.chat.deleteSessionTitle}
+        type="button"
         className={cn(
-          "shrink-0 self-center rounded p-1 text-fg-subtle transition-opacity",
-          "hover:bg-bg-base hover:text-danger",
+          "flex h-7 w-7 items-center justify-center shrink-0 rounded-lg text-fg-subtle transition-all duration-150",
+          "hover:bg-danger-subtle hover:text-danger active:scale-95",
           "opacity-0 group-hover:opacity-100 focus:opacity-100",
           deleting && "opacity-100",
         )}
       >
-        {deleting
-          ? <Loader2 size={11} className="animate-spin" />
-          : <Trash2 size={11} />}
+        {deleting ? (
+          <Loader2 size={13} className="animate-spin text-danger" />
+        ) : (
+          <Trash2 size={13} />
+        )}
       </button>
     </div>
   );

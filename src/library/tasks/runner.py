@@ -67,6 +67,16 @@ class TaskRunner:
         self._stop.clear()
         self._loop_task = asyncio.create_task(self._run(), name="library.task_runner")
 
+    @property
+    def is_running(self) -> bool:
+        """True while the polling loop task is alive.
+
+        The lifecycle manager and status endpoints use this to distinguish
+        "configured on but not actually running" (e.g. the loop died or was
+        never started) from a healthy worker.
+        """
+        return self._loop_task is not None and not self._loop_task.done()
+
     def _has_llm_key(self) -> bool:
         try:
             validate_llm_config(self._current_settings())

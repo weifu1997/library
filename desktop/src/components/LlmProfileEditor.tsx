@@ -1,33 +1,101 @@
 /** Per-profile LLM editor.
  *
- *  Each row is one of chat/reflect/ingest/vision. The form starts
- *  prefilled with whatever is in the overlay (so unset fields stay
- *  blank — the placeholder shows the inherited default). Save sends a
- *  PATCH with only the changed fields; clearing a field to empty sends
- *  `null` so the override is removed and the profile falls back to the
- *  default.
+ *  The panel is structured as a quick-config flow for the *default*
+ *  profile plus an "advanced" section for per-task overrides:
+ *
+ *    - A row of provider presets (OpenAI / Anthropic / DashScope /
+ *      DeepSeek / Kimi / Ollama) that auto-fill provider, model, and
+ *      base URL into the default form.
+ *    - The default form, open by default, with an api-key "set / missing"
+ *      badge and its own Save (PUT with PATCH semantics — only
+ *      `llm_default_*` fields change).
+ *    - "Test connection" probes ONLY the default profile
+ *      (`POST /v1/settings/llm/test?profile=default`), skipping
+ *      embedding/rerank.
+ *    - chat / reflect / ingest / vision live under a single "Advanced"
+ *      collapsible, closed by default.
  *
  *  The api_key field is special: we never receive the raw value (server
  *  masks it), so the input shows a placeholder telling the user a key
  *  is set. Typing replaces it; leaving it blank keeps whatever's
  *  already configured. */
 import { useEffect, useMemo, useState } from "react";
-import { Save, RotateCcw, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import {
+  Save,
+  RotateCcw,
+  Loader2,
+  RefreshCw,
+  CheckCircle2,
+  XCircle,
+  ChevronDown,
+  Sparkles,
+  MessageSquare,
+  Compass,
+  Layers,
+  Eye,
+  Settings2,
+  Check,
+  Key,
+  Zap,
+  LifeBuoy,
+} from "lucide-react";
 
 import { settings as settingsApi } from "@/api/client";
 import type { LlmTestResult } from "@/api/client";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
-import type { LlmProfileName, LlmSettings } from "@/types/api";
+import type { LlmModelInfo, LlmProfileName, LlmSettings } from "@/types/api";
 
-const PROFILES: LlmProfileName[] = ["default", "chat", "reflect", "ingest", "vision"];
+const ADVANCED_PROFILES: LlmProfileName[] = ["chat", "reflect", "ingest", "vision"];
 const EDITABLE_FIELDS = [
   "provider", "model", "base_url", "api_key", "dialect", "context_window",
   "tokenizer", "supports_vision", "supports_tools", "supports_temperature",
   "token_limit_param",
 ] as const;
+const BACKUP_FIELDS = [
+  "backup_provider", "backup_model", "backup_base_url", "backup_api_key",
+] as const;
+const FORM_FIELDS = [...EDITABLE_FIELDS, ...BACKUP_FIELDS] as const;
 
 type FormState = Partial<Record<string, string>>;
+
+/** A one-click provider shortcut that fills the default profile's
+ *  provider / model / base_url. Every field stays editable afterwards. */
+interface ProviderPreset {
+  key: string;
+  label: string;
+  provider: string;
+  base_url: string;
+  model: string;
+}
+
+const PROVIDER_PRESETS: ProviderPreset[] = [
+  {
+    key: "openai", label: "OpenAI", provider: "openai",
+    base_url: "https://api.openai.com/v1", model: "gpt-4o-mini",
+  },
+  {
+    key: "anthropic", label: "Anthropic", provider: "anthropic",
+    base_url: "https://api.anthropic.com/v1", model: "claude-sonnet-5",
+  },
+  {
+    key: "dashscope", label: "通义千问", provider: "openai-compatible",
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    model: "qwen-plus",
+  },
+  {
+    key: "deepseek", label: "DeepSeek", provider: "openai-compatible",
+    base_url: "https://api.deepseek.com/v1", model: "deepseek-chat",
+  },
+  {
+    key: "moonshot", label: "Kimi", provider: "openai-compatible",
+    base_url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k",
+  },
+  {
+    key: "ollama", label: "Ollama", provider: "openai-compatible",
+    base_url: "http://127.0.0.1:11434/v1", model: "qwen2.5:7b",
+  },
+];
 
 interface Props {
   data: LlmSettings;
@@ -36,21 +104,26 @@ interface Props {
 
 export function LlmProfileEditor({ data, onChange }: Props) {
   const { t } = useI18n();
-  const [open, setOpen] = useState<LlmProfileName | null>(null);
+  const [open, setOpen] = useState<LlmProfileName | null>("default");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [preset, setPreset] = useState<ProviderPreset | null>(null);
   const [testing, setTesting] = useState(false);
-  const [testResults, setTestResults] = useState<Record<string, LlmTestResult> | null>(null);
+  const [testResult, setTestResult] = useState<LlmTestResult | null>(null);
   const [testErr, setTestErr] = useState<string | null>(null);
+
+  const applyPreset = (p: ProviderPreset) => {
+    // Spread so clicking the same preset twice still re-fires the effect.
+    setPreset({ ...p });
+    setOpen("default");
+  };
 
   const runTest = async () => {
     setTesting(true);
     setTestErr(null);
+    setTestResult(null);
     try {
-      const res = await settingsApi.testLlm();
-      setTestResults({
-        ...res.profiles,
-        embedding: res.embedding,
-        rerank: res.rerank,
-      });
+      const res = await settingsApi.testLlmDefault();
+      setTestResult(res.profiles.default);
     } catch (e: unknown) {
       setTestErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -59,46 +132,137 @@ export function LlmProfileEditor({ data, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-end">
-        <button
-          onClick={runTest}
-          disabled={testing}
-          className={cn(
-            "flex items-center gap-1.5 rounded border border-border px-2.5 py-1 text-xs font-medium",
-            "hover:bg-bg-subtle disabled:opacity-40",
-          )}
-        >
-          {testing && <Loader2 size={12} className="animate-spin" />}
-          {testing ? t.llm.testing : t.llm.testConnection}
-        </button>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-fg-subtle">
+          {t.settings.llmProfilesSubtitle}
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline text-[11px] text-fg-subtle">
+            {t.llm.testDefaultHint}
+          </span>
+          <button
+            onClick={runTest}
+            disabled={testing}
+            className={cn(
+              "inline-flex h-10 items-center gap-2 rounded-xl border border-border/80 bg-bg-card px-4 text-xs font-semibold text-fg-base shadow-xs",
+              "hover:bg-bg-subtle hover:border-border active:scale-[0.98] transition-all disabled:opacity-50",
+            )}
+          >
+            {testing ? <Loader2 size={14} className="animate-spin text-accent" /> : <Sparkles size={14} className="text-accent" />}
+            {testing ? t.llm.testing : t.llm.testConnection}
+          </button>
+        </div>
       </div>
 
       {testErr && (
-        <p className="rounded bg-danger/10 px-2 py-1 text-xs text-danger">{testErr}</p>
-      )}
-
-      {testResults && (
-        <div className="space-y-1 rounded-md border border-border bg-bg-subtle px-3 py-2 text-xs">
-          {Object.entries(testResults).map(([name, r]) => (
-            <div key={name} className="flex items-start gap-2">
-              <span className="w-16 shrink-0 font-medium capitalize">{name}</span>
-              <TestStatus result={r} />
-            </div>
-          ))}
+        <div className="flex items-start gap-2.5 rounded-2xl border border-danger/20 bg-danger/10 p-3.5 text-xs text-danger">
+          <XCircle size={15} className="mt-0.5 shrink-0" />
+          <span>{testErr}</span>
         </div>
       )}
 
-      {PROFILES.map((name) => (
-        <ProfileRow
-          key={name}
-          name={name}
-          data={data}
-          isOpen={open === name}
-          onToggle={() => setOpen(open === name ? null : name)}
-          onChange={onChange}
-        />
-      ))}
+      {testResult && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/80 bg-bg-subtle/50 p-3.5 text-xs">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-fg-muted">
+            {t.llm.testConnection}
+          </span>
+          <TestStatus result={testResult} />
+        </div>
+      )}
+
+      {/* Provider presets → default profile */}
+      <div className="rounded-2xl border border-border/80 bg-bg-card p-5 shadow-xs">
+        <div className="flex items-center gap-2">
+          <Zap size={14} className="text-accent" />
+          <span className="text-xs font-bold text-fg-base">{t.llm.presets}</span>
+        </div>
+        <p className="mt-1 text-[11px] text-fg-subtle">{t.llm.presetsHint}</p>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {PROVIDER_PRESETS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => applyPreset(p)}
+              className={cn(
+                "group flex flex-col items-start rounded-xl border border-border/70 bg-bg-base/60 px-3 py-2.5 text-left",
+                "hover:border-accent/50 hover:bg-bg-subtle active:scale-[0.98] transition-all",
+                preset?.key === p.key && "border-accent/60 bg-accent/5 ring-1 ring-accent/20",
+              )}
+            >
+              <span className="text-xs font-bold text-fg-base">{p.label}</span>
+              <span className="mt-0.5 w-full truncate font-mono text-[10px] text-fg-subtle" title={p.model}>
+                {p.model}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Default profile (quick config) */}
+      <ProfileRow
+        name="default"
+        data={data}
+        preset={preset}
+        isOpen={open === "default"}
+        onToggle={() => setOpen(open === "default" ? null : "default")}
+        onChange={onChange}
+      />
+
+      {/* Advanced profiles — collapsed by default */}
+      <div className="overflow-hidden rounded-2xl border border-border/80 bg-bg-card shadow-xs">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className={cn(
+            "flex min-h-[52px] w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors",
+            advancedOpen ? "bg-bg-subtle/50" : "hover:bg-bg-subtle/30",
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-sm transition-colors",
+                advancedOpen
+                  ? "border-accent/30 bg-accent/10 text-accent"
+                  : "border-border/60 bg-bg-subtle text-fg-muted",
+              )}
+            >
+              <Settings2 size={18} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-sm font-bold text-fg-base">
+                {t.llm.advancedProfiles}
+              </span>
+              <p className="mt-0.5 text-xs text-fg-subtle">
+                {t.llm.advancedProfilesHint}
+              </p>
+            </div>
+          </div>
+          <ChevronDown
+            size={18}
+            className={cn(
+              "shrink-0 text-fg-muted transition-transform duration-200",
+              advancedOpen && "rotate-180 text-fg-base",
+            )}
+          />
+        </button>
+
+        {advancedOpen && (
+          <div className="space-y-3 border-t border-border/70 bg-bg-base/30 p-4">
+            {ADVANCED_PROFILES.map((name) => (
+              <ProfileRow
+                key={name}
+                name={name}
+                data={data}
+                isOpen={open === name}
+                onToggle={() => setOpen(open === name ? null : name)}
+                onChange={onChange}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -106,23 +270,27 @@ export function LlmProfileEditor({ data, onChange }: Props) {
 function TestStatus({ result }: { result: LlmTestResult }) {
   const { t } = useI18n();
   if (result.ok === null) {
-    return <span className="text-fg-subtle">{t.llm.testNotConfigured}</span>;
+    return <span className="text-[11px] text-fg-subtle">{t.llm.testNotConfigured}</span>;
   }
   if (result.ok) {
     return (
-      <span className="flex items-center gap-1 text-accent">
-        <CheckCircle2 size={12} className="shrink-0" />
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent">
+        <CheckCircle2 size={14} className="shrink-0" />
         {t.llm.testOk}
         {result.model && (
-          <span className="font-mono text-fg-subtle">· {result.model}</span>
+          <span className="truncate max-w-[120px] font-mono text-[11px] text-fg-subtle" title={result.model}>
+            · {result.model}
+          </span>
         )}
       </span>
     );
   }
   return (
-    <span className="flex items-start gap-1 text-danger">
-      <XCircle size={12} className="mt-0.5 shrink-0" />
-      <span className="break-all">{result.error}</span>
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-danger">
+      <XCircle size={14} className="shrink-0" />
+      <span className="truncate max-w-[140px]" title={result.error || undefined}>
+        {result.error || "error"}
+      </span>
     </span>
   );
 }
@@ -130,106 +298,171 @@ function TestStatus({ result }: { result: LlmTestResult }) {
 interface RowProps {
   name: LlmProfileName;
   data: LlmSettings;
+  preset?: ProviderPreset | null;
   isOpen: boolean;
   onToggle: () => void;
   onChange: (next: LlmSettings) => void;
 }
 
-function ProfileRow({ name, data, isOpen, onToggle, onChange }: RowProps) {
+function getProfileIcon(name: LlmProfileName) {
+  switch (name) {
+    case "default":
+      return Settings2;
+    case "chat":
+      return MessageSquare;
+    case "reflect":
+      return Compass;
+    case "ingest":
+      return Layers;
+    case "vision":
+      return Eye;
+  }
+}
+
+function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps) {
   const { t } = useI18n();
   const isDefault = name === "default";
   const profile = isDefault ? null : data.profiles[name];
   const overlay = data.overlay;
-  const optional = name === "vision";
   const overlayKey = (suffix: string) =>
     isDefault ? `llm_default_${suffix}` : `llm_${name}_${suffix}`;
 
-  // Default row reads its "current" view from data.defaults; per-profile
-  // rows read from data.profiles[name]. The fields share the same shape
-  // (provider/model/base_url/api_key{_set}) so downstream rendering can
-  // ignore the difference.
-  const view = isDefault
-    ? {
-        provider: data.defaults.provider,
-        model: data.defaults.model,
-        base_url: data.defaults.base_url,
-        api_key: data.defaults.api_key,
-        api_key_set: data.defaults.api_key_set,
-        capabilities: data.defaults.capabilities,
-      }
-    : profile!;
+  const view = isDefault ? data.defaults : (profile ?? data.defaults);
 
-  const [form, setForm] = useState<FormState>({});
+  // Backup (failover) target: `view.backup` is null when nothing is
+  // configured (the vision profile's raw payload stays null even when a
+  // default backup exists). Placeholders reflect the resolved value.
+  const backupView = view.backup ?? null;
+  const defaultBackup = data.defaults.backup;
+  const backupInheritLabel = defaultBackup
+    ? `(Inherit: ${defaultBackup.provider || "openai-compatible"})`
+    : t.llm.backupNotConfigured;
+  const backupPlaceholder = (val: string | null | undefined) =>
+    val ?? t.llm.backupNotConfigured;
+
+  const initialForm = useMemo<FormState>(() => {
+    const f: FormState = {};
+    for (const key of FORM_FIELDS) {
+      const v = overlay[overlayKey(key)];
+      if (v !== undefined && v !== null) {
+        f[key] = String(v);
+      }
+    }
+    return f;
+  }, [overlay, overlayKey]);
+
+  const [form, setForm] = useState<FormState>(initialForm);
+  const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
-  const [healed, setHealed] = useState(0);
+  const [healed, setHealed] = useState<number>(0);
+
+  // Model-listing state for the primary and backup model fields. Two
+  // independent copies so fetching for one never repopulates the other.
+  const [models, setModels] = useState<LlmModelInfo[] | null>(null);
+  const [fetching, setFetching] = useState(false);
+  const [fetchErr, setFetchErr] = useState<string | null>(null);
+  const [backupModels, setBackupModels] = useState<LlmModelInfo[] | null>(null);
+  const [fetchingBackup, setFetchingBackup] = useState(false);
+  const [fetchErrBackup, setFetchErrBackup] = useState<string | null>(null);
 
   useEffect(() => {
-    const overlayValue = (suffix: string) => {
-      const value = overlay[overlayKey(suffix)];
-      return value == null ? "" : String(value);
-    };
-    setForm({
-      provider: overlayValue("provider"),
-      model: overlayValue("model"),
-      base_url: overlayValue("base_url"),
-      api_key: "",
-      dialect: overlayValue("dialect"),
-      context_window: overlayValue("context_window"),
-      tokenizer: overlayValue("tokenizer"),
-      supports_vision: overlayValue("supports_vision"),
-      supports_tools: overlayValue("supports_tools"),
-      supports_temperature: overlayValue("supports_temperature"),
-      token_limit_param: overlayValue("token_limit_param"),
-    });
-    setErr(null);
-    setHealed(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, isOpen]);
+    setForm(initialForm);
+    setDirty(false);
+  }, [initialForm]);
 
-  const dirty = useMemo(() => {
-    return (
-      (form.provider ?? "") !== (overlay[overlayKey("provider")] ?? "") ||
-      (form.model ?? "") !== (overlay[overlayKey("model")] ?? "") ||
-      (form.base_url ?? "") !== (overlay[overlayKey("base_url")] ?? "") ||
-      (form.api_key ?? "") !== "" ||
-      EDITABLE_FIELDS.filter((field) => field !== "api_key").some(
-        (field) => (form[field] ?? "") !== (
-          overlay[overlayKey(field)] == null
-            ? ""
-            : String(overlay[overlayKey(field)])
-        ),
-      )
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, overlay, name]);
+  // A provider preset fills provider / model / base_url into the default
+  // form and marks it dirty so Save is enabled. Only the default row uses
+  // this; the spread in applyPreset gives presets fresh identity so
+  // clicking the same one twice still applies.
+  useEffect(() => {
+    if (isDefault && preset) {
+      setForm((prev) => ({
+        ...prev,
+        provider: preset.provider,
+        base_url: preset.base_url,
+        model: preset.model,
+      }));
+      setDirty(true);
+    }
+  }, [isDefault, preset]);
 
-  const overrideCount = EDITABLE_FIELDS.filter(
-    (k) => overlay[overlayKey(k)] != null,
-  ).length;
+  const updateField = (field: string, val: string) => {
+    setForm((prev) => ({ ...prev, [field]: val }));
+    setDirty(true);
+  };
+
+  // Fetch the provider's model list for a field. Sends the current form
+  // values (provider/base_url/api_key) so an unsaved edit can be listed;
+  // empty fields fall back to the saved resolution server-side.
+  const fetchModels = async (kind: "model" | "backup_model") => {
+    const isBackup = kind === "backup_model";
+    const p = isBackup ? "backup_" : "";
+    const setF = isBackup ? setFetchingBackup : setFetching;
+    const setE = isBackup ? setFetchErrBackup : setFetchErr;
+    const setM = isBackup ? setBackupModels : setModels;
+    setF(true);
+    setE(null);
+    setM(null);
+    try {
+      const res = await settingsApi.fetchLlmModels({
+        profile: name,
+        backup: isBackup,
+        provider: form[`${p}provider`] || null,
+        base_url: form[`${p}base_url`] || null,
+        api_key: form[`${p}api_key`] || null,
+      });
+      if (!res.ok) {
+        setE(res.error ?? "fetch failed");
+        return;
+      }
+      setM(res.models ?? []);
+    } catch (e: unknown) {
+      setE(e instanceof Error ? e.message : String(e));
+    } finally {
+      setF(false);
+    }
+  };
+
+  const overrideCount = useMemo(
+    () => FORM_FIELDS.filter((k) => overlay[overlayKey(k)] !== undefined).length,
+    [overlay, overlayKey],
+  );
 
   const save = async () => {
     setSaving(true);
     setErr(null);
     try {
-      const patch: Record<string, string | null> = {};
-      for (const k of EDITABLE_FIELDS) {
-        const v = form[k];
-        if (v === undefined) continue;
-        if (k === "api_key" && v === "") continue;
-        if (v === "") patch[overlayKey(k)] = null;
-        else patch[overlayKey(k)] = v;
+      const patch: Record<string, string | number | boolean | null> = {};
+      const fields = [
+        "provider", "model", "base_url", "api_key", "dialect",
+        "tokenizer", "token_limit_param",
+        "backup_provider", "backup_model", "backup_base_url", "backup_api_key",
+      ];
+      for (const f of fields) {
+        if (f in form) {
+          const val = form[f]?.trim();
+          patch[overlayKey(f)] = val === "" ? null : (val ?? null);
+        }
       }
-      if (Object.keys(patch).length === 0) {
-        setSaving(false);
-        return;
+      if ("context_window" in form) {
+        const val = form.context_window?.trim();
+        patch[overlayKey("context_window")] = val === "" ? null : parseInt(val || "0", 10);
       }
-      const next = await settingsApi.updateLlm(patch);
-      onChange(next);
+      const boolFields = ["supports_vision", "supports_tools", "supports_temperature"];
+      for (const f of boolFields) {
+        if (f in form) {
+          const val = form[f]?.trim();
+          patch[overlayKey(f)] = val === "" ? null : val === "true";
+        }
+      }
+
+      const res = await settingsApi.updateLlm(patch);
+      onChange(res);
       setSavedAt(Date.now());
-      setHealed(next.reprocessed_failed ?? 0);
-      setForm((f) => ({ ...f, api_key: "" }));
+      setHealed(res.reprocessed_failed ?? 0);
+      setDirty(false);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -242,14 +475,13 @@ function ProfileRow({ name, data, isOpen, onToggle, onChange }: RowProps) {
     setErr(null);
     try {
       const patch: Record<string, null> = {};
-      for (const k of EDITABLE_FIELDS) {
-        patch[overlayKey(k)] = null;
+      for (const f of FORM_FIELDS) {
+        patch[overlayKey(f)] = null;
       }
-      const next = await settingsApi.updateLlm(patch);
-      onChange(next);
-      setForm(Object.fromEntries(EDITABLE_FIELDS.map((field) => [field, ""])));
+      const res = await settingsApi.updateLlm(patch);
+      onChange(res);
       setSavedAt(Date.now());
-      setHealed(0);
+      setDirty(false);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -257,203 +489,362 @@ function ProfileRow({ name, data, isOpen, onToggle, onChange }: RowProps) {
     }
   };
 
+  const Icon = getProfileIcon(name);
+  const isConfigured = view.api_key_set || !isDefault;
+
   return (
-    <div className="rounded-md border border-border bg-bg-base">
+    <div className="overflow-hidden rounded-2xl border border-border/80 bg-bg-card shadow-xs transition-all">
+      {/* Header button — 56px height standard */}
       <button
+        type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-bg-subtle"
+        className={cn(
+          "flex min-h-[56px] w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors",
+          isOpen ? "bg-bg-subtle/50" : "hover:bg-bg-subtle/30",
+        )}
       >
-        <div className="flex items-center gap-3">
-          <span className="font-medium capitalize">{name}</span>
-          <span className="font-mono text-xs text-fg-subtle">
-            {view.provider || view.model
-              ? `${view.provider ?? t.common.unset}/${view.model || t.common.unset}`
-              : t.common.unset}
-          </span>
+        <div className="flex min-w-0 items-center gap-3.5">
+          <div
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-sm transition-colors",
+              isOpen
+                ? "border-accent/30 bg-accent/10 text-accent"
+                : "border-border/60 bg-bg-subtle text-fg-muted",
+            )}
+          >
+            <Icon size={18} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold capitalize text-fg-base">
+                {name}
+              </span>
+              {isDefault ? (
+                <span className="rounded-md border border-accent/20 bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                  Default Base
+                </span>
+              ) : (
+                <span
+                  className={cn(
+                    "rounded-md border px-2 py-0.5 text-[11px] font-semibold",
+                    overrideCount > 0
+                      ? "border-accent/20 bg-accent/10 text-accent"
+                      : "border-border/60 bg-bg-subtle text-fg-muted",
+                  )}
+                >
+                  {overrideCount > 0 ? t.llm.override(overrideCount) : t.llm.inherited}
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 truncate font-mono text-xs text-fg-subtle">
+              {view.provider || "openai-compatible"} · {view.model || "(unset)"}
+            </p>
+          </div>
         </div>
-        <span className="text-xs text-fg-subtle">
-          {overrideCount > 0
-            ? t.llm.override(overrideCount)
-            : optional
-              ? view.model || view.api_key_set
-                ? t.llm.fromEnv
-                : t.common.notConfigured
-              : isDefault
-                ? view.api_key_set
-                  ? t.llm.fromEnv
-                  : t.common.notConfigured
-                : t.llm.inherited}
-        </span>
+
+        <div className="flex shrink-0 items-center gap-2.5">
+          <div
+            className={cn(
+              "h-2.5 w-2.5 rounded-full",
+              isConfigured ? "bg-accent shadow-xs" : "bg-warning",
+            )}
+          />
+          <ChevronDown
+            size={18}
+            className={cn(
+              "text-fg-muted transition-transform duration-200",
+              isOpen && "rotate-180 text-fg-base",
+            )}
+          />
+        </div>
       </button>
 
+      {/* Expanded body */}
       {isOpen && (
-        <div className="space-y-3 border-t border-border px-3 py-3 text-sm">
-          <Field label={t.llm.provider}>
-            <select
-              value={form.provider ?? ""}
-              onChange={(e) => setForm({ ...form, provider: e.target.value })}
-              className="w-full rounded border border-border bg-bg-base px-2 py-1 text-sm"
-            >
-              <option value="">
-                {isDefault
-                  ? view.provider
-                    ? t.common.fromEnv(view.provider)
-                    : t.common.unset
-                  : optional
-                    ? view.provider
-                      ? t.common.fromEnv(view.provider)
-                      : t.common.unset
-                    : t.common.inherit(data.defaults.provider)}
-              </option>
-              <option value="openai">openai</option>
-              <option value="openai-compatible">openai-compatible</option>
-              <option value="anthropic">anthropic</option>
-            </select>
-          </Field>
-          <Field label={t.llm.model}>
-            <input
-              value={form.model ?? ""}
-              onChange={(e) => setForm({ ...form, model: e.target.value })}
-              placeholder={
-                isDefault
-                  ? view.model
-                    ? t.common.fromEnv(view.model)
-                    : t.common.unset
-                  : optional
-                    ? view.model
-                      ? t.common.fromEnv(view.model)
-                      : t.common.unset
-                    : t.common.inherit(data.defaults.model)
-              }
-              className="w-full rounded border border-border bg-bg-base px-2 py-1 font-mono text-sm"
+        <div className="space-y-4.5 border-t border-border/70 bg-bg-card p-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t.llm.provider}>
+              <select
+                value={form.provider ?? ""}
+                onChange={(e) => updateField("provider", e.target.value)}
+                className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 text-xs font-medium outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+              >
+                <option value="">
+                  {isDefault ? "openai-compatible" : `(Inherit: ${data.defaults.provider || "openai-compatible"})`}
+                </option>
+                <option value="openai">OpenAI</option>
+                <option value="openai-compatible">OpenAI Compatible (Ollama, LM Studio, vLLM, DeepSeek)</option>
+                <option value="anthropic">Anthropic Claude</option>
+              </select>
+            </Field>
+
+            <div>
+              <Field label={t.llm.model}>
+                <input
+                  value={form.model ?? ""}
+                  onChange={(e) => updateField("model", e.target.value)}
+                  placeholder={isDefault ? "e.g. gpt-4o-mini, deepseek-chat, qwen-plus" : (view.model || undefined)}
+                  className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+                />
+              </Field>
+              <ModelListPicker
+                fetching={fetching}
+                error={fetchErr}
+                models={models}
+                value={form.model ?? ""}
+                onPick={(v) => updateField("model", v)}
+                onFetch={() => fetchModels("model")}
+                labels={{ fetch: t.llm.fetchModels, fetching: t.llm.fetchingModels, pick: t.llm.pickModel }}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <Field label={t.llm.baseUrl}>
+                <input
+                  value={form.base_url ?? ""}
+                  onChange={(e) => updateField("base_url", e.target.value)}
+                  placeholder={isDefault ? "https://api.openai.com/v1" : (view.base_url || "https://api.openai.com/v1")}
+                  className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+                />
+              </Field>
+            </div>
+
+            <div className="sm:col-span-2">
+              <Field label={t.llm.apiKey}>
+                <div className="mb-1.5 flex items-center gap-2">
+                  {view.api_key_set ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-success-subtle px-2 py-0.5 text-[11px] font-semibold text-success">
+                      <Check size={11} />
+                      {t.llm.keyConfigured}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
+                      <XCircle size={11} />
+                      {t.llm.keyMissing}
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-fg-subtle">
+                    <Key size={14} />
+                  </div>
+                  <input
+                    type="password"
+                    value={form.api_key ?? ""}
+                    onChange={(e) => updateField("api_key", e.target.value)}
+                    placeholder={
+                      view.api_key_set
+                        ? t.common.setValue(view.api_key ?? "")
+                        : t.common.unset
+                    }
+                    className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 pl-9 pr-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-fg-subtle">
+                  {t.llm.keepKeyHint}
+                </p>
+              </Field>
+            </div>
+
+            <Field label={t.llm.dialect}>
+              <select
+                value={form.dialect ?? ""}
+                onChange={(e) => updateField("dialect", e.target.value)}
+                className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+              >
+                <option value="">{isDefault ? "standard" : `(Inherit: ${view.capabilities?.dialect || "standard"})`}</option>
+                <option value="standard">standard</option>
+                <option value="openrouter">openrouter</option>
+                <option value="azure">azure</option>
+                <option value="ollama">ollama</option>
+              </select>
+            </Field>
+
+            <Field label={t.llm.contextWindow}>
+              <input
+                type="number"
+                min={1024}
+                value={form.context_window ?? ""}
+                onChange={(e) => updateField("context_window", e.target.value)}
+                placeholder={String(view.capabilities?.context_window || 128000)}
+                className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+              />
+            </Field>
+
+            <Field label={t.llm.tokenizer}>
+              <input
+                value={form.tokenizer ?? ""}
+                onChange={(e) => updateField("tokenizer", e.target.value)}
+                placeholder={view.capabilities?.tokenizer || "cl100k_base"}
+                className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+              />
+            </Field>
+
+            <Field label={t.llm.tokenLimitParam}>
+              <select
+                value={form.token_limit_param ?? ""}
+                onChange={(e) => updateField("token_limit_param", e.target.value)}
+                className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+              >
+                <option value="">{view.capabilities?.token_limit_param || "max_tokens"}</option>
+                <option value="max_tokens">max_tokens</option>
+                <option value="max_completion_tokens">max_completion_tokens</option>
+              </select>
+            </Field>
+
+            <CapabilitySelect
+              label={t.llm.supportsVision}
+              value={form.supports_vision ?? ""}
+              inherited={Boolean(view.capabilities?.supports_vision)}
+              onChange={(value) => updateField("supports_vision", value)}
             />
-          </Field>
-          <Field label={t.llm.baseUrl}>
-            <input
-              value={form.base_url ?? ""}
-              onChange={(e) => setForm({ ...form, base_url: e.target.value })}
-              placeholder={
-                isDefault
-                  ? view.base_url
-                    ? t.common.fromEnv(view.base_url)
-                    : t.common.providerDefault
-                  : optional
-                    ? view.base_url
-                      ? t.common.fromEnv(view.base_url)
-                      : t.common.unset
-                    : data.defaults.base_url || t.common.providerDefault
-              }
-              className="w-full rounded border border-border bg-bg-base px-2 py-1 font-mono text-sm"
+            <CapabilitySelect
+              label={t.llm.supportsTools}
+              value={form.supports_tools ?? ""}
+              inherited={Boolean(view.capabilities?.supports_tools)}
+              onChange={(value) => updateField("supports_tools", value)}
             />
-          </Field>
-          <Field label={t.llm.dialect}>
-            <input
-              value={form.dialect ?? ""}
-              onChange={(e) => setForm({ ...form, dialect: e.target.value })}
-              placeholder={view.capabilities.dialect}
-              className="w-full rounded border border-border bg-bg-base px-2 py-1 font-mono text-sm"
+            <CapabilitySelect
+              label={t.llm.supportsTemperature}
+              value={form.supports_temperature ?? ""}
+              inherited={Boolean(view.capabilities?.supports_temperature)}
+              onChange={(value) => updateField("supports_temperature", value)}
             />
-          </Field>
-          <Field label={t.llm.contextWindow}>
-            <input
-              type="number"
-              min={1024}
-              value={form.context_window ?? ""}
-              onChange={(e) => setForm({ ...form, context_window: e.target.value })}
-              placeholder={String(view.capabilities.context_window)}
-              className="w-full rounded border border-border bg-bg-base px-2 py-1 font-mono text-sm"
-            />
-          </Field>
-          <Field label={t.llm.tokenizer}>
-            <input
-              value={form.tokenizer ?? ""}
-              onChange={(e) => setForm({ ...form, tokenizer: e.target.value })}
-              placeholder={view.capabilities.tokenizer}
-              className="w-full rounded border border-border bg-bg-base px-2 py-1 font-mono text-sm"
-            />
-          </Field>
-          <CapabilitySelect
-            label={t.llm.supportsVision}
-            value={form.supports_vision ?? ""}
-            inherited={view.capabilities.supports_vision}
-            onChange={(value) => setForm({ ...form, supports_vision: value })}
-          />
-          <CapabilitySelect
-            label={t.llm.supportsTools}
-            value={form.supports_tools ?? ""}
-            inherited={view.capabilities.supports_tools}
-            onChange={(value) => setForm({ ...form, supports_tools: value })}
-          />
-          <CapabilitySelect
-            label={t.llm.supportsTemperature}
-            value={form.supports_temperature ?? ""}
-            inherited={view.capabilities.supports_temperature}
-            onChange={(value) => setForm({ ...form, supports_temperature: value })}
-          />
-          <Field label={t.llm.tokenLimitParam}>
-            <select
-              value={form.token_limit_param ?? ""}
-              onChange={(e) => setForm({ ...form, token_limit_param: e.target.value })}
-              className="w-full rounded border border-border bg-bg-base px-2 py-1 text-sm"
-            >
-              <option value="">{view.capabilities.token_limit_param}</option>
-              <option value="max_tokens">max_tokens</option>
-              <option value="max_completion_tokens">max_completion_tokens</option>
-            </select>
-          </Field>
-          <Field label={t.llm.apiKey}>
-            <input
-              type="password"
-              value={form.api_key ?? ""}
-              onChange={(e) => setForm({ ...form, api_key: e.target.value })}
-              placeholder={
-                view.api_key_set
-                  ? t.common.setValue(view.api_key ?? "")
-                  : t.common.unset
-              }
-              className="w-full rounded border border-border bg-bg-base px-2 py-1 font-mono text-sm"
-            />
-            <p className="mt-1 text-xs text-fg-subtle">
-              {t.llm.keepKeyHint}
-            </p>
-          </Field>
+          </div>
+
+          {/* Backup (failover) model — a second endpoint used when the
+              primary exhausts its transient-retry budget. */}
+          <div className="rounded-2xl border border-border/70 bg-bg-base/40 p-4">
+            <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <LifeBuoy size={14} className="shrink-0 text-fg-muted" />
+              <span className="text-xs font-bold text-fg-base">{t.llm.backupSection}</span>
+              <span className="text-[11px] text-fg-subtle">{t.llm.backupHint}</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t.llm.provider}>
+                <select
+                  value={form.backup_provider ?? ""}
+                  onChange={(e) => updateField("backup_provider", e.target.value)}
+                  className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+                >
+                  <option value="">
+                    {isDefault ? t.llm.backupNotConfigured : backupInheritLabel}
+                  </option>
+                  <option value="openai">OpenAI</option>
+                  <option value="openai-compatible">OpenAI Compatible (Ollama, LM Studio, vLLM, DeepSeek)</option>
+                  <option value="anthropic">Anthropic Claude</option>
+                </select>
+              </Field>
+
+              <div>
+                <Field label={t.llm.model}>
+                  <input
+                    value={form.backup_model ?? ""}
+                    onChange={(e) => updateField("backup_model", e.target.value)}
+                    placeholder={backupPlaceholder(backupView?.model)}
+                    className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  />
+                </Field>
+                <ModelListPicker
+                  fetching={fetchingBackup}
+                  error={fetchErrBackup}
+                  models={backupModels}
+                  value={form.backup_model ?? ""}
+                  onPick={(v) => updateField("backup_model", v)}
+                  onFetch={() => fetchModels("backup_model")}
+                  labels={{ fetch: t.llm.fetchModels, fetching: t.llm.fetchingModels, pick: t.llm.pickModel }}
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <Field label={t.llm.baseUrl}>
+                  <input
+                    value={form.backup_base_url ?? ""}
+                    onChange={(e) => updateField("backup_base_url", e.target.value)}
+                    placeholder={backupPlaceholder(backupView?.base_url)}
+                    className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  />
+                </Field>
+              </div>
+
+              <div className="sm:col-span-2">
+                <Field label={t.llm.apiKey}>
+                  <div className="mb-1.5 flex items-center gap-2">
+                    {backupView?.api_key_set ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-success-subtle px-2 py-0.5 text-[11px] font-semibold text-success">
+                        <Check size={11} />
+                        {t.llm.keyConfigured}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
+                        <XCircle size={11} />
+                        {t.llm.keyMissing}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-fg-subtle">
+                      <Key size={14} />
+                    </div>
+                    <input
+                      type="password"
+                      value={form.backup_api_key ?? ""}
+                      onChange={(e) => updateField("backup_api_key", e.target.value)}
+                      placeholder={
+                        backupView?.api_key_set
+                          ? t.common.setValue(backupView.api_key ?? "")
+                          : t.common.unset
+                      }
+                      className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 pl-9 pr-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] text-fg-subtle">{t.llm.keepKeyHint}</p>
+                </Field>
+              </div>
+            </div>
+          </div>
 
           {err && (
-            <p className="rounded bg-danger/10 px-2 py-1 text-xs text-danger">
-              {err}
-            </p>
+            <div className="flex items-start gap-2 rounded-xl border border-danger/20 bg-danger/10 px-3.5 py-2.5 text-xs text-danger">
+              <XCircle size={15} className="mt-0.5 shrink-0" />
+              <span>{err}</span>
+            </div>
           )}
 
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
             <button
               onClick={reset}
-              disabled={saving || overrideCount === 0}
-              className="flex items-center gap-1 text-xs text-fg-subtle hover:text-fg-base disabled:opacity-40"
+              disabled={saving || (isDefault ? false : overrideCount === 0)}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-border/80 px-4 text-xs font-semibold text-fg-muted shadow-xs transition-all hover:bg-bg-subtle hover:text-fg-base active:scale-95 disabled:opacity-40"
             >
-              <RotateCcw size={11} /> {t.llm.reset}
+              <RotateCcw size={13} /> {t.llm.reset}
             </button>
-            <button
-              onClick={save}
-              disabled={!dirty || saving}
-              className={cn(
-                "flex items-center gap-1.5 rounded bg-accent px-3 py-1 text-xs font-medium text-accent-fg",
-                "hover:opacity-90 disabled:opacity-40",
+
+            <div className="flex items-center gap-3.5">
+              {savedAt && !saving && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent">
+                  <Check size={14} />
+                  {t.common.saved}
+                </span>
               )}
-            >
-              {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-              {t.common.save}
-            </button>
+              {healed > 0 && !saving && (
+                <span className="text-xs font-medium text-accent">
+                  {t.llm.reprocessedFailed(healed)}
+                </span>
+              )}
+              <button
+                onClick={save}
+                disabled={!dirty || saving}
+                className={cn(
+                  "inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-xs font-semibold text-accent-fg shadow-xs",
+                  "transition-all hover:bg-accent-hover active:scale-[0.98] disabled:opacity-40 shadow-indigo-500/20",
+                )}
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {t.common.save}
+              </button>
+            </div>
           </div>
-          {savedAt && !saving && (
-            <p className="text-right text-xs text-fg-subtle">
-              {t.common.saved} · {new Date(savedAt).toLocaleTimeString()}
-            </p>
-          )}
-          {healed > 0 && !saving && (
-            <p className="text-right text-xs text-accent">
-              {t.llm.reprocessedFailed(healed)}
-            </p>
-          )}
         </div>
       )}
     </div>
@@ -462,8 +853,8 @@ function ProfileRow({ name, data, isOpen, onToggle, onChange }: RowProps) {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-fg-muted">{label}</span>
+    <label className="block space-y-1.5">
+      <span className="block text-xs font-semibold text-fg-base">{label}</span>
       {children}
     </label>
   );
@@ -485,12 +876,75 @@ function CapabilitySelect({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded border border-border bg-bg-base px-2 py-1 text-sm"
+        className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
       >
-        <option value="">{String(inherited)}</option>
+        <option value="">(Inherit: {String(inherited)})</option>
         <option value="true">true</option>
         <option value="false">false</option>
       </select>
     </Field>
+  );
+}
+
+/** Fetch button + model dropdown for a model field. Mirrors the top-level
+ *  test button's loading/error pattern; the dropdown only appears once a
+ *  fetch succeeded. Picking an option writes it back via `onPick`. */
+function ModelListPicker({
+  fetching,
+  error,
+  models,
+  value,
+  onPick,
+  onFetch,
+  labels,
+}: {
+  fetching: boolean;
+  error: string | null;
+  models: LlmModelInfo[] | null;
+  value: string;
+  onPick: (v: string) => void;
+  onFetch: () => void;
+  labels: { fetch: string; fetching: string; pick: string };
+}) {
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onFetch}
+          disabled={fetching}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-bg-base/70 px-2.5 py-1.5 text-[11px] font-medium text-fg-muted transition-colors hover:bg-bg-base hover:text-fg-base disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {fetching ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : (
+            <RefreshCw size={12} />
+          )}
+          {fetching ? labels.fetching : labels.fetch}
+        </button>
+        {error && (
+          <span className="min-w-0 flex-1 truncate text-[11px] text-red-500">
+            {error}
+          </span>
+        )}
+      </div>
+      {models && models.length > 0 && (
+        <select
+          value={value}
+          onChange={(e) => onPick(e.target.value)}
+          className="h-9 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+        >
+          <option value="">{labels.pick}…</option>
+          {value && !models.some((m) => m.id === value) && (
+            <option value={value}>{value}</option>
+          )}
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.display_name ?? m.id}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
   );
 }

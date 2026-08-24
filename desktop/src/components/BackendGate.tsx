@@ -1,23 +1,5 @@
-/** Splash that blocks the main app until the Python sidecar's /health
- *  responds 200. Without it, the webview mounts faster than the sidecar
- *  binds its port, the first /v1/* call fires into the void, and React
- *  Query / pages render their "Failed to fetch" empty states — confusing
- *  on a fresh launch where the backend is still warming up.
- *
- *  Cadence: poll every 300ms, with a 1500ms per-attempt timeout. Most
- *  cold starts settle in 1-3s; in the happy path (backend already up,
- *  e.g. `pnpm dev` against running uvicorn) the first poll succeeds and
- *  the splash flashes for ~50ms.
- *
- *  After STALE_THRESHOLD_MS we widen the splash to surface what's wrong
- *  — usually a missing python runtime or a port collision, both of
- *  which leave fingerprints in `<LIBRARY_HOME>/logs/backend.log`.
- *
- *  When the Rust shell reports a doomed startup (spawn failed, the
- *  configured port is occupied, or the sidecar process exited) via the
- *  `backend_status` command, we stop spinning and render an explicit
- *  error screen with the log path plus Retry / Quit actions. */
 import { useEffect, useRef, useState } from "react";
+import { Library, RefreshCw, LogOut, AlertTriangle } from "lucide-react";
 
 import {
   clearBaseUrlOverride,
@@ -56,7 +38,6 @@ async function fetchBackendStatus(): Promise<BackendStatusInfo | null> {
     const { invoke } = await import("@tauri-apps/api/core");
     return await invoke<BackendStatusInfo>("backend_status");
   } catch {
-    // Older shells without the command — keep the plain polling UX.
     return null;
   }
 }
@@ -77,8 +58,6 @@ export function BackendGate({ children }: Props) {
     const startedAt = Date.now();
 
     (async () => {
-      // Make sure we know which backend URL to poll.
-      // In browser dev this is a no-op and returns instantly.
       await resolveTauriBaseUrl();
       const dir = await getTauriLogDir();
       if (!cancelled) setLogDir(dir);
@@ -105,8 +84,7 @@ export function BackendGate({ children }: Props) {
               error: message,
             });
           }
-          // Ask the shell whether startup is doomed (spawn error, port
-          // conflict, dead child) — no point spinning on /health then.
+
           const status = await fetchBackendStatus();
           if (cancelled) return;
           if (status && (status.state === "error" || status.state === "exited")) {
@@ -138,22 +116,25 @@ export function BackendGate({ children }: Props) {
 
   if (fatal) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-bg-base text-fg-base">
-        <div className="max-w-md text-center">
-          <p className="text-sm font-medium text-danger">{t.backend.failedTitle}</p>
-          <div className="mt-3 space-y-2 text-xs text-fg-subtle">
+      <div className="flex h-full w-full items-center justify-center bg-bg-base px-4 text-fg-base select-none">
+        <div className="w-full max-w-md rounded-2xl border border-danger/30 bg-bg-card p-6 shadow-modal backdrop-blur-xl animate-scale-in text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-danger-subtle text-danger mb-4 ring-1 ring-danger/30">
+            <AlertTriangle size={24} />
+          </div>
+          <h2 className="text-base font-semibold text-danger">{t.backend.failedTitle}</h2>
+          <div className="mt-3 space-y-2.5 text-xs text-fg-muted text-left">
             <p>{t.backend.failedBody}</p>
             {fatal.message && (
-              <p className="break-all rounded border border-border bg-bg-subtle p-2 text-left font-mono text-[11px]">
+              <p className="break-all rounded-lg border border-border bg-bg-muted p-2.5 font-mono text-[11px] text-fg-base">
                 {fatal.message}
               </p>
             )}
-            <p>
+            <p className="text-[11.5px]">
               {t.backend.failedLogHint}{" "}
-              <span className="break-all font-mono">{logDir}</span>.
+              <span className="break-all font-mono font-medium text-fg-base">{logDir}</span>
             </p>
           </div>
-          <div className="mt-4 flex justify-center gap-2">
+          <div className="mt-5 flex justify-center gap-2.5">
             <button
               type="button"
               onClick={() => {
@@ -167,17 +148,15 @@ export function BackendGate({ children }: Props) {
                     const { invoke } = await import("@tauri-apps/api/core");
                     await invoke("restart_backend");
                   } catch {
-                    /* browser dev / older shell: just resume polling */
+                    /* fallback */
                   }
-                  // The respawned sidecar binds a fresh ephemeral port;
-                  // drop the cached base URL so the poll loop re-asks
-                  // the shell instead of hammering the dead old port.
                   resetResolvedBaseUrl();
                   setRetryNonce((n) => n + 1);
                 })();
               }}
-              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg hover:opacity-90"
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-xs font-semibold text-accent-fg shadow-sm transition-all hover:bg-accent-hover active:scale-95"
             >
+              <RefreshCw size={13} />
               {t.backend.retry}
             </button>
             <button
@@ -192,8 +171,9 @@ export function BackendGate({ children }: Props) {
                   }
                 })();
               }}
-              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-bg-muted"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-bg-base px-4 py-2 text-xs font-medium text-fg-muted hover:bg-bg-muted hover:text-fg-base transition-colors"
             >
+              <LogOut size={13} />
               {t.backend.quit}
             </button>
           </div>
@@ -205,31 +185,36 @@ export function BackendGate({ children }: Props) {
   const stale = waitedMs >= STALE_THRESHOLD_MS;
   const baseUrlOverride = getBaseUrlOverride();
   return (
-    <div className="flex h-full w-full items-center justify-center bg-bg-base text-fg-base">
-      <div className="max-w-md text-center">
-        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent" />
-        <p className="mt-4 text-sm font-medium">{t.backend.starting}</p>
+    <div className="flex h-full w-full items-center justify-center bg-bg-base px-4 text-fg-base select-none">
+      <div className="w-full max-w-sm rounded-2xl border border-border/80 bg-bg-card/95 p-7 shadow-elevated text-center backdrop-blur-xl animate-scale-in">
+        {/* Animated Brand Logo */}
+        <div className="relative mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-500/25 ring-1 ring-white/25">
+          <Library size={28} strokeWidth={2.2} />
+          <span className="absolute -inset-1 rounded-2xl bg-indigo-500/20 blur-md animate-pulse"></span>
+        </div>
+
+        <h3 className="text-sm font-semibold tracking-tight text-fg-base">{t.backend.starting}</h3>
         {!stale ? (
           <p className="mt-1 text-xs text-fg-subtle">
             {t.backend.waiting}
           </p>
         ) : (
-          <div className="mt-3 space-y-1 text-xs text-fg-subtle">
-            <p>
+          <div className="mt-3.5 space-y-2 text-xs text-fg-subtle text-left">
+            <p className="text-warning font-medium">
               {t.backend.slow(Math.round(waitedMs / 1000))}
             </p>
-            <p>
+            <p className="text-[11.5px]">
               {t.backend.checkLog}{" "}
-              <span className="break-all font-mono">{logDir}</span>.
+              <span className="break-all font-mono font-medium text-fg-base">{logDir}</span>
             </p>
             {lastError && (
-              <p className="font-mono text-[10px] opacity-70">{lastError}</p>
+              <p className="font-mono text-[10.5px] rounded bg-bg-muted p-2 text-fg-muted border border-border/60">{lastError}</p>
             )}
             {isTauri() && baseUrlOverride && (
-              <div className="mt-3 rounded border border-warning/40 bg-warning/10 p-3 text-left">
-                <p className="font-medium text-warning">{t.backend.customBaseTitle}</p>
-                <p className="mt-1 break-all font-mono text-[10px]">{baseUrlOverride}</p>
-                <p className="mt-2">{t.backend.customBaseBody}</p>
+              <div className="mt-3 rounded-lg border border-warning/30 bg-warning-subtle/80 p-3 text-left">
+                <p className="font-medium text-warning text-xs">{t.backend.customBaseTitle}</p>
+                <p className="mt-1 break-all font-mono text-[10px] text-fg-muted">{baseUrlOverride}</p>
+                <p className="mt-1.5 text-[11px] text-fg-muted">{t.backend.customBaseBody}</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -240,7 +225,7 @@ export function BackendGate({ children }: Props) {
                     loggedStale.current = false;
                     setRetryNonce((n) => n + 1);
                   }}
-                  className="mt-3 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg hover:opacity-90"
+                  className="mt-2.5 inline-flex items-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover transition-colors"
                 >
                   {t.backend.useBundled}
                 </button>
@@ -248,6 +233,12 @@ export function BackendGate({ children }: Props) {
             )}
           </div>
         )}
+
+        <div className="mt-5 flex justify-center">
+          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-bg-muted">
+            <div className="h-full w-full bg-indigo-500 animate-[shimmer_1.5s_infinite_linear] bg-gradient-to-r from-indigo-500 via-indigo-300 to-indigo-500 bg-[length:200%_100%]"></div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "前端 toggle → API → overlay → worker_lifecycle 跨层数据流，需完整走查"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "确定新增 worker_lifecycle.py 归属 services 层，遵循目录约定"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "启动守卫告警与启停异常的日志风格约束"}

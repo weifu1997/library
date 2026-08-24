@@ -1,6 +1,6 @@
 """Settings HTTP routes — runtime-mutable subset of `Settings`.
 
-Three endpoints, all under `/v1/settings`:
+Four endpoints, all under `/v1/settings`:
 
   GET  /server      — read-only snapshot of resolved settings (no
                       secrets); the GUI uses this to render the
@@ -10,6 +10,10 @@ Three endpoints, all under `/v1/settings`:
   PUT  /llm         — write a subset of LLM fields plus a few runtime
                       knobs to the overlay file. Returns the post-write
                       view so the GUI can refresh without a second GET.
+  POST /llm/models  — list the models a profile's provider serves, so
+                      the GUI can offer a model picker dropdown. Uses
+                      the profile's resolved credentials with any
+                      form-provided overrides layered on top.
 
 Writes go through `services.config_overlay`. After a successful PUT we
 clear the `get_settings()` lru_cache and the LLM client cache so the
@@ -35,19 +39,25 @@ from library.config import (
     Settings,
     get_settings,
     has_vision_profile,
+    resolve_backup,
     resolve_profile,
 )
 from library.db.models import File
 from library.db.session import get_session
 from library.llm.factory import get_chat_client, reset_clients_cache
 from library.llm.types import ChatMessage, ChatRequest, ImageBlock, TextBlock
+from library.provider_clients import (
+    get_anthropic_client, get_openai_compatible_client,
+)
 from library.repositories import files as files_repo
 from library.semantic.index import semantic_index_status
 from library.semantic.embeddings import get_embedding_client
 from library.semantic.rerank import get_rerank_client, rerank_configured
 from library.services.config_overlay import (
-    OverlayValidationError, read_overlay, validate_and_normalize, write_overlay,
+    OverlayValidationError, _VALID_PROVIDERS,
+    read_overlay, validate_and_normalize, write_overlay,
 )
+from library.services import worker_lifecycle
 from library.services.reprocess import reprocess_file
 from library.services.webdav_sync import read_status as read_webdav_status
 
@@ -85,6 +95,44 @@ def _mask(secret: str | None) -> str | None:
     return f"{secret[:3]}***{secret[-2:]}"
 
 
+def _backup_payload(
+    s: Settings,
+    profile: str,
+    *,
+    raw: bool,
+) -> dict[str, Any] | None:
+    """Resolved or raw backup-profile payload for the GET endpoint.
+
+    ``raw=True`` mirrors the vision profile's opt-in rendering: only
+    explicitly-set ``llm_<profile>_backup_*`` fields are shown, so an
+    unconfigured backup reads as ``null`` in the UI even when a default
+    backup exists. ``raw=False`` uses ``resolve_backup``, which inherits
+    the default's backup per-field. The api_key is masked on the way out
+    (and never echoed back in plaintext)."""
+    if raw:
+        model = getattr(s, f"llm_{profile}_backup_model")
+        api_key = getattr(s, f"llm_{profile}_backup_api_key")
+        if not model:
+            return None
+        return {
+            "provider": getattr(s, f"llm_{profile}_backup_provider"),
+            "model": model,
+            "base_url": getattr(s, f"llm_{profile}_backup_base_url"),
+            "api_key": _mask(api_key),
+            "api_key_set": bool(api_key),
+        }
+    backup = resolve_backup(s, profile)
+    if backup is None:
+        return None
+    return {
+        "provider": backup.provider,
+        "model": backup.model,
+        "base_url": backup.base_url,
+        "api_key": _mask(backup.api_key),
+        "api_key_set": bool(backup.api_key),
+    }
+
+
 @router.get("/server")
 def server_settings() -> dict[str, Any]:
     """Read-only snapshot. GUI renders this in a "Server status" card.
@@ -107,6 +155,7 @@ def server_settings() -> dict[str, Any]:
         "readiness_timeout_seconds": s.readiness_timeout_seconds,
         "storage_backend": s.storage_backend,
         "worker_enabled": s.worker_enabled,
+        "worker_running": worker_lifecycle.is_running(),
         "worker_scheduler_enabled": s.worker_scheduler_enabled,
         "worker_batch_size": s.worker_batch_size,
         "worker_retry_base_seconds": s.worker_retry_base_seconds,
@@ -232,6 +281,7 @@ def llm_settings() -> dict[str, Any]:
                 "model": getattr(s, f"llm_{p}_model"),
                 "tps": getattr(s, f"llm_{p}_tps"),
                 "capabilities": capabilities,
+                "backup": _backup_payload(s, p, raw=True),
             }
             continue
         prof = resolved
@@ -243,6 +293,7 @@ def llm_settings() -> dict[str, Any]:
             "model": prof.model,
             "tps": prof.tps,
             "capabilities": capabilities,
+            "backup": _backup_payload(s, p, raw=False),
         }
 
     overlay = read_overlay(s.library_home)
@@ -263,6 +314,7 @@ def llm_settings() -> dict[str, Any]:
             "api_key": _mask(s.llm_default_api_key),
             "api_key_set": bool(s.llm_default_api_key),
             "tps": s.llm_default_tps,
+            "backup": _backup_payload(s, "default", raw=False),
             "capabilities": {
                 "dialect": s.llm_default_dialect or (
                     "anthropic" if s.llm_default_provider == "anthropic" else
@@ -293,6 +345,66 @@ def _safe_error(exc: Exception, api_key: str | None) -> str:
 
 def _probe_duration_ms(started: float) -> float:
     return round((time.perf_counter() - started) * 1000, 1)
+
+
+async def _list_llm_models(
+    provider: str,
+    base_url: str | None,
+    api_key: str,
+) -> dict[str, Any]:
+    """List the models a provider serves via its model-listing endpoint.
+
+    Returns ``{ok: True, models: [{id, display_name}], provider, base_url}``
+    on success or ``{ok: False, error}`` with the (sanitized) provider message
+    on failure — same verdict shape as ``_probe_llm_profile``. Anthropic's
+    list endpoint defaults to 20 results, so pass ``limit=1000`` to get the
+    full catalog; OpenAI returns everything in one page. The api_key is used
+    only for the outbound call and is never echoed in the response."""
+    started = time.perf_counter()
+    try:
+        async with asyncio.timeout(_PROBE_TIMEOUT_SECONDS):
+            if provider == "anthropic":
+                client = get_anthropic_client(
+                    api_key=api_key, base_url=base_url or None,
+                )
+                page = await client.models.list(limit=1000)
+                models = sorted(
+                    (
+                        {"id": m.id, "display_name": m.display_name}
+                        for m in page.data
+                    ),
+                    key=lambda m: m["id"],
+                )
+            else:
+                client = get_openai_compatible_client(
+                    api_key=api_key, base_url=base_url or None,
+                )
+                page = await client.models.list()
+                models = sorted(
+                    ({"id": m.id, "display_name": None} for m in page.data),
+                    key=lambda m: m["id"],
+                )
+        return {
+            "ok": True,
+            "models": models,
+            "provider": provider,
+            "base_url": base_url,
+            "duration_ms": _probe_duration_ms(started),
+        }
+    except TimeoutError:
+        log.warning("llm models fetch timed out for provider %s", provider)
+        return {
+            "ok": False,
+            "error": f"timed out after {_PROBE_TIMEOUT_SECONDS:g}s",
+            "duration_ms": _probe_duration_ms(started),
+        }
+    except Exception as exc:  # noqa: BLE001 - returned as a local admin diagnostic
+        log.warning("llm models fetch failed for provider %s: %s", provider, exc)
+        return {
+            "ok": False,
+            "error": _safe_error(exc, api_key),
+            "duration_ms": _probe_duration_ms(started),
+        }
 
 
 async def _probe_llm_profile(profile: str) -> dict[str, Any]:
@@ -435,7 +547,9 @@ async def _probe_rerank() -> dict[str, Any]:
 
 
 @router.post("/llm/test")
-async def test_llm_profiles() -> dict[str, Any]:
+async def test_llm_profiles(
+    profile: str | None = None,
+) -> dict[str, Any]:
     """Probe each resolved LLM profile with a tiny chat call so a mistyped
     key / base-URL / model is caught here at config time instead of surfacing
     later as a failed ingest or chat turn. Mirrors the WebDAV `POST /test`
@@ -444,9 +558,26 @@ async def test_llm_profiles() -> dict[str, Any]:
     Returns ``{"profiles": {name: {...}}}`` where each entry is either
     ``{ok: True, model, provider}``, ``{ok: False, error}``, or — for an
     unconfigured optional profile — ``{ok: None, configured: False}``. The
-    call always returns 200; per-profile status carries the verdict."""
+    call always returns 200; per-profile status carries the verdict.
+
+    Pass ``?profile=default`` to probe ONLY the default profile (the one the
+    Settings quick-config form edits) and skip embedding/rerank. The default
+    profile is not a member of ``LLM_PROFILES``; ``resolve_profile`` accepts
+    "default" so its verdict can reuse ``_probe_llm_profile`` directly.
+    """
     s = get_settings()
     started = time.perf_counter()
+    if profile == "default":
+        default_prof = resolve_profile(s, "default")
+        if not default_prof.api_key or not default_prof.model:
+            return {
+                "profiles": {"default": {"ok": None, "configured": False}},
+                "duration_ms": _probe_duration_ms(started),
+            }
+        return {
+            "profiles": {"default": await _probe_llm_profile("default")},
+            "duration_ms": _probe_duration_ms(started),
+        }
     results: dict[str, dict[str, Any]] = {}
     # De-dupe the network calls: chat/reflect/ingest usually resolve to the
     # same endpoint (all inheriting LLM_DEFAULT_*), so probe each distinct
@@ -479,6 +610,59 @@ async def test_llm_profiles() -> dict[str, Any]:
         "rerank": rerank,
         "duration_ms": _probe_duration_ms(started),
     }
+
+
+class LlmModelsRequest(BaseModel):
+    """Which profile's credentials to list models for.
+
+    ``provider`` / ``base_url`` / ``api_key`` are optional overrides from the
+    settings form: when set (non-empty) they replace the resolved value, so an
+    unsaved edit can be tested before it is persisted; empty fields fall back
+    to the resolved profile. ``backup=True`` resolves the profile's backup
+    target instead of the primary, so the backup model field gets the same
+    picker."""
+
+    profile: str = "default"
+    backup: bool = False
+    provider: str | None = None
+    base_url: str | None = None
+    api_key: str | None = None
+
+
+@router.post("/llm/models")
+async def list_llm_models(
+    body: LlmModelsRequest | None = None,
+) -> dict[str, Any]:
+    """List the models a profile's provider serves.
+
+    Lets the Settings GUI offer a model picker dropdown instead of requiring a
+    hand-typed model name. Uses the resolved profile credentials with any
+    form-provided overrides layered on top; always returns 200 with a per-call
+    ``ok`` verdict (mirrors ``POST /llm/test``)."""
+    payload = body or LlmModelsRequest()
+    s = get_settings()
+    if payload.profile != "default" and payload.profile not in LLM_PROFILES_VISIBLE:
+        raise HTTPException(
+            status_code=422, detail=f"unknown LLM profile: {payload.profile!r}",
+        )
+    if payload.backup:
+        base = resolve_backup(s, payload.profile)
+        if base is None:
+            return {
+                "ok": False,
+                "error": "backup model not configured",
+                "duration_ms": 0.0,
+            }
+    else:
+        base = resolve_profile(s, payload.profile)
+    eff_provider = (payload.provider or "").strip() or base.provider
+    eff_base_url = (payload.base_url or "").strip() or (base.base_url or "")
+    eff_api_key = (payload.api_key or "").strip() or (base.api_key or "")
+    if eff_provider not in _VALID_PROVIDERS:
+        raise HTTPException(
+            status_code=422, detail=f"unsupported provider: {eff_provider!r}",
+        )
+    return await _list_llm_models(eff_provider, eff_base_url, eff_api_key)
 
 
 def _has_required_profiles(s: Settings) -> bool:
@@ -557,6 +741,32 @@ async def update_llm_settings(
     reset_clients_cache()
 
     payload = llm_settings()
+
+    # A worker_enabled patch is both a persisted preference and a live
+    # request to start/stop the in-process runner right now. The write is
+    # already durable; a lifecycle failure must not roll it back — surface
+    # it via worker_error so the GUI can tell "saved but not applied".
+    if "worker_enabled" in clean:
+        patch_value = clean["worker_enabled"]
+        # A None patch means "clear this override" — the key is dropped from
+        # the overlay above, so the EFFECTIVE value is whatever .env / the
+        # default says. bool(None) is False, so deriving the desired state
+        # from the patch directly would wrongly STOP a running worker when
+        # the effective value after clearing is still true. Re-read through
+        # get_settings() (already cache-cleared) for the authoritative value.
+        desired = (
+            get_settings().worker_enabled
+            if patch_value is None
+            else bool(patch_value)
+        )
+        try:
+            if desired and not worker_lifecycle.is_running():
+                await worker_lifecycle.start()
+            elif not desired and worker_lifecycle.is_running():
+                await worker_lifecycle.stop()
+        except Exception:
+            log.exception("worker enable/disable after settings PUT failed")
+            payload.setdefault("worker_error", "start/stop failed; see server log")
 
     # Auto-heal: if this PUT is the edge where required profiles first become
     # valid, retry ingests that failed before a key existed — the top-of-funnel

@@ -10,9 +10,29 @@
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
-  ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen,
-  FileText, Loader2, Plus, Upload as UploadIcon, Download, RefreshCw, Trash2,
-  AlertTriangle, CircleDashed, CloudDownload, CloudUpload,
+  ChevronDown,
+  ChevronRight,
+  Folder as FolderIcon,
+  FolderOpen,
+  FileText,
+  Loader2,
+  Plus,
+  Upload as UploadIcon,
+  Download,
+  RefreshCw,
+  Trash2,
+  AlertTriangle,
+  CircleDashed,
+  CloudDownload,
+  CloudUpload,
+  FileCode,
+  FileImage,
+  FileSpreadsheet,
+  FileBox,
+  FileAudio,
+  FileVideo,
+  FileArchive,
+  Book,
 } from "lucide-react";
 
 import { folders, fileEntries, files, maybeAuthDownload, ApiError } from "@/api/client";
@@ -73,12 +93,18 @@ export function FolderTree(props: Props) {
 
   const load = useCallback(() => {
     folders.list(null).then(
-      (r) => { setRoots(r.folders); setRootEntries(r.entries ?? []); setErr(null); },
+      (r) => {
+        setRoots(r.folders);
+        setRootEntries(r.entries ?? []);
+        setErr(null);
+      },
       (e) => setErr(e instanceof Error ? e.message : String(e)),
     );
   }, []);
 
-  useEffect(() => { load(); }, [load, props.refreshKey]);
+  useEffect(() => {
+    load();
+  }, [load, props.refreshKey]);
 
   // Root-level entries: if we're navigating to an entry that lives in
   // the root (empty ancestor chain), the leaf is here, not in any
@@ -96,8 +122,8 @@ export function FolderTree(props: Props) {
 
   const headerTarget = props.selectedFolderName ?? t.library.root;
   const reprocessScope = props.selectedFolderId
-    ? { folder_id: props.selectedFolderId } as const
-    : { all: true } as const;
+    ? ({ folder_id: props.selectedFolderId } as const)
+    : ({ all: true } as const);
   const reprocessLabel = props.selectedFolderId
     ? t.library.reprocessFolderConfirm(props.selectedFolderName ?? headerTarget)
     : t.library.reprocessAllConfirm;
@@ -113,8 +139,8 @@ export function FolderTree(props: Props) {
     ? props.selectedFolderFailedCount ?? 0
     : rootFailedCount;
   const failedScope = props.selectedFolderId
-    ? { folder_id: props.selectedFolderId, status: "failed" } as const
-    : { status: "failed" } as const;
+    ? ({ folder_id: props.selectedFolderId, status: "failed" } as const)
+    : ({ status: "failed" } as const);
   const failedLabel = props.selectedFolderId
     ? t.library.reprocessFailedFolderConfirm(headerTarget, scopeFailedCount)
     : t.library.reprocessFailedAllConfirm(scopeFailedCount);
@@ -125,9 +151,7 @@ export function FolderTree(props: Props) {
     setReprocessingAll(true);
     try {
       const r = await files.reprocessBulk(reprocessScope);
-      alert(
-        t.library.queuedReprocess(r.task_ids.length, r.reused_count, r.skipped_count),
-      );
+      alert(t.library.queuedReprocess(r.task_ids.length, r.reused_count, r.skipped_count));
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : String(e);
       alert(t.library.bulkReprocessFailed(msg));
@@ -142,9 +166,7 @@ export function FolderTree(props: Props) {
     setReprocessingFailed(true);
     try {
       const r = await files.reprocessBulk(failedScope);
-      alert(
-        t.library.queuedReprocess(r.task_ids.length, r.reused_count, r.skipped_count),
-      );
+      alert(t.library.queuedReprocess(r.task_ids.length, r.reused_count, r.skipped_count));
       load();
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : String(e);
@@ -155,200 +177,230 @@ export function FolderTree(props: Props) {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex shrink-0 items-center justify-between border-b border-border bg-bg-subtle px-3 py-2">
-        <span className="text-xs font-medium text-fg-muted">{t.library.title}</span>
+    <div className="flex h-full flex-col select-none">
+      {/* Action Toolbar */}
+      <div className="flex h-11 items-center justify-between border-b border-border/80 bg-bg-card/40 px-3 py-1">
+        <span
+          className="truncate text-xs font-bold text-fg-base max-w-[120px]"
+          title={headerTarget}
+        >
+          {headerTarget}
+        </span>
         <div className="flex items-center gap-1">
           {scopeFailedCount > 0 && (
             <button
               onClick={onReprocessFailedScope}
               disabled={reprocessingFailed}
-              title={props.selectedFolderId
-                ? t.library.reprocessFailedFolderTitle(headerTarget, scopeFailedCount)
-                : t.library.reprocessFailedAllTitle(scopeFailedCount)}
-              className="rounded p-1 text-danger hover:bg-bg-muted hover:text-danger disabled:opacity-50"
+              title={
+                props.selectedFolderId
+                  ? t.library.reprocessFailedFolderTitle(headerTarget, scopeFailedCount)
+                  : t.library.reprocessFailedAllTitle(scopeFailedCount)
+              }
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-xl text-danger border border-danger/30 bg-danger-subtle/50 hover:bg-danger-subtle active:scale-95 disabled:opacity-50 transition-all shadow-2xs"
             >
-              {reprocessingFailed
-                ? <Loader2 size={13} className="animate-spin" />
-                : <AlertTriangle size={13} />}
+              {reprocessingFailed ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <AlertTriangle size={14} />
+              )}
             </button>
           )}
           <button
             onClick={onReprocessScope}
             disabled={reprocessingAll}
-            title={props.selectedFolderId
-              ? t.library.reprocessFolderTitle(headerTarget)
-              : t.library.reprocessAllTitle}
-            className="rounded p-1 text-fg-muted hover:bg-bg-muted hover:text-fg-base disabled:opacity-50"
+            title={
+              props.selectedFolderId
+                ? t.library.reprocessFolderTitle(headerTarget)
+                : t.library.reprocessAllTitle
+            }
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-fg-muted border border-border/70 bg-bg-card hover:bg-bg-subtle hover:text-fg-base active:scale-95 disabled:opacity-50 transition-all shadow-2xs"
           >
-            {reprocessingAll
-              ? <Loader2 size={13} className="animate-spin" />
-              : <RefreshCw size={13} />}
+            {reprocessingAll ? (
+              <Loader2 size={14} className="animate-spin text-accent" />
+            ) : (
+              <RefreshCw size={14} />
+            )}
           </button>
           <button
             onClick={() => props.onWebDavDownloadSync?.()}
             disabled={!props.webdav?.configured}
-            title={props.webdav?.configured
-              ? webdavDownloadTitle(props.webdav, t)
-              : t.library.webdavNotConfigured}
-            className="rounded p-1 text-fg-muted hover:bg-bg-muted hover:text-fg-base disabled:opacity-50"
+            title={
+              props.webdav?.configured
+                ? webdavDownloadTitle(props.webdav, t)
+                : t.library.webdavNotConfigured
+            }
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-fg-muted border border-border/70 bg-bg-card hover:bg-bg-subtle hover:text-fg-base active:scale-95 disabled:opacity-50 transition-all shadow-2xs"
           >
-            <CloudDownload size={13} />
+            <CloudDownload size={14} />
           </button>
           <button
             onClick={() => props.onWebDavUploadSync?.()}
             disabled={!props.webdav?.configured}
-            title={props.webdav?.configured
-              ? webdavUploadTitle(props.webdav, t)
-              : t.library.webdavNotConfigured}
-            className="rounded p-1 text-fg-muted hover:bg-bg-muted hover:text-fg-base disabled:opacity-50"
+            title={
+              props.webdav?.configured
+                ? webdavUploadTitle(props.webdav, t)
+                : t.library.webdavNotConfigured
+            }
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-fg-muted border border-border/70 bg-bg-card hover:bg-bg-subtle hover:text-fg-base active:scale-95 disabled:opacity-50 transition-all shadow-2xs"
           >
-            <CloudUpload size={13} />
+            <CloudUpload size={14} />
           </button>
           <button
             onClick={() => props.onNewFolderHere(null)}
             title={t.library.newFolderIn(headerTarget)}
-            className="rounded p-1 text-fg-muted hover:bg-bg-muted hover:text-fg-base"
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-fg-muted hover:bg-bg-subtle hover:text-fg-base active:scale-95 transition-all"
           >
-            <Plus size={13} />
+            <Plus size={14} />
           </button>
           <button
             onClick={() => props.onUploadHere(null)}
             title={t.library.uploadTo(headerTarget)}
-            className="rounded p-1 text-fg-muted hover:bg-bg-muted hover:text-fg-base"
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-fg-muted hover:bg-bg-subtle hover:text-fg-base active:scale-95 transition-all"
           >
-            <UploadIcon size={13} />
+            <UploadIcon size={14} />
           </button>
         </div>
       </div>
-      <div
-        className="flex-1 overflow-y-auto px-1 py-2 text-sm"
-        onClick={(e) => {
-          // Click on bare scroll area (not a row) clears selection.
-          if (e.target === e.currentTarget) props.onClearSelection();
-        }}
-      >
-        {err && <p className="px-2 text-xs text-danger">{err}</p>}
-        {roots === null && !err && (
-          <p className="px-2 text-xs text-fg-subtle">{t.common.loading}</p>
+
+      {err && (
+        <div className="m-2 rounded-xl bg-danger-subtle p-2.5 text-xs text-danger border border-danger/20">
+          {err}
+        </div>
+      )}
+
+      {/* Tree Content */}
+      <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
+        {roots === null ? (
+          <div className="flex items-center justify-center py-10 text-xs text-fg-subtle gap-2">
+            <Loader2 size={14} className="animate-spin text-accent" />
+            <span>{t.common.loading}</span>
+          </div>
+        ) : roots.length === 0 && rootEntries.length === 0 ? (
+          <div className="py-12 px-4 text-center text-xs text-fg-subtle leading-relaxed">
+            {t.library.emptyTree}
+          </div>
+        ) : (
+          <>
+            {roots.map((f) => (
+              <FolderRow
+                key={f.id}
+                folder={f}
+                depth={0}
+                selectedEntryId={props.selectedEntryId}
+                selectedFolderId={props.selectedFolderId}
+                selectedFolderName={props.selectedFolderName}
+                selectedFolderFailedCount={props.selectedFolderFailedCount}
+                onSelectFile={props.onSelectFile}
+                onSelectFolder={props.onSelectFolder}
+                ingestingFileIds={props.ingestingFileIds}
+                refreshKey={props.refreshKey}
+                expandPath={props.expandPath}
+                pendingEntryId={props.pendingEntryId}
+                onPendingEntryResolved={props.onPendingEntryResolved}
+                onUploadHere={props.onUploadHere}
+                onNewFolderHere={props.onNewFolderHere}
+                onEntryDeleted={props.onEntryDeleted}
+                onFolderReprocessed={load}
+                onFolderDeleted={(id) => {
+                  load();
+                  props.onFolderDeleted(id);
+                }}
+                onClearSelection={props.onClearSelection}
+              />
+            ))}
+            {rootEntries.map((e) => (
+              <FileRow
+                key={e.id}
+                entry={e}
+                depth={0}
+                selected={props.selectedEntryId === e.id}
+                ingesting={props.ingestingFileIds.has(e.file_id)}
+                onClick={() => props.onSelectFile(e)}
+                onDeleted={(id) => {
+                  load();
+                  props.onEntryDeleted(id);
+                }}
+                onReprocessed={load}
+                t={t}
+              />
+            ))}
+          </>
         )}
-        {roots && roots.length === 0 && rootEntries.length === 0 && (
-          <p className="px-2 text-xs text-fg-subtle">{t.library.emptyTree}</p>
-        )}
-        {roots && roots.map((f) => (
-          <FolderRow
-            key={f.id}
-            folder={f}
-            depth={0}
-            onFolderReprocessed={load}
-            {...props}
-          />
-        ))}
-        {rootEntries.map((e) => (
-          <FileRow
-            key={e.id}
-            entry={e}
-            depth={0}
-            selected={props.selectedEntryId === e.id}
-            ingesting={props.ingestingFileIds.has(e.file_id)}
-            onClick={() => props.onSelectFile(e)}
-            onDeleted={(id) => { load(); props.onEntryDeleted(id); }}
-            onReprocessed={load}
-            t={t}
-          />
-        ))}
       </div>
     </div>
   );
 }
 
-function webdavUploadTitle(status: WebDavStatus, t: I18nStrings): string {
-  if (status.last?.finished_at) {
-    return t.library.webdavLastUploaded(new Date(status.last.finished_at).toLocaleString());
-  }
-  return t.library.webdavUploadNow;
+interface FolderRowProps extends Props {
+  folder: Folder;
+  depth: number;
+  onFolderReprocessed: () => void;
 }
 
-function webdavDownloadTitle(status: WebDavStatus, t: I18nStrings): string {
-  if (status.last?.last_download_at) {
-    return t.library.webdavLastPulled(new Date(status.last.last_download_at).toLocaleString());
-  }
-  return t.library.webdavPullNow;
-}
-
-function FolderRow({
-  folder, depth,
-  selectedEntryId, selectedFolderId, selectedFolderName, selectedFolderFailedCount,
-  onSelectFile, onSelectFolder,
-  ingestingFileIds,
-  refreshKey,
-  expandPath, pendingEntryId, onPendingEntryResolved,
-  onUploadHere, onNewFolderHere,
-  onEntryDeleted, onFolderDeleted,
-  onClearSelection,
-  onFolderReprocessed,
-}: { folder: Folder; depth: number; onFolderReprocessed: () => void } & Props) {
+function FolderRow(props: FolderRowProps) {
+  const { folder, depth } = props;
   const [open, setOpen] = useState(false);
   const [children, setChildren] = useState<Folder[] | null>(null);
   const [entries, setEntries] = useState<FileEntrySummary[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [reprocessingFolder, setReprocessingFolder] = useState(false);
   const [reprocessingFailedFolder, setReprocessingFailedFolder] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const loadedRef = useRef(false);
   const { t } = useI18n();
 
-  const loadDetail = useCallback((showSpinner = !loadedRef.current) => {
-    if (showSpinner) setLoading(true);
-    return folders.get(folder.id).then(
-      (d) => {
-        loadedRef.current = true;
-        setChildren(d.children);
-        setEntries(d.entries);
-        setLoading(false);
-      },
-      () => setLoading(false),
-    );
-  }, [folder.id]);
+  const loadDetail = useCallback(
+    (showSpinner = !loadedRef.current) => {
+      if (showSpinner) setLoading(true);
+      return folders.get(folder.id).then(
+        (d) => {
+          loadedRef.current = true;
+          setChildren(d.children);
+          setEntries(d.entries);
+          setLoading(false);
+        },
+        () => setLoading(false),
+      );
+    },
+    [folder.id],
+  );
 
   const refreshAfterSubtreeReprocess = useCallback(() => {
-    onFolderReprocessed();
+    props.onFolderReprocessed();
     if (loadedRef.current) {
       void loadDetail(false);
     }
-  }, [loadDetail, onFolderReprocessed]);
+  }, [loadDetail, props]);
 
-  // If this folder sits on the active expandPath, force it open and
-  // forward the remainder of the chain to descendants. The first id
-  // in the chain is the next ancestor to expand, so a match means
-  // "we are that ancestor."
-  const onPath = (expandPath?.[0] === folder.id);
+  const onPath = props.expandPath?.[0] === folder.id;
   useEffect(() => {
     if (onPath && !open) setOpen(true);
   }, [onPath, open]);
 
   useEffect(() => {
     if (open) loadDetail();
-  }, [open, loadDetail, refreshKey]);
+  }, [open, loadDetail, props.refreshKey]);
 
-  // Once this folder is the leaf of the expandPath (i.e. expandPath
-  // ends here) and its contents have loaded, finalize the deep-link
-  // by selecting the pending entry.
-  const isLeaf = onPath && (expandPath?.length === 1);
+  const isLeaf = onPath && props.expandPath?.length === 1;
   useEffect(() => {
-    if (!isLeaf || !pendingEntryId || entries === null) return;
-    const hit = entries.find((e) => e.id === pendingEntryId);
+    if (!isLeaf || !props.pendingEntryId || entries === null) return;
+    const hit = entries.find((e) => e.id === props.pendingEntryId);
     if (hit) {
-      onSelectFile(hit);
-      onPendingEntryResolved?.();
+      props.onSelectFile(hit);
+      props.onPendingEntryResolved?.();
     }
-  }, [isLeaf, pendingEntryId, entries, onSelectFile, onPendingEntryResolved]);
+  }, [isLeaf, props.pendingEntryId, entries, props]);
 
-  const childExpandPath = onPath ? expandPath!.slice(1) : expandPath;
-
-  const isSelected = selectedFolderId === folder.id;
+  const childExpandPath = onPath ? props.expandPath!.slice(1) : props.expandPath;
+  const isSelected = props.selectedFolderId === folder.id;
   const folderFailed = (folder.ingest_summary?.failed ?? 0) > 0;
-  const indent = { paddingLeft: 8 + depth * 12 };
+  const indent = { paddingLeft: 6 + depth * 14 };
 
   const onDeleteFolder = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -357,7 +409,7 @@ function FolderRow({
     setDeleting(true);
     try {
       await folders.delete(folder.id);
-      onFolderDeleted(folder.id);
+      props.onFolderDeleted(folder.id);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : String(err);
       alert(t.library.deleteFailed(msg));
@@ -372,9 +424,7 @@ function FolderRow({
     setReprocessingFolder(true);
     try {
       const r = await files.reprocessBulk({ folder_id: folder.id });
-      alert(
-        t.library.queuedReprocess(r.task_ids.length, r.reused_count, r.skipped_count),
-      );
+      alert(t.library.queuedReprocess(r.task_ids.length, r.reused_count, r.skipped_count));
       refreshAfterSubtreeReprocess();
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : String(err);
@@ -392,9 +442,7 @@ function FolderRow({
     setReprocessingFailedFolder(true);
     try {
       const r = await files.reprocessBulk({ folder_id: folder.id, status: "failed" });
-      alert(
-        t.library.queuedReprocess(r.task_ids.length, r.reused_count, r.skipped_count),
-      );
+      alert(t.library.queuedReprocess(r.task_ids.length, r.reused_count, r.skipped_count));
       refreshAfterSubtreeReprocess();
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : String(err);
@@ -408,30 +456,41 @@ function FolderRow({
     <div>
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-md py-1 pr-1",
-          isSelected ? "bg-accent-subtle text-accent" : "hover:bg-bg-muted",
+          "group flex items-center gap-1 rounded-xl py-1.5 pr-2 text-xs transition-colors cursor-pointer",
+          isSelected
+            ? "bg-bg-elevated text-fg-base shadow-xs ring-1 ring-border/80 font-medium"
+            : "text-fg-muted hover:bg-bg-muted/50 hover:text-fg-base",
         )}
         style={indent}
       >
         <button
-          onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
-          className="shrink-0 text-fg-muted"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((o) => !o);
+          }}
+          className="flex h-5 w-5 items-center justify-center rounded p-0.5 text-fg-subtle hover:bg-bg-base/70 hover:text-fg-base transition-colors shrink-0"
+          type="button"
         >
-          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
         </button>
+
         <button
-          onClick={() => onSelectFolder(folder)}
-          className="flex flex-1 items-center gap-1.5 truncate text-left"
+          onClick={() => props.onSelectFolder(isSelected ? null : folder)}
+          className="flex flex-1 items-center gap-2 truncate text-left"
+          type="button"
         >
-          {open
-            ? <FolderOpen size={13} className="text-fg-muted" />
-            : <FolderIcon size={13} className="text-fg-muted" />}
-          <span className="min-w-0 flex-1 truncate">{folder.name}</span>
+          {open ? (
+            <FolderOpen size={14} className="text-accent shrink-0" />
+          ) : (
+            <FolderIcon size={14} className="text-accent/80 shrink-0" />
+          )}
+          <span className="min-w-0 flex-1 truncate font-medium">{folder.name}</span>
           <FolderIngestBadge summary={folder.ingest_summary} t={t} />
         </button>
+
         <div
           className={cn(
-            "items-center gap-0.5",
+            "items-center gap-0.5 shrink-0",
             folderFailed || reprocessingFolder || reprocessingFailedFolder
               ? "flex"
               : "hidden group-hover:flex",
@@ -445,40 +504,48 @@ function FolderRow({
                 folder.name,
                 folder.ingest_summary?.failed ?? 0,
               )}
-              className="rounded p-0.5 text-danger hover:bg-bg-base hover:text-danger disabled:opacity-50"
+              className="flex h-6.5 w-6.5 items-center justify-center rounded text-danger hover:bg-danger-subtle active:scale-95 disabled:opacity-50 transition-colors"
+              type="button"
             >
-              {reprocessingFailedFolder
-                ? <Loader2 size={11} className="animate-spin" />
-                : <AlertTriangle size={11} />}
+              {reprocessingFailedFolder ? (
+                <Loader2 size={11} className="animate-spin" />
+              ) : (
+                <AlertTriangle size={11} />
+              )}
             </button>
           )}
           <button
             onClick={onReprocessFolder}
             disabled={reprocessingFolder}
             title={t.library.reprocessFolderTitle(folder.name)}
-            className="rounded p-0.5 text-fg-subtle hover:bg-bg-base hover:text-fg-base disabled:opacity-50"
+            className="flex h-6.5 w-6.5 items-center justify-center rounded text-fg-subtle hover:bg-bg-base hover:text-fg-base active:scale-95 disabled:opacity-50 transition-colors"
+            type="button"
           >
-            {reprocessingFolder
-              ? <Loader2 size={11} className="animate-spin" />
-              : <RefreshCw size={11} />}
+            {reprocessingFolder ? (
+              <Loader2 size={11} className="animate-spin text-accent" />
+            ) : (
+              <RefreshCw size={11} />
+            )}
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onNewFolderHere({ id: folder.id, name: folder.name });
+              props.onNewFolderHere({ id: folder.id, name: folder.name });
             }}
             title={t.library.newSubfolder}
-            className="rounded p-0.5 text-fg-subtle hover:bg-bg-base hover:text-fg-base"
+            className="flex h-6.5 w-6.5 items-center justify-center rounded text-fg-subtle hover:bg-bg-base hover:text-fg-base active:scale-95 transition-colors"
+            type="button"
           >
             <Plus size={11} />
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onUploadHere({ id: folder.id, name: folder.name });
+              props.onUploadHere({ id: folder.id, name: folder.name });
             }}
             title={t.library.uploadHere}
-            className="rounded p-0.5 text-fg-subtle hover:bg-bg-base hover:text-fg-base"
+            className="flex h-6.5 w-6.5 items-center justify-center rounded text-fg-subtle hover:bg-bg-base hover:text-fg-base active:scale-95 transition-colors"
+            type="button"
           >
             <UploadIcon size={11} />
           </button>
@@ -486,42 +553,53 @@ function FolderRow({
             onClick={onDeleteFolder}
             disabled={deleting}
             title={t.library.deleteFolder}
-            className="rounded p-0.5 text-fg-subtle hover:bg-bg-base hover:text-danger disabled:opacity-50"
+            className="flex h-6.5 w-6.5 items-center justify-center rounded text-fg-subtle hover:bg-bg-base hover:text-danger active:scale-95 disabled:opacity-50 transition-colors"
+            type="button"
           >
-            {deleting
-              ? <Loader2 size={11} className="animate-spin" />
-              : <Trash2 size={11} />}
+            {deleting ? (
+              <Loader2 size={11} className="animate-spin" />
+            ) : (
+              <Trash2 size={11} />
+            )}
           </button>
         </div>
       </div>
+
       {open && (
         <div>
           {loading && (
-            <div style={{ paddingLeft: 8 + (depth + 1) * 12 }}
-                 className="py-1 text-xs text-fg-subtle">…</div>
+            <div
+              style={{ paddingLeft: 6 + (depth + 1) * 14 }}
+              className="py-1 text-xs text-fg-subtle"
+            >
+              …
+            </div>
           )}
           {children?.map((c) => (
             <FolderRow
               key={c.id}
               folder={c}
               depth={depth + 1}
-              selectedEntryId={selectedEntryId}
-              selectedFolderId={selectedFolderId}
-              selectedFolderName={selectedFolderName}
-              selectedFolderFailedCount={selectedFolderFailedCount}
-              onSelectFile={onSelectFile}
-              onSelectFolder={onSelectFolder}
-              ingestingFileIds={ingestingFileIds}
-              refreshKey={refreshKey}
+              selectedEntryId={props.selectedEntryId}
+              selectedFolderId={props.selectedFolderId}
+              selectedFolderName={props.selectedFolderName}
+              selectedFolderFailedCount={props.selectedFolderFailedCount}
+              onSelectFile={props.onSelectFile}
+              onSelectFolder={props.onSelectFolder}
+              ingestingFileIds={props.ingestingFileIds}
+              refreshKey={props.refreshKey}
               expandPath={childExpandPath}
-              pendingEntryId={pendingEntryId}
-              onPendingEntryResolved={onPendingEntryResolved}
-              onUploadHere={onUploadHere}
-              onNewFolderHere={onNewFolderHere}
-              onEntryDeleted={onEntryDeleted}
+              pendingEntryId={props.pendingEntryId}
+              onPendingEntryResolved={props.onPendingEntryResolved}
+              onUploadHere={props.onUploadHere}
+              onNewFolderHere={props.onNewFolderHere}
+              onEntryDeleted={props.onEntryDeleted}
               onFolderReprocessed={refreshAfterSubtreeReprocess}
-              onFolderDeleted={(id) => { loadDetail(); onFolderDeleted(id); }}
-              onClearSelection={onClearSelection}
+              onFolderDeleted={(id) => {
+                loadDetail();
+                props.onFolderDeleted(id);
+              }}
+              onClearSelection={props.onClearSelection}
             />
           ))}
           {entries?.map((e) => (
@@ -529,10 +607,13 @@ function FolderRow({
               key={e.id}
               entry={e}
               depth={depth + 1}
-              selected={selectedEntryId === e.id}
-              ingesting={ingestingFileIds.has(e.file_id)}
-              onClick={() => onSelectFile(e)}
-              onDeleted={(id) => { loadDetail(); onEntryDeleted(id); }}
+              selected={props.selectedEntryId === e.id}
+              ingesting={props.ingestingFileIds.has(e.file_id)}
+              onClick={() => props.onSelectFile(e)}
+              onDeleted={(id) => {
+                loadDetail();
+                props.onEntryDeleted(id);
+              }}
               onReprocessed={refreshAfterSubtreeReprocess}
               t={t}
             />
@@ -543,7 +624,10 @@ function FolderRow({
   );
 }
 
-function FolderIngestBadge({ summary, t }: {
+function FolderIngestBadge({
+  summary,
+  t,
+}: {
   summary?: FolderIngestSummary | null;
   t: I18nStrings;
 }) {
@@ -568,7 +652,7 @@ function FolderIngestBadge({ summary, t }: {
       title={title}
       aria-label={label}
       className={cn(
-        "inline-flex h-4 shrink-0 items-center gap-0.5 rounded border px-1 text-[10px] leading-none tabular-nums",
+        "inline-flex h-4 shrink-0 items-center gap-0.5 rounded border px-1 text-[10px] leading-none tabular-nums font-semibold",
         failed
           ? "border-danger/30 bg-danger/10 text-danger"
           : "border-border bg-bg-muted text-fg-muted",
@@ -587,10 +671,20 @@ function FolderIngestBadge({ summary, t }: {
 }
 
 function FileRow({
-  entry, depth, selected, ingesting, onClick, onDeleted, onReprocessed, t,
+  entry,
+  depth,
+  selected,
+  ingesting,
+  onClick,
+  onDeleted,
+  onReprocessed,
+  t,
 }: {
-  entry: FileEntrySummary; depth: number; selected: boolean;
-  ingesting: boolean; onClick: () => void;
+  entry: FileEntrySummary;
+  depth: number;
+  selected: boolean;
+  ingesting: boolean;
+  onClick: () => void;
   onDeleted: (entryId: string) => void;
   onReprocessed: () => void;
   t: I18nStrings;
@@ -605,6 +699,7 @@ function FileRow({
   const reprocessTitle = failed
     ? `${t.library.retryAnalysisTitle}\n${failureTitle}`
     : t.library.reprocessAnalysisTitle;
+
   const onReprocess = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (reprocessing || blockedByIngest) return;
@@ -625,6 +720,7 @@ function FileRow({
       setReprocessing(false);
     }
   };
+
   const onDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (deleting) return;
@@ -641,19 +737,23 @@ function FileRow({
       setDeleting(false);
     }
   };
+
   return (
     <div
-      style={{ paddingLeft: 8 + depth * 12 + 14 }}
+      style={{ paddingLeft: 6 + depth * 14 + 16 }}
       className={cn(
-        "group flex w-full items-center gap-1.5 rounded-md py-1 pr-1",
-        selected ? "bg-accent-subtle text-accent" : "hover:bg-bg-muted",
+        "group flex w-full items-center gap-1.5 rounded-xl py-1.5 pr-2 text-xs transition-colors",
+        selected
+          ? "bg-bg-elevated text-fg-base shadow-xs ring-1 ring-border/80 font-medium"
+          : "text-fg-muted hover:bg-bg-muted/50 hover:text-fg-base",
       )}
     >
       <button
         onClick={onClick}
-        className="flex flex-1 items-center gap-1.5 truncate text-left"
+        className="flex flex-1 items-center gap-2 truncate text-left"
+        type="button"
       >
-        <FileText size={12} className="shrink-0 text-fg-subtle" />
+        <FileTypeIcon name={entry.display_name} />
         <span className="flex-1 truncate">{entry.display_name}</span>
         {failed && (
           <span
@@ -665,46 +765,106 @@ function FileRow({
           </span>
         )}
       </button>
+
       {blockedByIngest && (
-        <Loader2 size={11} className="shrink-0 animate-spin text-fg-subtle" />
+        <Loader2 size={11} className="shrink-0 animate-spin text-accent" />
       )}
-      <button
-        onClick={onReprocess}
-        disabled={reprocessing || blockedByIngest}
-        title={reprocessTitle}
-        className={cn(
-          "shrink-0 rounded p-0.5 disabled:opacity-50",
-          failed
-            ? "flex text-danger hover:bg-bg-base hover:text-danger"
-            : "hidden text-fg-subtle hover:bg-bg-base hover:text-fg-base group-hover:flex",
-        )}
-      >
-        {reprocessing
-          ? <Loader2 size={11} className="animate-spin" />
-          : <RefreshCw size={11} />}
-      </button>
-      <a
-        href={fileEntries.downloadUrl(entry.id)}
-        download={entry.display_name}
-        onClick={(e) => {
-          e.stopPropagation();
-          maybeAuthDownload(e, fileEntries.downloadUrl(entry.id), entry.display_name);
-        }}
-        title={t.library.download}
-        className="hidden shrink-0 rounded p-0.5 text-fg-subtle hover:bg-bg-base hover:text-fg-base group-hover:flex"
-      >
-        <Download size={11} />
-      </a>
-      <button
-        onClick={onDelete}
-        disabled={deleting}
-        title={t.common.delete}
-        className="hidden shrink-0 rounded p-0.5 text-fg-subtle hover:bg-bg-base hover:text-danger group-hover:flex disabled:opacity-50"
-      >
-        {deleting
-          ? <Loader2 size={11} className="animate-spin" />
-          : <Trash2 size={11} />}
-      </button>
+
+      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+        <button
+          onClick={onReprocess}
+          disabled={reprocessing || blockedByIngest}
+          title={reprocessTitle}
+          className={cn(
+            "flex h-6.5 w-6.5 items-center justify-center rounded text-fg-subtle hover:bg-bg-base active:scale-95 disabled:opacity-50 transition-colors",
+            failed
+              ? "text-danger hover:bg-danger-subtle hover:text-danger"
+              : "hover:text-fg-base",
+          )}
+          type="button"
+        >
+          {reprocessing ? (
+            <Loader2 size={11} className="animate-spin text-accent" />
+          ) : (
+            <RefreshCw size={11} />
+          )}
+        </button>
+        <a
+          href={fileEntries.downloadUrl(entry.id)}
+          download={entry.display_name}
+          onClick={(e) => {
+            e.stopPropagation();
+            maybeAuthDownload(e, fileEntries.downloadUrl(entry.id), entry.display_name);
+          }}
+          title={t.library.download}
+          className="flex h-6.5 w-6.5 items-center justify-center rounded text-fg-subtle hover:bg-bg-base hover:text-fg-base active:scale-95 transition-colors"
+        >
+          <Download size={11} />
+        </a>
+        <button
+          onClick={onDelete}
+          disabled={deleting}
+          title={t.common.delete}
+          className="flex h-6.5 w-6.5 items-center justify-center rounded text-fg-subtle hover:bg-bg-base hover:text-danger active:scale-95 disabled:opacity-50 transition-colors"
+          type="button"
+        >
+          {deleting ? (
+            <Loader2 size={11} className="animate-spin" />
+          ) : (
+            <Trash2 size={11} />
+          )}
+        </button>
+      </div>
     </div>
   );
+}
+
+function FileTypeIcon({ name }: { name: string }) {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+
+  if (ext === "pdf") {
+    return <FileText size={14} className="shrink-0 text-rose-500" />;
+  }
+  if (["md", "markdown", "txt", "rtf"].includes(ext)) {
+    return <FileText size={14} className="shrink-0 text-blue-500" />;
+  }
+  if (["png", "jpg", "jpeg", "webp", "gif", "svg", "heic", "tiff"].includes(ext)) {
+    return <FileImage size={14} className="shrink-0 text-emerald-500" />;
+  }
+  if (["py", "ts", "tsx", "js", "jsx", "json", "yaml", "yml", "html", "css", "rs", "go", "java", "c", "cpp"].includes(ext)) {
+    return <FileCode size={14} className="shrink-0 text-amber-500" />;
+  }
+  if (["xlsx", "xls", "csv", "tsv"].includes(ext)) {
+    return <FileSpreadsheet size={14} className="shrink-0 text-teal-600" />;
+  }
+  if (["docx", "doc", "pptx", "ppt"].includes(ext)) {
+    return <FileText size={14} className="shrink-0 text-indigo-500" />;
+  }
+  if (["epub", "mobi"].includes(ext)) {
+    return <Book size={14} className="shrink-0 text-purple-500" />;
+  }
+  if (["zip", "tar", "gz", "7z", "rar"].includes(ext)) {
+    return <FileArchive size={14} className="shrink-0 text-orange-500" />;
+  }
+  if (["mp3", "wav", "flac", "ogg", "m4a"].includes(ext)) {
+    return <FileAudio size={14} className="shrink-0 text-cyan-500" />;
+  }
+  if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) {
+    return <FileVideo size={14} className="shrink-0 text-violet-500" />;
+  }
+  return <FileBox size={14} className="shrink-0 text-fg-subtle" />;
+}
+
+function webdavUploadTitle(status: WebDavStatus, t: I18nStrings): string {
+  if (status.last?.finished_at) {
+    return t.library.webdavLastUploaded(new Date(status.last.finished_at).toLocaleString());
+  }
+  return t.library.webdavUploadNow;
+}
+
+function webdavDownloadTitle(status: WebDavStatus, t: I18nStrings): string {
+  if (status.last?.last_download_at) {
+    return t.library.webdavLastPulled(new Date(status.last.last_download_at).toLocaleString());
+  }
+  return t.library.webdavPullNow;
 }

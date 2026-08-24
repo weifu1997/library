@@ -27,6 +27,7 @@ import type {
   FolderDetail,
   FolderListing,
   IngestStatus,
+  LlmModelsResult,
   LlmSettings,
   OnConflict,
   RecentTasks,
@@ -38,6 +39,7 @@ import type {
   SessionList,
   SessionTotals,
   SessionTranscript,
+  StatsOverview,
   UploadResult,
   WebDavDownloadResult,
   WebDavHydrateResult,
@@ -549,6 +551,12 @@ export const tasks = {
     _request<RecentTasks>(`/v1/tasks/recent?limit=${limit}`),
 };
 
+// ---- stats / overview -----------------------------------------------------
+
+export const stats = {
+  overview: () => _request<StatsOverview>(`/v1/stats/overview`),
+};
+
 // ---- exports --------------------------------------------------------------
 
 export const exports_ = {
@@ -617,6 +625,29 @@ export const settings = {
       `/v1/settings/llm/test`,
       { method: "POST" },
     ),
+  /** Probe ONLY the default profile (`?profile=default`), skipping
+   *  embedding/rerank. The Settings quick-config form uses this to give a
+   *  fast verdict on the one config it edits. */
+  testLlmDefault: () =>
+    _request<{ profiles: { default: LlmTestResult }; duration_ms?: number }>(
+      `/v1/settings/llm/test?profile=default`,
+      { method: "POST" },
+    ),
+  /** List the models a profile's provider serves so the GUI can offer a
+   *  picker instead of a hand-typed model name. `provider`/`base_url`/
+   *  `api_key` are optional form overrides layered on the resolved profile
+   *  (empty = inherit). */
+  fetchLlmModels: (body: {
+    profile: string;
+    backup?: boolean;
+    provider?: string | null;
+    base_url?: string | null;
+    api_key?: string | null;
+  }) =>
+    _request<LlmModelsResult>(`/v1/settings/llm/models`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   rebuildSemanticIndex: (concurrency = 1) =>
     _request<SemanticIndexRebuildResult>(`/v1/semantic-index/rebuild`, {
       method: "POST",

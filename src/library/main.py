@@ -26,6 +26,7 @@ from library.api.routes_folders import router as folders_router
 from library.api.routes_mcp import router as mcp_router
 from library.api.routes_semantic_index import router as semantic_index_router
 from library.api.routes_settings import router as settings_router
+from library.api.routes_stats import router as stats_router
 from library.api.routes_tasks import router as tasks_router
 from library.api.routes_tend import router as tend_router
 from library.api.routes_upload import router as upload_router
@@ -35,9 +36,11 @@ from library.config import LlmConfigError, get_settings, validate_llm_config
 from library.db.bootstrap import bootstrap_schema
 from library.db.engine import dispose_engine
 from library.db.engine import get_engine
+from library.db.session import session_scope
 from library.provider_clients import close_provider_clients
+from library.repositories import tasks as tasks_repo
 from library.server_discovery import clear_server_state, write_server_state
-from library.tasks.runner import TaskRunner
+from library.services import worker_lifecycle
 from library.upload_limits import UploadSizeLimitMiddleware
 from library.storage import get_storage
 
@@ -50,7 +53,8 @@ PUBLIC_PROBE_PATHS = frozenset({"/health", "/live", "/ready"})
 async def lifespan(app: FastAPI):
     settings = get_settings()
     state_written = False
-    runner: TaskRunner | None = None
+    # The in-process runner is owned by worker_lifecycle so the Settings
+    # page can start/stop it live; lifespan only decides whether to boot it.
     log.info(
         "backend startup: home=%s storage_backend=%s worker_enabled=%s desktop=%s",
         settings.library_home,
@@ -78,6 +82,8 @@ async def lifespan(app: FastAPI):
             log.info("runtime schema bootstrap disabled; using migrated schema")
         await _check_storage_consistency(settings)
         log.info("storage consistency check passed")
+        if not settings.worker_enabled:
+            await _warn_if_worker_disabled_with_pending()
         if os.environ.get("LIBRARY_HTTP_SERVER") == "1":
             host = os.environ.get("LIBRARY_API_HOST") or settings.library_api_host
             raw_port = os.environ.get("LIBRARY_API_PORT") or str(settings.library_api_port)
@@ -97,8 +103,7 @@ async def lifespan(app: FastAPI):
         if settings.worker_enabled:
             # Keep the in-process runner on live settings so GUI changes to
             # WORKER_BATCH_SIZE affect new task claims without a restart.
-            runner = TaskRunner()
-            await runner.start()
+            await worker_lifecycle.start()
             log.info("task runner started in-process")
     except Exception:
         log.exception("backend startup failed")
@@ -107,8 +112,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         log.info("backend shutdown starting")
-        if runner is not None:
-            await runner.stop()
+        await worker_lifecycle.stop()
         if state_written:
             clear_server_state(settings.library_home, pid=os.getpid())
         await close_provider_clients()
@@ -147,6 +151,29 @@ def _warn_if_unauthenticated_bind(settings) -> None:
         "================================================================",
         host,
     )
+
+
+async def _warn_if_worker_disabled_with_pending() -> None:
+    """Warn when the worker is disabled but queued tasks will go unprocessed.
+
+    The single-process trap: `library serve` with the worker off silently
+    stops processing queued tasks, so pending work looks stuck with no
+    hint. Only warns when there actually is work to do, and points at the
+    two escape hatches (Settings-page toggle / standalone daemon).
+    """
+    try:
+        async with session_scope() as session:
+            counts = await tasks_repo.count_running_and_pending(session)
+        pending = int(counts.get("pending", 0))
+        if pending > 0:
+            log.warning(
+                "worker disabled (WORKER_ENABLED=false) but %d task(s) are "
+                "pending and will not be processed; enable the worker in "
+                "Settings, or run `library-worker` as a separate daemon",
+                pending,
+            )
+    except Exception:
+        log.exception("failed to check pending tasks at startup")
 
 
 async def _check_storage_consistency(settings) -> None:
@@ -321,6 +348,7 @@ app.include_router(tasks_router, prefix=V1_PREFIX)
 app.include_router(tend_router, prefix=V1_PREFIX)
 app.include_router(semantic_index_router, prefix=V1_PREFIX)
 app.include_router(settings_router, prefix=V1_PREFIX)
+app.include_router(stats_router, prefix=V1_PREFIX)
 app.include_router(mcp_router, prefix=V1_PREFIX)
 
 

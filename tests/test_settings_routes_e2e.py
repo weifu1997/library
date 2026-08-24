@@ -21,6 +21,7 @@ import os
 import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 _TEST_PARENT = Path(os.environ.get(
@@ -59,8 +60,14 @@ _Settings.model_config["env_file"] = None
 for _opt in ("CHAT", "INGEST", "REFLECT", "VISION", "AUDIO"):
     for _field in ("PROVIDER", "API_KEY", "BASE_URL", "MODEL", "TPS"):
         os.environ.pop(f"LLM_{_opt}_{_field}", None)
+    for _field in ("BACKUP_PROVIDER", "BACKUP_API_KEY", "BACKUP_BASE_URL", "BACKUP_MODEL"):
+        os.environ.pop(f"LLM_{_opt}_{_field}", None)
 for _var in (
     "LLM_DEFAULT_TPS",
+    "LLM_DEFAULT_BACKUP_PROVIDER",
+    "LLM_DEFAULT_BACKUP_API_KEY",
+    "LLM_DEFAULT_BACKUP_BASE_URL",
+    "LLM_DEFAULT_BACKUP_MODEL",
     "EMBEDDING_PROVIDER",
     "EMBEDDING_API_KEY",
     "EMBEDDING_BASE_URL",
@@ -102,6 +109,10 @@ def _scrub_optional_profiles(s) -> None:
     for opt in ("vision", "audio"):
         for field in ("provider", "api_key", "base_url", "model"):
             object.__setattr__(s, f"llm_{opt}_{field}", None)
+    # vision is the only opt-in profile with a backup; audio has no backup
+    # fields (they'd be dead config, mirroring the audio profile itself).
+    for field in ("backup_provider", "backup_api_key", "backup_base_url", "backup_model"):
+        object.__setattr__(s, f"llm_vision_{field}", None)
 
 
 def _ensure_test_env() -> None:
@@ -151,6 +162,22 @@ def _ensure_test_env() -> None:
         "DOCUMENT_VISION_MIN_IMAGE_AREA",
     ):
         os.environ.pop(var, None)
+    # Backup (failover) fields must not leak from a dev .env either.
+    for var in (
+        "LLM_DEFAULT_BACKUP_PROVIDER",
+        "LLM_DEFAULT_BACKUP_API_KEY",
+        "LLM_DEFAULT_BACKUP_BASE_URL",
+        "LLM_DEFAULT_BACKUP_MODEL",
+    ):
+        os.environ.pop(var, None)
+    for opt in ("CHAT", "INGEST", "REFLECT", "VISION", "AUDIO"):
+        for field in (
+            "BACKUP_PROVIDER",
+            "BACKUP_API_KEY",
+            "BACKUP_BASE_URL",
+            "BACKUP_MODEL",
+        ):
+            os.environ.pop(f"LLM_{opt}_{field}", None)
     get_settings.cache_clear()  # type: ignore[attr-defined]
     _scrub_optional_profiles(get_settings())
     # Direct-write reset avoids unlink/rename, which restricted Windows
@@ -279,6 +306,10 @@ async def test_llm_get_masks_keys() -> None:
             assert vision["api_key"] is None
             assert vision["model"] is None
             assert vision["provider"] is None
+            # No backup (failover) configured anywhere → every backup reads null.
+            assert body["defaults"]["backup"] is None
+            assert body["profiles"]["chat"]["backup"] is None
+            assert body["profiles"]["vision"]["backup"] is None
             # audio is hidden from the GUI surface until a transcription
             # pipeline lands — no `audio` key in the response.
             assert "audio" not in body["profiles"]
@@ -486,6 +517,118 @@ async def test_put_rejects_bad_provider() -> None:
             print("[6] PUT rejects unknown provider with 422")
 
 
+async def test_put_backup_round_trip() -> None:
+    """Backup fields persist to the overlay, mask on the way out, and
+    resolve per-profile (chat inherits the default's backup provider/key;
+    vision reflects only its explicit raw fields)."""
+    _ensure_test_env()
+    transport = ASGITransport(app=app)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.put(
+                "/v1/settings/llm",
+                json={
+                    "patch": {
+                        "llm_default_backup_provider": "anthropic",
+                        "llm_default_backup_api_key": "sk-backup-secret-XXXX",
+                        "llm_default_backup_model": "claude-backup",
+                        "llm_chat_backup_model": "chat-backup-model",
+                        "llm_vision_backup_model": "vis-backup-model",
+                    },
+                },
+            )
+            assert r.status_code == 200, r.text
+            body = r.json()
+            # Defaults backup resolves + masks.
+            dflt = body["defaults"]["backup"]
+            assert dflt is not None
+            assert dflt["provider"] == "anthropic"
+            assert dflt["model"] == "claude-backup"
+            assert dflt["api_key_set"] is True
+            assert dflt["api_key"] != "sk-backup-secret-XXXX"
+            assert "***" in (dflt["api_key"] or "")
+            # chat inherits the default backup provider + key, overrides model.
+            chat = body["profiles"]["chat"]["backup"]
+            assert chat is not None
+            assert chat["provider"] == "anthropic"
+            assert chat["model"] == "chat-backup-model"
+            assert chat["api_key_set"] is True
+            # vision reflects only its explicit raw fields (provider unset → null).
+            vis = body["profiles"]["vision"]["backup"]
+            assert vis is not None
+            assert vis["model"] == "vis-backup-model"
+            assert vis["provider"] is None
+            assert vis["api_key_set"] is False
+            # PUT response must not echo the raw backup key.
+            assert "sk-backup-secret-XXXX" not in r.text
+
+            overlay_file = _TEST_ROOT / "config_overlay.json"
+            disk = overlay_file.read_text(encoding="utf-8")
+            assert "llm_default_backup_model" in disk
+            assert "llm_default_backup_provider" in disk
+            assert "llm_chat_backup_model" in disk
+            assert "llm_vision_backup_model" in disk
+
+            # get_settings() now sees the merged backup fields.
+            s = get_settings()
+            assert s.llm_default_backup_provider == "anthropic"
+            assert s.llm_default_backup_api_key == "sk-backup-secret-XXXX"
+            assert s.llm_default_backup_model == "claude-backup"
+            assert s.llm_chat_backup_model == "chat-backup-model"
+            assert s.llm_vision_backup_model == "vis-backup-model"
+
+            # A fresh GET reflects the same masked payload.
+            r = await c.get("/v1/settings/llm")
+            assert r.status_code == 200, r.text
+            body = r.json()
+            assert body["defaults"]["backup"]["model"] == "claude-backup"
+            assert body["profiles"]["chat"]["backup"]["model"] == "chat-backup-model"
+            assert body["profiles"]["vision"]["backup"]["model"] == "vis-backup-model"
+            assert "sk-backup-secret-XXXX" not in r.text
+            print("[6b] PUT/GET backup: masked, inherited, raw-vision, persisted")
+
+
+async def test_put_rejects_bad_backup_provider() -> None:
+    """The generic `_provider` whitelist covers backup providers too."""
+    _ensure_test_env()
+    transport = ASGITransport(app=app)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.put(
+                "/v1/settings/llm",
+                json={"patch": {"llm_default_backup_provider": "groq-typo"}},
+            )
+            assert r.status_code == 422, r.text
+            assert "llm_default_backup_provider" in r.text
+            print("[6c] PUT rejects unknown backup provider with 422")
+
+
+async def test_put_backup_clear_with_null() -> None:
+    """Nulling the backup model removes it from the overlay, so the resolved
+    backup falls back to unconfigured (None) again."""
+    _ensure_test_env()
+    transport = ASGITransport(app=app)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.put(
+                "/v1/settings/llm",
+                json={"patch": {"llm_default_backup_model": "claude-backup"}},
+            )
+            assert r.status_code == 200, r.text
+
+            r = await c.put(
+                "/v1/settings/llm",
+                json={"patch": {"llm_default_backup_model": None}},
+            )
+            assert r.status_code == 200, r.text
+            body = r.json()
+            assert body["defaults"]["backup"] is None
+            overlay_file = _TEST_ROOT / "config_overlay.json"
+            disk = overlay_file.read_text(encoding="utf-8")
+            assert "llm_default_backup_model" not in disk
+            print("[6d] PUT null clears the backup override")
+
+
 async def test_put_rejects_embedding_batch_above_ten() -> None:
     _ensure_test_env()
     transport = ASGITransport(app=app)
@@ -500,6 +643,157 @@ async def test_put_rejects_embedding_batch_above_ten() -> None:
             print("[7] PUT rejects embedding_batch_size above 10")
 
 
+async def test_llm_test_profile_default_unconfigured() -> None:
+    """`?profile=default` short-circuits with `{ok: None, configured: False}`
+    when the default profile has no key or model — no LLM network call, and
+    embedding/rerank are skipped entirely."""
+    _ensure_test_env()
+    # Simulate a fresh install: no default key or model configured.
+    os.environ.pop("LLM_DEFAULT_API_KEY", None)
+    os.environ.pop("LLM_DEFAULT_MODEL", None)
+    os.environ.pop("LLM_DEFAULT_PROVIDER", None)
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+    try:
+        transport = ASGITransport(app=app)
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+                r = await c.post("/v1/settings/llm/test?profile=default")
+                assert r.status_code == 200, r.text
+                body = r.json()
+                assert list(body["profiles"].keys()) == ["default"]
+                assert body["profiles"]["default"] == {
+                    "ok": None,
+                    "configured": False,
+                }
+                # The profile=default path must not probe embedding/rerank.
+                assert "embedding" not in body
+                assert "rerank" not in body
+        print("[8] test?profile=default short-circuits when unconfigured")
+    finally:
+        _ensure_test_env()
+
+
+async def test_llm_test_profile_default_returns_verdict() -> None:
+    """With a configured default, `?profile=default` runs exactly one probe
+    and returns its verdict verbatim under `profiles.default`."""
+    import library.api.routes_settings as rs
+
+    _ensure_test_env()
+    calls: list[str] = []
+
+    async def _fake_probe(profile: str) -> dict[str, Any]:
+        calls.append(profile)
+        return {
+            "ok": True,
+            "model": "settings-default-model",
+            "provider": "openai",
+            "duration_ms": 12.3,
+        }
+
+    original = rs._probe_llm_profile
+    rs._probe_llm_profile = _fake_probe
+    try:
+        transport = ASGITransport(app=app)
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+                r = await c.post("/v1/settings/llm/test?profile=default")
+                assert r.status_code == 200, r.text
+                body = r.json()
+                assert calls == ["default"], f"expected one default probe, got {calls}"
+                verdict = body["profiles"]["default"]
+                assert verdict["ok"] is True
+                assert verdict["model"] == "settings-default-model"
+                assert verdict["provider"] == "openai"
+                assert "embedding" not in body
+                assert "rerank" not in body
+        print("[9] test?profile=default returns the default verdict")
+    finally:
+        rs._probe_llm_profile = original
+        _ensure_test_env()
+
+
+async def test_llm_models_endpoint_lists_models() -> None:
+    """POST /v1/settings/llm/models returns the provider's model list. The
+    network call is stubbed; profile resolution and form-override layering
+    run for real, and the api_key never leaks into the response."""
+    import library.api.routes_settings as rs
+
+    _ensure_test_env()
+    seen: list[tuple[str, str | None, str]] = []
+
+    async def _fake_list_models(
+        provider: str, base_url: str | None, api_key: str,
+    ) -> dict[str, Any]:
+        seen.append((provider, base_url, api_key))
+        return {
+            "ok": True,
+            "models": [{"id": "gpt-4o", "display_name": None}],
+            "provider": provider,
+            "base_url": base_url,
+            "duration_ms": 1.0,
+        }
+
+    original = rs._list_llm_models
+    rs._list_llm_models = _fake_list_models
+    try:
+        transport = ASGITransport(app=app)
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+                r = await c.post(
+                    "/v1/settings/llm/models",
+                    json={
+                        "profile": "default",
+                        "provider": "openai",
+                        "base_url": "https://api.openai.com/v1",
+                    },
+                )
+                assert r.status_code == 200, r.text
+                body = r.json()
+                assert body["ok"] is True
+                assert body["models"][0]["id"] == "gpt-4o"
+                # The form override for base_url won; api_key fell back to the
+                # resolved (saved) key.
+                assert seen == [
+                    ("openai", "https://api.openai.com/v1", "sk-default-key-XXXX"),
+                ]
+                assert "sk-default-key-XXXX" not in r.text
+        print("[10] POST /llm/models returns the provider model list")
+    finally:
+        rs._list_llm_models = original
+        _ensure_test_env()
+
+
+async def test_llm_models_validation_and_unconfigured_backup() -> None:
+    """Unknown profile → 422; unsupported provider → 422; an unconfigured
+    backup short-circuits to ok:false. None of these needs a network call."""
+    _ensure_test_env()
+    transport = ASGITransport(app=app)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post(
+                "/v1/settings/llm/models",
+                json={"profile": "nope"},
+            )
+            assert r.status_code == 422, r.text
+
+            r = await c.post(
+                "/v1/settings/llm/models",
+                json={"profile": "default", "provider": "foo"},
+            )
+            assert r.status_code == 422, r.text
+
+            # _ensure_test_env scrubs LLM_DEFAULT_BACKUP_*, so the default
+            # backup is unconfigured and the fetch short-circuits.
+            r = await c.post(
+                "/v1/settings/llm/models",
+                json={"profile": "default", "backup": True},
+            )
+            assert r.status_code == 200, r.text
+            assert r.json()["ok"] is False
+            assert r.json()["error"] == "backup model not configured"
+    print("[11] POST /llm/models validates profile/provider and short-circuits unconfigured backup")
+
+
 async def main() -> None:
     await _create_schema()
     await test_server_snapshot_no_secrets()
@@ -508,7 +802,14 @@ async def main() -> None:
     await test_put_clear_with_none()
     await test_put_rejects_unknown_field()
     await test_put_rejects_bad_provider()
+    await test_put_backup_round_trip()
+    await test_put_rejects_bad_backup_provider()
+    await test_put_backup_clear_with_null()
     await test_put_rejects_embedding_batch_above_ten()
+    await test_llm_test_profile_default_unconfigured()
+    await test_llm_test_profile_default_returns_verdict()
+    await test_llm_models_endpoint_lists_models()
+    await test_llm_models_validation_and_unconfigured_backup()
     print("\nALL SETTINGS-ROUTES TESTS PASSED")
 
 

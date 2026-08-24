@@ -1,14 +1,5 @@
-/** Activity popover anchored to the StatusBar busy indicator.
- *
- *  Top section: live running + pending tasks (kind · label · age).
- *  Bottom section: recently-finished tasks with per-run usage.
- *
- *  Polls /v1/tasks/active and /v1/tasks/recent on the same cadence as
- *  the StatusBar itself; opens above the footer so it doesn't obscure
- *  the main content area.
- */
 import { useEffect, useState } from "react";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Sparkles, Activity } from "lucide-react";
 
 import { tasks } from "@/api/client";
 import type { ActiveTask, RecentTask } from "@/types/api";
@@ -88,20 +79,24 @@ export function ActivityPopover({ open, pollMs }: Props) {
   return (
     <div
       className={cn(
-        "absolute bottom-7 right-3 z-50 max-h-[60vh]",
-        "w-[500px] max-w-[calc(100vw-24px)]",
-        "overflow-hidden rounded-md border border-border bg-bg-elevated shadow-lg",
-        "flex flex-col text-xs",
+        "absolute bottom-8.5 right-3 z-50 max-h-[65vh]",
+        "w-[520px] max-w-[calc(100vw-24px)]",
+        "overflow-hidden rounded-xl border border-border/90 bg-bg-elevated/95 shadow-popover backdrop-blur-xl",
+        "flex flex-col text-xs animate-scale-in",
       )}
     >
-      <div className="border-b border-border bg-bg-subtle px-3 py-2">
+      {/* Header */}
+      <div className="border-b border-border/70 bg-bg-subtle/80 px-4 py-2.5">
         <div className="flex items-center justify-between">
-          <span className="font-medium text-fg-base">{t.activity.title}</span>
-          {loading && <Loader2 size={11} className="animate-spin text-fg-subtle" />}
+          <div className="flex items-center gap-2">
+            <Activity size={14} className="text-accent" />
+            <span className="font-semibold text-fg-base tracking-tight">{t.activity.title}</span>
+          </div>
+          {loading && <Loader2 size={12} className="animate-spin text-accent" />}
         </div>
         {recent.length > 0 && (
           <div
-            className="mt-1 truncate whitespace-nowrap font-mono text-[10.5px] text-fg-subtle"
+            className="mt-1.5 inline-block truncate rounded-md bg-bg-muted/80 px-2 py-0.75 font-mono text-[10.5px] text-fg-subtle border border-border/50 max-w-full"
             title={recentSummary}
           >
             {recentSummary}
@@ -109,6 +104,7 @@ export function ActivityPopover({ open, pollMs }: Props) {
         )}
       </div>
 
+      {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {(active.running.length > 0 || active.pending.length > 0) && (
           <Section title={t.activity.inFlight}>
@@ -123,7 +119,10 @@ export function ActivityPopover({ open, pollMs }: Props) {
 
         <Section title={t.activity.recent}>
           {recent.length === 0 ? (
-            <div className="px-3 py-3 text-fg-subtle">{t.activity.noTasks}</div>
+            <div className="flex flex-col items-center justify-center py-6 text-fg-subtle gap-1.5">
+              <Sparkles size={16} className="opacity-40" />
+              <span>{t.activity.noTasks}</span>
+            </div>
           ) : (
             recent.map((t) => <RecentRow key={t.id} task={t} />)
           )}
@@ -136,10 +135,10 @@ export function ActivityPopover({ open, pollMs }: Props) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="sticky top-0 border-b border-border bg-bg-subtle px-3 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-subtle">
+      <div className="sticky top-0 z-10 border-b border-border/60 bg-bg-subtle/90 px-3.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-fg-subtle backdrop-blur">
         {title}
       </div>
-      {children}
+      <div className="divide-y divide-border/50">{children}</div>
     </div>
   );
 }
@@ -147,15 +146,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function ActiveRow({ task, state }: { task: ActiveTask; state: "running" | "pending" }) {
   const { t } = useI18n();
   return (
-    <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
-      {state === "running"
-        ? <Loader2 size={11} className="shrink-0 animate-spin text-accent" />
-        : <span className="block h-1.5 w-1.5 shrink-0 rounded-full bg-fg-subtle" />}
-      <span className="shrink-0 font-medium text-fg-base" title={task.kind}>
+    <div className="flex items-center gap-2.5 px-3.5 py-2 hover:bg-bg-muted/40 transition-colors">
+      {state === "running" ? (
+        <Loader2 size={12} className="shrink-0 animate-spin text-accent" />
+      ) : (
+        <span className="block h-1.5 w-1.5 shrink-0 rounded-full bg-fg-subtle" />
+      )}
+      <span className="shrink-0 rounded bg-accent-subtle/80 px-1.5 py-0.5 font-medium text-[10.5px] text-accent" title={task.kind}>
         {taskKindLabel(task.kind, t)}
       </span>
-      <span className="truncate text-fg-muted">{task.label}</span>
-      <span className="ml-auto shrink-0 font-mono text-fg-subtle">{fmtAge(task.age_s)}</span>
+      <span className="truncate font-medium text-fg-base">{task.label}</span>
+      <span className="ml-auto shrink-0 font-mono text-[10.5px] text-fg-subtle">{fmtAge(task.age_s)}</span>
     </div>
   );
 }
@@ -174,24 +175,26 @@ function RecentRow({ task }: { task: RecentTask }) {
     task.llm_calls ? t.activity.llm(task.llm_calls) : null,
   ].filter(Boolean).join(" · ");
   return (
-    <div className="border-b border-border px-3 py-1.5">
-      <div className="flex items-center gap-2">
-        {ok
-          ? <CheckCircle2 size={11} className="shrink-0 text-accent" />
-          : <XCircle size={11} className="shrink-0 text-danger" />}
-        <span className="shrink-0 font-medium text-fg-base" title={task.kind}>
+    <div className="px-3.5 py-2 hover:bg-bg-muted/40 transition-colors">
+      <div className="flex items-center gap-2.5">
+        {ok ? (
+          <CheckCircle2 size={13} className="shrink-0 text-emerald-500" />
+        ) : (
+          <XCircle size={13} className="shrink-0 text-danger" />
+        )}
+        <span className="shrink-0 rounded bg-bg-muted px-1.5 py-0.5 font-mono text-[10px] text-fg-muted" title={task.kind}>
           {taskKindLabel(task.kind, t)}
         </span>
-        <span className="min-w-0 flex-1 truncate text-fg-muted">{task.label}</span>
+        <span className="min-w-0 flex-1 truncate font-medium text-fg-base">{task.label}</span>
         {task.duration_ms != null && (
-          <span className="shrink-0 font-mono text-fg-subtle">
+          <span className="shrink-0 font-mono text-[10.5px] text-fg-subtle">
             {fmtDuration(task.duration_ms)}
           </span>
         )}
       </div>
       {hasUsage && (
         <div
-          className="ml-[19px] mt-0.5 truncate whitespace-nowrap font-mono text-[10.5px] text-fg-subtle"
+          className="ml-[22px] mt-1 truncate whitespace-nowrap font-mono text-[10.5px] text-fg-subtle"
           title={usageLine}
         >
           {usageLine}
@@ -199,7 +202,7 @@ function RecentRow({ task }: { task: RecentTask }) {
       )}
       {!ok && task.last_error && (
         <div
-          className="ml-[19px] mt-0.5 truncate text-[10.5px] text-danger"
+          className="ml-[22px] mt-1 rounded bg-danger-subtle/80 px-2 py-1 text-[11px] text-danger border border-danger/20 font-mono"
           title={task.last_error}
         >
           {task.last_error}

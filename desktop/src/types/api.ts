@@ -394,6 +394,38 @@ export interface ApiErrorBody {
   detail?: string | Record<string, unknown>;
 }
 
+// ---- stats / overview -----------------------------------------------------
+
+/** One row of the Overview page's "recently ingested" list, mirroring
+ *  GET /v1/stats/overview `recent[].` */
+export interface StatsRecentEntry {
+  entry_id: string;
+  display_name: string;
+  folder_path: string | null;
+  created_at: string | null;
+  ingest_status: IngestStatus | null;
+}
+
+/** Aggregated read-only snapshot served by GET /v1/stats/overview. */
+export interface StatsOverview {
+  totals: {
+    entries: number;
+    folders: number;
+    tags: number;
+  };
+  tasks: {
+    running: number;
+    pending: number;
+  };
+  recent: StatsRecentEntry[];
+  storage_backend: string;
+  semantic: {
+    enabled: boolean;
+    configured: boolean;
+    index_ready: boolean;
+  };
+}
+
 // ---- settings -------------------------------------------------------------
 
 export interface ServerSettings {
@@ -408,6 +440,7 @@ export interface ServerSettings {
   readiness_timeout_seconds: number;
   storage_backend: string;
   worker_enabled: boolean;
+  worker_running?: boolean;
   worker_scheduler_enabled: boolean;
   worker_batch_size: number;
   bulk_reprocess_page_size: number;
@@ -651,6 +684,17 @@ export interface SemanticIndexRebuildResult {
 export type LlmProfileName =
   | "default" | "chat" | "reflect" | "ingest" | "vision";
 
+/** Failover target for a profile. Only the four fields that reach a
+ *  different endpoint; capabilities inherit the primary. `api_key` is
+ *  always masked by the server (never the raw secret). */
+export interface LlmBackupProfile {
+  provider: string | null;
+  api_key: string | null;
+  api_key_set: boolean;
+  base_url: string | null;
+  model: string | null;
+}
+
 export interface LlmProfileResolved {
   provider: string | null;
   api_key: string | null;
@@ -659,6 +703,7 @@ export interface LlmProfileResolved {
   model: string | null;
   tps: number;
   capabilities: LlmModelCapabilities;
+  backup: LlmBackupProfile | null;
 }
 
 export interface LlmModelCapabilities {
@@ -682,7 +727,26 @@ export interface LlmSettings {
     api_key_set: boolean;
     tps: number;
     capabilities: LlmModelCapabilities;
+    backup: LlmBackupProfile | null;
   };
+}
+
+/** One model served by a provider's model-listing endpoint. `display_name`
+ *  is only populated by Anthropic; OpenAI returns ids only. */
+export interface LlmModelInfo {
+  id: string;
+  display_name: string | null;
+}
+
+/** Result of POST /v1/settings/llm/models — always 200 with a per-call `ok`
+ *  verdict, mirroring the test endpoint. */
+export interface LlmModelsResult {
+  ok: boolean;
+  models?: LlmModelInfo[];
+  provider?: string | null;
+  base_url?: string | null;
+  error?: string;
+  duration_ms?: number;
 }
 
 export interface FilePreviewText {

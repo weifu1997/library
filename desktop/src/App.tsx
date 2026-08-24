@@ -8,6 +8,7 @@ import { StatusBar } from "@/components/StatusBar";
 import { LibraryPage } from "@/pages/LibraryPage";
 import { ChatPage } from "@/pages/ChatPage";
 import { SearchPage } from "@/pages/SearchPage";
+import { OverviewPage } from "@/pages/OverviewPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { HelpPage } from "@/pages/HelpPage";
 import { AboutPage } from "@/pages/AboutPage";
@@ -51,6 +52,7 @@ export default function App() {
                 <Route path="/library/*" element={<LibraryPage />} />
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/search" element={<SearchPage />} />
+                <Route path="/overview" element={<OverviewPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/help" element={<HelpPage />} />
                 <Route path="/about" element={<AboutPage />} />

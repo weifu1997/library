@@ -1,4 +1,4 @@
-/** Two small modal dialogs used by the library page:
+/** Two modal dialogs used by the library page:
  *
  *    NewFolderDialog  — name input, creates under given parent
  *    UploadDialog     — file picker + drag-drop, uploads to given folder
@@ -6,16 +6,22 @@
  *                       folder walks the directory tree (webkitGetAsEntry)
  *                       and recreates the subfolder structure under the
  *                       target via /v1/folders before uploading each file.
+ *    WebDavSyncDialog — selective WebDAV upload or download sync with plan overview
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Filter, X, Upload, Download, FolderPlus, Loader2 } from "lucide-react";
+import { X, Upload, Download, FolderPlus, Loader2, AlertCircle, CheckCircle2, FileText } from "lucide-react";
 
 import { folders as foldersApi, uploads, ApiError, settings as settingsApi, webdavSync } from "@/api/client";
-import type { OnConflict, WebDavPlanItem, WebDavPlanResult, WebDavSyncLast } from "@/types/api";
+import type { OnConflict, WebDavPlanResult, WebDavSyncLast } from "@/types/api";
 import { cn, formatBytes } from "@/lib/utils";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type I18nStrings } from "@/lib/i18n";
 
-export function NewFolderDialog({ parentId, parentName, onClose, onCreated }: {
+export function NewFolderDialog({
+  parentId,
+  parentName,
+  onClose,
+  onCreated,
+}: {
   parentId: string | null;
   parentName: string;
   onClose: () => void;
@@ -26,12 +32,16 @@ export function NewFolderDialog({ parentId, parentName, onClose, onCreated }: {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const submit = async () => {
     const v = name.trim();
     if (!v) return;
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
     try {
       await foldersApi.create(v, parentId);
       onCreated();
@@ -45,32 +55,63 @@ export function NewFolderDialog({ parentId, parentName, onClose, onCreated }: {
 
   return (
     <ModalShell
-      title={<><FolderPlus size={14} /> {t.library.newFolderIn(parentName)}</>}
+      title={
+        <>
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent/10 text-accent">
+            <FolderPlus size={18} />
+          </div>
+          <span>{t.library.newFolderIn(parentName)}</span>
+        </>
+      }
       onClose={onClose}
     >
-      <input
-        ref={inputRef}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-        placeholder={t.dialogs.folderName}
-        className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-sm outline-none focus:border-accent"
-      />
-      {err && <p className="mt-2 text-xs text-danger">{err}</p>}
-      <div className="mt-4 flex justify-end gap-2">
-        <button onClick={onClose}
-                className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-bg-muted">
-          {t.common.cancel}
-        </button>
-        <button onClick={submit} disabled={busy || !name.trim()}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm font-medium",
-                  busy || !name.trim()
-                    ? "cursor-not-allowed bg-bg-muted text-fg-subtle"
-                    : "bg-accent text-accent-fg hover:opacity-90",
-                )}>
-          {busy ? t.common.creating : t.common.create}
-        </button>
+      <div className="space-y-4">
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold text-fg-muted">
+            {t.dialogs.folderName}
+          </label>
+          <input
+            ref={inputRef}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit();
+            }}
+            placeholder={t.dialogs.folderName}
+            className="h-11 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3.5 text-sm font-medium outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all text-fg-base placeholder:text-fg-subtle"
+          />
+        </div>
+
+        {err && (
+          <div className="flex items-start gap-2.5 rounded-xl bg-danger-subtle p-3 text-xs text-danger border border-danger/20">
+            <AlertCircle size={15} className="shrink-0 mt-0.5" />
+            <span>{err}</span>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2.5 pt-3 border-t border-border/60">
+          <button
+            onClick={onClose}
+            type="button"
+            className="h-11 rounded-xl border border-border/80 bg-bg-card px-4 text-xs font-semibold text-fg-muted hover:bg-bg-subtle hover:text-fg-base active:scale-95 transition-all shadow-xs"
+          >
+            {t.common.cancel}
+          </button>
+          <button
+            onClick={submit}
+            disabled={busy || !name.trim()}
+            type="button"
+            className={cn(
+              "h-11 rounded-xl px-5 text-xs font-semibold shadow-xs transition-all active:scale-95 flex items-center justify-center gap-2",
+              busy || !name.trim()
+                ? "cursor-not-allowed bg-bg-muted text-fg-subtle opacity-70"
+                : "bg-accent text-accent-fg hover:bg-accent-hover shadow-indigo-500/20",
+            )}
+          >
+            {busy && <Loader2 size={13} className="animate-spin" />}
+            {busy ? t.common.creating : t.common.create}
+          </button>
+        </div>
       </div>
     </ModalShell>
   );
@@ -78,8 +119,6 @@ export function NewFolderDialog({ parentId, parentName, onClose, onCreated }: {
 
 interface UploadItem {
   file: File;
-  /** Path segments relative to the dropped root, e.g. ["sub", "deep"]
-   *  for a file at <drop>/sub/deep/file.md. Empty for plain file drops. */
   relDirs: string[];
   loaded: number;
   selected: boolean;
@@ -142,13 +181,8 @@ export function UploadDialog({
   const [running, setRunning] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // Seed conflict policy from the server's current default so what the
-  // dialog opens with matches what Settings → Default conflict policy
-  // shows. Failure (server offline, etc.) just leaves the "rename"
-  // initial value alone.
   useEffect(() => {
     let cancelled = false;
     settingsApi.server().then(
@@ -164,292 +198,417 @@ export function UploadDialog({
     };
   }, []);
 
-  const addItems = (next: UploadItem[]) => {
-    setItems((prev) => [...prev, ...next]);
+  const addFiles = (filesList: FileList | File[]) => {
+    const raw = Array.from(filesList);
+    setItems((prev) => [
+      ...prev,
+      ...raw.map((f) => ({
+        file: f,
+        relDirs: [],
+        loaded: 0,
+        selected: DEFAULT_INCLUDED_CATEGORIES.includes(categoryForFile(f)),
+        status: "queued" as const,
+      })),
+    ]);
   };
 
-  const uploadPlan = useMemo(
-    () => summarizeUploadPlan(items),
-    [items],
-  );
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const dt = e.dataTransfer;
+    const entries: FileSystemEntry[] = [];
+    if (dt.items) {
+      for (let i = 0; i < dt.items.length; i++) {
+        const entry = dt.items[i].webkitGetAsEntry?.();
+        if (entry) entries.push(entry);
+      }
+    }
+    if (entries.length > 0) {
+      setScanning(true);
+      try {
+        const out: UploadItem[] = [];
+        for (const entry of entries) {
+          await walkEntry(entry, [], out);
+        }
+        setItems((prev) => [...prev, ...out]);
+      } finally {
+        setScanning(false);
+      }
+      return;
+    }
+    if (dt.files?.length) addFiles(dt.files);
+  };
 
-  const hasQueuedSelected = items.some(
-    (it) => it.status === "queued" && it.selected,
-  );
+  const uploadPlan = useMemo(() => {
+    const groupsMap = new Map<UploadCategory, {
+      files: number;
+      bytes: number;
+      selectedFiles: number;
+      selectedBytes: number;
+      extMap: Map<string, { files: number; bytes: number; selectedFiles: number; selectedBytes: number }>;
+    }>();
+
+    for (const cat of CATEGORY_ORDER) {
+      groupsMap.set(cat, {
+        files: 0,
+        bytes: 0,
+        selectedFiles: 0,
+        selectedBytes: 0,
+        extMap: new Map(),
+      });
+    }
+
+    let selectedFiles = 0;
+    let selectedBytes = 0;
+    let totalFiles = 0;
+    let totalBytes = 0;
+
+    for (const it of items) {
+      const cat = categoryForFile(it.file);
+      const ext = extensionForFile(it.file);
+      const g = groupsMap.get(cat)!;
+      g.files += 1;
+      g.bytes += it.file.size;
+      totalFiles += 1;
+      totalBytes += it.file.size;
+
+      let e = g.extMap.get(ext);
+      if (!e) {
+        e = { files: 0, bytes: 0, selectedFiles: 0, selectedBytes: 0 };
+        g.extMap.set(ext, e);
+      }
+      e.files += 1;
+      e.bytes += it.file.size;
+
+      if (it.selected) {
+        selectedFiles += 1;
+        selectedBytes += it.file.size;
+        g.selectedFiles += 1;
+        g.selectedBytes += it.file.size;
+        e.selectedFiles += 1;
+        e.selectedBytes += it.file.size;
+      }
+    }
+
+    const groups: UploadGroup[] = CATEGORY_ORDER
+      .map((cat) => {
+        const g = groupsMap.get(cat)!;
+        return {
+          category: cat,
+          files: g.files,
+          bytes: g.bytes,
+          selectedFiles: g.selectedFiles,
+          selectedBytes: g.selectedBytes,
+          extensions: Array.from(g.extMap.entries()).map(([ext, stats]) => ({
+            ext,
+            ...stats,
+          })),
+        };
+      })
+      .filter((g) => g.files > 0);
+
+    return {
+      groups,
+      selectedFiles,
+      selectedBytes,
+      totalFiles,
+      totalBytes,
+      skippedFiles: totalFiles - selectedFiles,
+      skippedBytes: totalBytes - selectedBytes,
+    };
+  }, [items]);
 
   const toggleAll = () => {
     if (running) return;
-    const nextSelected = !items.every((item) => item.selected);
-    setItems((prev) => prev.map((item) => (
-      item.status === "queued" ? { ...item, selected: nextSelected } : item
-    )));
+    const allSelected = items.length > 0 && items.every((it) => it.selected);
+    setItems((prev) => prev.map((it) => ({ ...it, selected: !allSelected })));
   };
 
   const toggleCategory = (category: UploadCategory) => {
     if (running) return;
-    const group = uploadPlan.groups.find((g) => g.category === category);
-    const nextSelected = !group || group.selectedFiles < group.files;
-    setItems((prev) => prev.map((item) => (
-      item.status === "queued" && categoryForFile(item.file) === category
-        ? { ...item, selected: nextSelected }
-        : item
-    )));
-  };
-
-  const toggleExtension = (category: UploadCategory, ext: string) => {
-    if (running) return;
-    const matching = items.filter(
-      (item) => categoryForFile(item.file) === category && extensionForFile(item.file) === ext,
+    const matching = items.filter((it) => categoryForFile(it.file) === category);
+    const someSelected = matching.some((it) => it.selected);
+    setItems((prev) =>
+      prev.map((it) =>
+        categoryForFile(it.file) === category ? { ...it, selected: !someSelected } : it,
+      ),
     );
-    const selectedCount = matching.filter((item) => item.selected).length;
-    const nextSelected = selectedCount < matching.length;
-    setItems((prev) => prev.map((item) => (
-      item.status === "queued"
-      && categoryForFile(item.file) === category
-      && extensionForFile(item.file) === ext
-        ? { ...item, selected: nextSelected }
-        : item
-    )));
   };
 
-  const toggleItem = (index: number) => {
-    if (running || items[index]?.status !== "queued") return;
-    setItems((prev) => updateAt(prev, index, { selected: !prev[index].selected }));
-  };
-
-  const onPickFiles = (fs: FileList | File[]) => {
-    addItems(Array.from(fs).map((file) => ({
-      file,
-      relDirs: [],
-      loaded: 0,
-      selected: DEFAULT_INCLUDED_CATEGORIES.includes(categoryForFile(file)),
-      status: "queued" as const,
-    })));
-  };
-
-  const onDrop = async (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault(); setDragOver(false);
-    const dt = e.dataTransfer;
-    // Prefer items[] — it can expose folder entries via webkitGetAsEntry.
-    // Fall back to dt.files for browsers/contexts where items isn't there.
-    const entries: FileSystemEntry[] = [];
-    if (dt.items && dt.items.length) {
-      for (let i = 0; i < dt.items.length; i++) {
-        const it = dt.items[i];
-        if (it.kind !== "file") continue;
-        const ent = (it as DataTransferItem).webkitGetAsEntry?.();
-        if (ent) entries.push(ent);
-      }
-    }
-    if (entries.length === 0) {
-      if (dt.files.length) onPickFiles(dt.files);
-      return;
-    }
-    setScanning(true);
-    try {
-      const flat: UploadItem[] = [];
-      for (const ent of entries) {
-        await walkEntry(ent, [], flat);
-      }
-      addItems(flat);
-    } finally {
-      setScanning(false);
-    }
+  const toggleItem = (idx: number) => {
+    if (running) return;
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, selected: !it.selected } : it)),
+    );
   };
 
   const start = async () => {
     if (running) return;
     setRunning(true);
     let didUpload = false;
-    // Cache of "path-from-target → folder_id" so we mkdir each subfolder
-    // exactly once even if many files share it. Empty key === target itself.
-    const folderCache = new Map<string, string | null>();
-    folderCache.set("", folderId);
+    const folderCache = new Map<string, string | null>([["", folderId]]);
+
     for (let i = 0; i < items.length; i++) {
-      if (items[i].status !== "queued") continue;
-      if (!items[i].selected) continue;
-      setItems((p) => updateAt(p, i, { status: "uploading" }));
+      const item = items[i];
+      if (!item.selected || item.status === "done") continue;
+      setItems((prev) =>
+        prev.map((it, idx) => (idx === i ? { ...it, status: "uploading" } : it)),
+      );
       try {
-        const targetFolderId = await mkdirP(folderCache, items[i].relDirs);
+        const targetFolderId = await mkdirP(folderCache, item.relDirs);
         const dest = targetFolderId
-          ? { folderId: targetFolderId } as const
-          : { remotePath: "/" + items[i].file.name } as const;
-        const res = await uploads.upload(items[i].file, dest, {
+          ? ({ folderId: targetFolderId } as const)
+          : ({ remotePath: "/" + item.file.name } as const);
+
+        const res = await uploads.upload(item.file, dest, {
           onConflict: conflict,
-          onProgress: (loaded) => setItems((p) => updateAt(p, i, { loaded })),
+          onProgress: (loaded) => {
+            setItems((prev) =>
+              prev.map((it, idx) => (idx === i ? { ...it, loaded } : it)),
+            );
+          },
         });
-        setItems((p) => updateAt(p, i, {
-          status: "done",
-          loaded: items[i].file.size,
-          renamedTo: res.auto_renamed ? res.display_name : undefined,
-        }));
+        setItems((prev) =>
+          prev.map((it, idx) =>
+            idx === i
+              ? {
+                  ...it,
+                  status: "done",
+                  loaded: item.file.size,
+                  renamedTo: res.auto_renamed ? res.display_name : undefined,
+                }
+              : it,
+          ),
+        );
         didUpload = true;
       } catch (e) {
-        const msg = e instanceof ApiError
-          ? `${e.status} ${typeof e.body === "object" && e.body && "detail" in e.body
-              ? JSON.stringify(e.body.detail) : e.message}`
-          : (e instanceof Error ? e.message : String(e));
-        setItems((p) => updateAt(p, i, { status: "error", err: msg }));
+        const msg = e instanceof Error ? e.message : String(e);
+        setItems((prev) =>
+          prev.map((it, idx) =>
+            idx === i ? { ...it, status: "error", err: msg } : it,
+          ),
+        );
       }
     }
     setRunning(false);
     if (didUpload) onUploaded();
   };
 
+  const selectedCount = items.filter((it) => it.selected).length;
+  const doneCount = items.filter((it) => it.status === "done").length;
+  const allDone = selectedCount > 0 && doneCount === selectedCount;
+
   return (
     <ModalShell
-      title={<><Upload size={14} /> {t.library.uploadTo(folderName)}</>}
+      title={
+        <>
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent/10 text-accent">
+            <Upload size={18} />
+          </div>
+          <span>{t.library.uploadTo(folderName)}</span>
+        </>
+      }
       onClose={onClose}
       wide
     >
-      <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-        onClick={() => fileInput.current?.click()}
-        className={cn(
-          "flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed py-8 text-sm",
-          dragOver
-            ? "border-accent bg-accent-subtle text-accent"
-            : "border-border bg-bg-base text-fg-muted hover:border-accent",
-        )}
-      >
-        <Upload size={20} className="mb-2" />
-        <p>{scanning ? t.dialogs.scanningFolder : t.dialogs.uploadDrop}</p>
-        <input ref={fileInput} type="file" multiple className="hidden"
-               onChange={(e) => e.target.files && onPickFiles(e.target.files)} />
-      </div>
+      <div className="space-y-4">
+        {/* Drag Drop Zone */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInput.current?.click()}
+          className={cn(
+            "flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition-all",
+            dragOver
+              ? "border-accent bg-accent/10 scale-[1.01]"
+              : "border-border/80 bg-bg-subtle/50 hover:border-accent/40 hover:bg-bg-subtle/80",
+          )}
+        >
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files) addFiles(e.target.files);
+            }}
+          />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent border border-accent/20 mb-2.5">
+            <Upload size={22} strokeWidth={2.2} />
+          </div>
+          <p className="text-xs font-semibold text-fg-base">
+            {scanning ? t.dialogs.scanningFolder : t.dialogs.uploadDrop}
+          </p>
+          <p className="mt-1 text-[11px] text-fg-subtle">
+            {t.dialogs.uploadAnalysisHint}
+          </p>
+        </div>
 
-      <div className="mt-3 flex items-center gap-2 text-xs">
-        <span className="text-fg-muted">{t.dialogs.onConflict}</span>
-        {(["rename", "skip", "error"] as OnConflict[]).map((p) => (
-          <button key={p}
+        {/* File Filter & Group Selector */}
+        {items.length > 0 && (
+          <div className="rounded-2xl border border-border/80 bg-bg-subtle/40 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-2.5 bg-bg-card/50">
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-fg-base select-none">
+                <input
+                  type="checkbox"
+                  checked={items.length > 0 && items.every((it) => it.selected)}
+                  disabled={running}
+                  onChange={toggleAll}
+                  className="h-4 w-4 rounded border-border text-accent focus:ring-accent/20"
+                />
+                <span>{t.dialogs.uploadFilterTitle}</span>
+              </label>
+
+              <div className="flex items-center gap-2 text-xs text-fg-muted font-medium">
+                <span>
+                  {t.dialogs.uploadPlan(uploadPlan.selectedFiles, uploadPlan.skippedFiles)}
+                  {" · "}
+                  {formatBytes(uploadPlan.selectedBytes)}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {uploadPlan.groups.map((group) => {
+                  const allInGroup = group.selectedFiles === group.files;
+                  const someInGroup = group.selectedFiles > 0;
+                  return (
+                    <button
+                      key={group.category}
+                      type="button"
+                      onClick={() => toggleCategory(group.category)}
+                      disabled={running}
+                      className={cn(
+                        "h-7 rounded-lg px-2.5 text-[11px] font-semibold transition-all active:scale-95 flex items-center gap-1.5",
+                        allInGroup
+                          ? "bg-accent/15 text-accent border border-accent/30"
+                          : someInGroup
+                            ? "bg-bg-card text-fg-base border border-border"
+                            : "bg-transparent text-fg-subtle hover:bg-bg-muted hover:text-fg-muted",
+                      )}
+                    >
+                      {t.dialogs.uploadCategories[group.category]}
+                      <span className="text-[10px] opacity-75">({group.files})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* File List Table */}
+            <div className="max-h-60 overflow-y-auto divide-y divide-border/40">
+              {items.map((it, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => toggleItem(idx)}
+                  className={cn(
+                    "flex items-center justify-between px-4 py-2.5 text-xs transition-colors cursor-pointer select-none",
+                    it.selected ? "bg-bg-card/40 hover:bg-bg-card/70" : "opacity-50 hover:opacity-75 bg-transparent",
+                  )}
+                >
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
+                    <input
+                      type="checkbox"
+                      checked={it.selected}
+                      disabled={running}
+                      onChange={() => toggleItem(idx)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-4 w-4 rounded border-border text-accent focus:ring-accent/20"
+                    />
+                    <FileText size={15} className="shrink-0 text-fg-muted" />
+                    <span className="truncate font-medium text-fg-base">{it.file.name}</span>
+                    {it.renamedTo && (
+                      <span className="text-[10px] text-accent font-semibold">
+                        ({t.dialogs.renamedTo(it.renamedTo)})
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 text-[11px] font-medium text-fg-muted">
+                    <span>{formatBytes(it.file.size)}</span>
+                    {it.status === "uploading" && (
+                      <span className="flex items-center gap-1 text-accent">
+                        <Loader2 size={11} className="animate-spin" />
+                        {it.loaded ? `${Math.round((it.loaded / it.file.size) * 100)}%` : t.dialogs.uploading}
+                      </span>
+                    )}
+                    {it.status === "done" && (
+                      <span className="flex items-center gap-1 text-emerald-500 font-semibold">
+                        <CheckCircle2 size={13} />
+                        {t.dialogs.done}
+                      </span>
+                    )}
+                    {it.status === "error" && (
+                      <span className="text-danger font-semibold" title={it.err}>
+                        {t.dialogs.conflict.error}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/60">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-fg-muted">{t.dialogs.onConflict}</label>
+            <div className="grid grid-cols-3 gap-1 rounded-xl border border-border/80 bg-bg-card p-1 shadow-2xs min-w-[210px]">
+              {(["rename", "skip", "error"] as OnConflict[]).map((p) => (
+                <button
+                  key={p}
+                  type="button"
                   onClick={() => setConflict(p)}
                   disabled={running}
                   className={cn(
-                    "rounded-md border px-2 py-0.5",
+                    "flex h-8 items-center justify-center rounded-lg px-2.5 text-xs font-semibold transition-all active:scale-95",
                     conflict === p
-                      ? "border-accent bg-accent-subtle text-accent"
-                      : "border-border text-fg-muted hover:bg-bg-muted",
-                  )}>
-            {t.dialogs.conflict[p]}
-          </button>
-        ))}
-      </div>
-      <p className="mt-3 text-xs leading-5 text-fg-muted">
-        {t.dialogs.uploadAnalysisHint}
-      </p>
-
-      {items.length > 0 && (
-        <div className="mt-3 rounded-md border border-border bg-bg-subtle text-xs">
-          <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-            <label className="flex cursor-pointer items-center gap-1.5 text-fg-base">
-              <input
-                type="checkbox"
-                checked={items.length > 0 && items.every((item) => item.selected)}
-                disabled={running}
-                onChange={toggleAll}
-                className="accent-accent"
-              />
-              <span>{t.dialogs.uploadFilterTitle}</span>
-            </label>
-            <span className="text-fg-muted">
-              {t.dialogs.uploadPlan(uploadPlan.selectedFiles, uploadPlan.skippedFiles)}
-              {" / "}
-              {formatBytes(uploadPlan.selectedBytes)}
-            </span>
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              {uploadPlan.groups.map((group) => (
-                <CategoryToggle
-                  key={group.category}
-                  group={group}
-                  disabled={running}
-                  onToggle={toggleCategory}
-                />
-              ))}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setFilterOpen((open) => !open)}
-                  disabled={running}
-                  title={t.dialogs.uploadFilterTitle}
-                  className={cn(
-                    "rounded p-1 text-fg-muted hover:bg-bg-muted hover:text-fg-base",
-                    filterOpen && "bg-bg-muted text-fg-base",
+                      ? "bg-accent text-accent-fg shadow-xs font-bold"
+                      : "text-fg-muted hover:text-fg-base",
                   )}
                 >
-                  <Filter size={14} />
+                  {t.dialogs.conflict[p]}
                 </button>
-                {filterOpen && (
-                  <UploadFilterPanel
-                    groups={uploadPlan.groups}
-                    disabled={running}
-                    onToggleCategory={toggleCategory}
-                    onToggleExtension={toggleExtension}
-                  />
-                )}
-              </div>
+              ))}
             </div>
           </div>
-          {uploadPlan.skippedFiles > 0 && (
-            <div className="border-b border-border px-3 py-1.5 text-fg-muted">
-              {t.dialogs.uploadSkippedSummary(
-                uploadPlan.skippedFiles,
-                formatBytes(uploadPlan.skippedBytes),
+
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={onClose}
+              type="button"
+              className="h-11 rounded-xl border border-border/80 bg-bg-card px-4 text-xs font-semibold text-fg-muted hover:bg-bg-subtle hover:text-fg-base active:scale-95 transition-all shadow-xs"
+            >
+              {allDone ? t.common.close : t.common.cancel}
+            </button>
+            <button
+              onClick={start}
+              disabled={running || selectedCount === 0 || allDone}
+              type="button"
+              className={cn(
+                "h-11 rounded-xl px-5 text-xs font-semibold shadow-xs transition-all active:scale-95 flex items-center justify-center gap-2",
+                running || selectedCount === 0 || allDone
+                  ? "cursor-not-allowed bg-bg-muted text-fg-subtle opacity-70"
+                  : "bg-accent text-accent-fg hover:bg-accent-hover shadow-indigo-500/20",
               )}
-            </div>
-          )}
-          <div className="max-h-72 overflow-y-auto">
-            <table className="w-full table-fixed border-collapse">
-              <thead className="sticky top-0 bg-bg-subtle text-left text-[11px] text-fg-subtle">
-                <tr className="border-b border-border">
-                  <th className="w-8 px-3 py-1.5">
-                    <span className="sr-only">select</span>
-                  </th>
-                  <th className="px-1 py-1.5 font-medium">{t.dialogs.uploadFile}</th>
-                  <th className="w-20 px-2 py-1.5 font-medium">{t.dialogs.uploadType}</th>
-                  <th className="w-20 px-2 py-1.5 text-right font-medium">
-                    {t.dialogs.uploadSize}
-                  </th>
-                  <th className="w-20 px-2 py-1.5 text-right font-medium">
-                    {t.dialogs.uploadStatus}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it, i) => (
-                  <UploadRow
-                    key={i}
-                    item={it}
-                    index={i}
-                    running={running}
-                    onToggle={toggleItem}
-                  />
-                ))}
-              </tbody>
-            </table>
+            >
+              {running ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>{t.dialogs.uploading}</span>
+                </>
+              ) : (
+                <>
+                  <span>{t.dialogs.start} ({selectedCount})</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
-      )}
-
-      <div className="mt-4 flex justify-end gap-2">
-        <button onClick={onClose}
-                className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-bg-muted">
-          {t.common.close}
-        </button>
-        <button
-          onClick={start}
-          disabled={running || !hasQueuedSelected}
-          className={cn(
-            "flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium",
-            running || !hasQueuedSelected
-              ? "cursor-not-allowed bg-bg-muted text-fg-subtle"
-              : "bg-accent text-accent-fg hover:opacity-90",
-          )}
-        >
-          {running && <Loader2 size={12} className="animate-spin" />}
-          {running ? t.dialogs.uploading : t.dialogs.start}
-        </button>
       </div>
     </ModalShell>
   );
@@ -471,16 +630,18 @@ export function WebDavSyncDialog({
   const [running, setRunning] = useState(false);
   const [runningStatus, setRunningStatus] = useState<WebDavSyncLast | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const title = mode === "upload"
+
+  const isUpload = mode === "upload";
+  const title = isUpload
     ? t.library.webdavUploadSyncTitle
     : t.library.webdavDownloadSyncTitle;
-  const TitleIcon = mode === "upload" ? Upload : Download;
+  const TitleIcon = isUpload ? Upload : Download;
 
   const refreshPlan = async () => {
     setLoading(true);
     setErr(null);
     try {
-      const nextPlan = mode === "upload"
+      const nextPlan = isUpload
         ? await webdavSync.uploadPlan()
         : await webdavSync.downloadPlan();
       setPlan(nextPlan);
@@ -500,12 +661,13 @@ export function WebDavSyncDialog({
   useEffect(() => {
     if (!running) return;
     let cancelled = false;
-    const tick = () => webdavSync.status().then(
-      (status) => {
-        if (!cancelled) setRunningStatus(status.last ?? null);
-      },
-      () => {},
-    );
+    const tick = () =>
+      webdavSync.status().then(
+        (status) => {
+          if (!cancelled) setRunningStatus(status.last ?? null);
+        },
+        () => {},
+      );
     tick();
     const handle = window.setInterval(tick, 1000);
     return () => {
@@ -520,6 +682,7 @@ export function WebDavSyncDialog({
       .filter((item) => selected.has(item.entry_id))
       .reduce((sum, item) => sum + (item.size_bytes ?? 0), 0);
   }, [plan, selected]);
+
   const allSelected = Boolean(plan?.items.length) && selected.size === plan?.items.length;
 
   const toggleAll = () => {
@@ -544,7 +707,7 @@ export function WebDavSyncDialog({
     setErr(null);
     try {
       const entryIds = [...selected];
-      if (mode === "upload") await webdavSync.publishSelected(entryIds);
+      if (isUpload) await webdavSync.publishSelected(entryIds);
       else await webdavSync.downloadSelected(entryIds);
       await onDone();
       await refreshPlan();
@@ -558,494 +721,167 @@ export function WebDavSyncDialog({
 
   return (
     <ModalShell
-      title={<><TitleIcon size={14} /> {title}</>}
+      title={
+        <>
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent/10 text-accent">
+            <TitleIcon size={18} />
+          </div>
+          <span>{title}</span>
+        </>
+      }
       onClose={onClose}
       wide
     >
-      <div className="mb-3 rounded-md border border-border bg-bg-subtle px-3 py-2 text-xs">
-        <div className="grid gap-1 md:grid-cols-2">
-          <KvLine label={t.library.webdavRemoteUpdated} value={remoteUpdated(plan, t)} />
-          <KvLine label={t.library.webdavRemoteSnapshot} value={plan?.snapshot_id || t.common.unset} mono />
+      <div className="space-y-4">
+        {/* Info header */}
+        <div className="grid gap-2 sm:grid-cols-2 rounded-2xl border border-border/80 bg-bg-subtle/50 p-4 text-xs">
+          <div className="space-y-0.5">
+            <div className="text-fg-subtle text-[11px] font-semibold">{t.library.webdavRemoteUpdated}</div>
+            <div className="font-medium text-fg-base">
+              {plan?.remote_updated_at ? new Date(plan.remote_updated_at).toLocaleString() : t.common.unset}
+            </div>
+          </div>
+          <div className="space-y-0.5">
+            <div className="text-fg-subtle text-[11px] font-semibold">{t.library.webdavRemoteSnapshot}</div>
+            <div className="font-mono text-xs text-fg-base truncate">
+              {plan?.snapshot_id || t.common.unset}
+            </div>
+          </div>
+        </div>
+
+        {err && (
+          <div className="flex items-start gap-2.5 rounded-xl bg-danger-subtle p-3 text-xs text-danger border border-danger/20">
+            <AlertCircle size={15} className="shrink-0 mt-0.5" />
+            <span>{err}</span>
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex items-center justify-center py-12 gap-2 text-xs font-semibold text-fg-muted">
+            <Loader2 size={16} className="animate-spin text-accent" />
+            <span>{t.common.loading}</span>
+          </div>
+        )}
+
+        {!loading && plan && (
+          <>
+            <div className="flex items-center justify-between">
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-fg-base select-none">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  disabled={running || plan.items.length === 0}
+                  onChange={toggleAll}
+                  className="h-4 w-4 rounded border-border text-accent focus:ring-accent/20"
+                />
+                <span>
+                  {t.library.webdavSelectedSummary(
+                    selected.size,
+                    plan.items.length,
+                    formatBytes(selectedBytes),
+                  )}
+                </span>
+              </label>
+            </div>
+
+            {running && (
+              <div className="flex items-center gap-2 rounded-xl bg-accent/10 border border-accent/20 p-3 text-xs text-accent font-semibold animate-pulse">
+                <Loader2 size={14} className="animate-spin" />
+                <span>{webdavProgressText(runningStatus, mode, t)}</span>
+              </div>
+            )}
+
+            <div className="max-h-[48vh] overflow-y-auto rounded-2xl border border-border/80 bg-bg-card divide-y divide-border/40">
+              {plan.items.length === 0 ? (
+                <div className="py-12 text-center text-xs font-medium text-fg-muted">
+                  {isUpload
+                    ? t.library.webdavNoUploadItems
+                    : t.library.webdavNoDownloadItems}
+                </div>
+              ) : (
+                plan.items.map((item) => (
+                  <div
+                    key={item.entry_id}
+                    onClick={() => toggleOne(item.entry_id)}
+                    className={cn(
+                      "flex items-center justify-between px-4 py-3 text-xs transition-colors cursor-pointer select-none",
+                      selected.has(item.entry_id)
+                        ? "bg-bg-subtle/30 hover:bg-bg-subtle/60"
+                        : "opacity-45 hover:opacity-75",
+                    )}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 pr-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(item.entry_id)}
+                        disabled={running}
+                        onChange={() => toggleOne(item.entry_id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 rounded border-border text-accent focus:ring-accent/20"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-semibold text-fg-base truncate">{item.display_name}</p>
+                        {item.folder_path && (
+                          <p className="text-[11px] text-fg-subtle truncate">{item.folder_path}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0 text-[11px] font-medium text-fg-muted">
+                      <span>{formatBytes(item.size_bytes ?? 0)}</span>
+                      <span className="rounded-lg bg-bg-muted px-2 py-0.5 text-[10px] font-bold text-fg-muted uppercase tracking-wider">
+                        {t.library.webdavPlanReason(item.reason)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
+
+        <div className="flex justify-end gap-2.5 pt-3 border-t border-border/60">
+          <button
+            onClick={onClose}
+            type="button"
+            className="h-11 rounded-xl border border-border/80 bg-bg-card px-4 text-xs font-semibold text-fg-muted hover:bg-bg-subtle hover:text-fg-base active:scale-95 transition-all shadow-xs"
+          >
+            {t.common.close}
+          </button>
+          <button
+            onClick={run}
+            disabled={running || selected.size === 0}
+            type="button"
+            className={cn(
+              "h-11 rounded-xl px-5 text-xs font-semibold shadow-xs transition-all active:scale-95 flex items-center justify-center gap-2",
+              running || selected.size === 0
+                ? "cursor-not-allowed bg-bg-muted text-fg-subtle opacity-70"
+                : "bg-accent text-accent-fg hover:bg-accent-hover shadow-indigo-500/20",
+            )}
+          >
+            {running ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                <span>{t.dialogs.uploading}</span>
+              </>
+            ) : isUpload ? (
+              t.library.webdavUploadSelected
+            ) : (
+              t.library.webdavDownloadSelected
+            )}
+          </button>
         </div>
       </div>
-
-      {err && <p className="mb-3 rounded-md bg-danger/10 px-3 py-2 text-xs text-danger">{err}</p>}
-      {loading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
-      {!loading && plan && (
-        <>
-          <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-            <label className="flex cursor-pointer items-center gap-1.5 text-fg-base">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                disabled={running || plan.items.length === 0}
-                onChange={toggleAll}
-                className="accent-accent"
-              />
-              <span>{t.library.webdavSelectedSummary(selected.size, plan.items.length, formatBytes(selectedBytes))}</span>
-            </label>
-          </div>
-          {running && (
-            <div className="mb-2 rounded-md border border-border bg-bg-subtle px-3 py-2 text-xs text-fg-muted">
-              {webdavProgressText(runningStatus, mode, t)}
-            </div>
-          )}
-          <div className="max-h-[52vh] overflow-y-auto rounded-md border border-border">
-            {plan.items.length === 0 ? (
-              <div className="px-3 py-8 text-center text-sm text-fg-muted">
-                {mode === "upload" ? t.library.webdavNoUploadItems : t.library.webdavNoDownloadItems}
-              </div>
-            ) : (
-              <table className="w-full table-fixed border-collapse text-xs">
-                <thead className="sticky top-0 bg-bg-subtle text-left text-[11px] text-fg-subtle">
-                  <tr className="border-b border-border">
-                    <th className="w-8 px-3 py-1.5"><span className="sr-only">select</span></th>
-                    <th className="px-1 py-1.5 font-medium">{t.dialogs.uploadFile}</th>
-                    <th className="w-24 px-2 py-1.5 font-medium">{t.library.webdavReason}</th>
-                    <th className="w-24 px-2 py-1.5 text-right font-medium">{t.dialogs.uploadSize}</th>
-                    <th className="w-36 px-2 py-1.5 font-medium">{t.library.webdavUpdated}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {plan.items.map((item) => (
-                    <WebDavPlanRow
-                      key={item.entry_id}
-                      item={item}
-                      selected={selected.has(item.entry_id)}
-                      disabled={running}
-                      onToggle={toggleOne}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              onClick={onClose}
-              disabled={running}
-              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-bg-muted disabled:opacity-50"
-            >
-              {t.common.close}
-            </button>
-            <button
-              onClick={run}
-              disabled={running || selected.size === 0}
-              className={cn(
-                "flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium",
-                running || selected.size === 0
-                  ? "cursor-not-allowed bg-bg-muted text-fg-subtle"
-                  : "bg-accent text-accent-fg hover:opacity-90",
-              )}
-            >
-              {running && <Loader2 size={12} className="animate-spin" />}
-              {mode === "upload" ? t.library.webdavUploadSelected : t.library.webdavDownloadSelected}
-            </button>
-          </div>
-        </>
-      )}
     </ModalShell>
   );
 }
 
-function KvLine({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      <span className="shrink-0 text-fg-subtle">{label}</span>
-      <span className={cn("min-w-0 truncate text-fg-base", mono && "font-mono")}>{value}</span>
-    </div>
-  );
-}
-
-function remoteUpdated(
-  plan: WebDavPlanResult | null,
-  t: ReturnType<typeof useI18n>["t"],
-): string {
-  return plan?.remote_updated_at
-    ? new Date(plan.remote_updated_at).toLocaleString()
-    : t.common.unset;
-}
-
-function webdavProgressText(
-  status: WebDavSyncLast | null,
-  mode: "upload" | "download",
-  t: ReturnType<typeof useI18n>["t"],
-): string {
-  const fallback = mode === "upload"
-    ? t.library.webdavUploadRunning
-    : t.library.webdavPullRunning;
-  if (!status) return fallback;
-  if (status.status !== "running") return fallback;
-  const parts = [t.library.webdavSyncPhase(status.phase || "running")];
-  if (status.selected_entries != null) {
-    parts.push(t.library.webdavProgressEntries(status.selected_entries));
-  }
-  if (status.total_blobs != null) {
-    parts.push(t.library.webdavProgressBlobs(
-      status.processed_blobs ?? ((status.uploaded_blobs ?? 0) + (status.skipped_blobs ?? 0)),
-      status.total_blobs,
-      status.uploaded_blobs ?? 0,
-      status.skipped_blobs ?? 0,
-    ));
-  }
-  if (status.total_metadata_files != null) {
-    parts.push(t.library.webdavProgressMetadata(
-      status.uploaded_metadata_files ?? 0,
-      status.total_metadata_files,
-    ));
-  }
-  return parts.join(" · ");
-}
-
-function WebDavPlanRow({
-  item,
-  selected,
-  disabled,
-  onToggle,
+function ModalShell({
+  title,
+  onClose,
+  children,
+  wide,
 }: {
-  item: WebDavPlanItem;
-  selected: boolean;
-  disabled: boolean;
-  onToggle: (entryId: string) => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <tr className="border-b border-border last:border-0">
-      <td className="px-3 py-1.5">
-        <input
-          type="checkbox"
-          checked={selected}
-          disabled={disabled}
-          onChange={() => onToggle(item.entry_id)}
-          className="accent-accent"
-        />
-      </td>
-      <td className="min-w-0 px-1 py-1.5">
-        <div className="truncate" title={item.display_name}>{item.display_name}</div>
-        <div className="truncate text-[11px] text-fg-subtle" title={item.folder_path || "/"}>
-          {item.folder_path || "/"}
-        </div>
-      </td>
-      <td className="px-2 py-1.5 text-fg-muted">{t.library.webdavPlanReason(item.reason)}</td>
-      <td className="px-2 py-1.5 text-right text-fg-muted">{formatBytes(item.size_bytes ?? 0)}</td>
-      <td className="px-2 py-1.5 text-fg-muted">
-        {item.updated_at ? new Date(item.updated_at).toLocaleString() : "-"}
-      </td>
-    </tr>
-  );
-}
-
-function CategoryToggle({
-  group,
-  disabled,
-  onToggle,
-}: {
-  group: UploadGroup;
-  disabled: boolean;
-  onToggle: (category: UploadCategory) => void;
-}) {
-  const { t } = useI18n();
-  const checked = group.selectedFiles > 0;
-  return (
-    <label
-      className={cn(
-        "flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-fg-muted",
-        checked && "text-fg-base",
-      )}
-      title={t.dialogs.uploadCategorySummary(group.files, formatBytes(group.bytes))}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={() => onToggle(group.category)}
-        className="accent-accent"
-      />
-      <span>{t.dialogs.uploadCategories[group.category]}</span>
-    </label>
-  );
-}
-
-function UploadFilterPanel({
-  groups,
-  disabled,
-  onToggleCategory,
-  onToggleExtension,
-}: {
-  groups: UploadGroup[];
-  disabled: boolean;
-  onToggleCategory: (category: UploadCategory) => void;
-  onToggleExtension: (category: UploadCategory, ext: string) => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <div
-      className={cn(
-        "absolute right-0 top-full z-50 mt-2 w-[360px] max-w-[calc(100vw-48px)]",
-        "rounded-md border border-border bg-bg-elevated p-3 shadow-xl",
-      )}
-    >
-      <div className="space-y-3">
-        {groups.map((group) => (
-          <div key={group.category}>
-            <div className="mb-1.5 flex items-center justify-between gap-2">
-              <span className="font-medium text-fg-base">
-                {t.dialogs.uploadCategories[group.category]}
-              </span>
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => onToggleCategory(group.category)}
-                className="rounded border border-border px-2 py-0.5 text-[11px] text-fg-muted hover:border-accent hover:text-accent disabled:opacity-50"
-              >
-                {group.selectedFiles === group.files
-                  ? t.dialogs.uploadSelectNone
-                  : t.dialogs.uploadSelectAll}
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {group.extensions.map((ext) => {
-                const selected = ext.selectedFiles > 0;
-                return (
-                  <button
-                    key={ext.ext}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => onToggleExtension(group.category, ext.ext)}
-                    title={
-                      selected
-                        ? t.dialogs.uploadExcludeExtension(ext.ext)
-                        : t.dialogs.uploadIncludeExtension(ext.ext)
-                    }
-                    className={cn(
-                      "rounded border px-2 py-1 text-[11px] disabled:opacity-50",
-                      selected
-                        ? "border-accent/70 bg-accent-subtle text-accent"
-                        : "border-border bg-bg-muted text-fg-subtle",
-                    )}
-                  >
-                    {ext.ext} {ext.files}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function UploadRow({
-  item,
-  index,
-  running,
-  onToggle,
-}: {
-  item: UploadItem;
-  index: number;
-  running: boolean;
-  onToggle: (index: number) => void;
-}) {
-  const { t } = useI18n();
-  const pct = item.file.size > 0 ? Math.round((item.loaded / item.file.size) * 100) : 0;
-  const prefix = item.relDirs.length ? item.relDirs.join("/") + "/" : "";
-  const category = categoryForFile(item.file);
-  const ext = extensionForFile(item.file);
-  const skipped = item.status === "queued" && !item.selected;
-  return (
-    <tr className={cn("border-b border-border last:border-0", skipped && "text-fg-subtle")}>
-      <td className="px-3 py-1.5">
-        <input
-          type="checkbox"
-          checked={item.selected}
-          disabled={running || item.status !== "queued"}
-          onChange={() => onToggle(index)}
-          className="accent-accent"
-        />
-      </td>
-      <td className="min-w-0 px-1 py-1.5">
-        <div className="truncate" title={prefix + item.file.name}>
-          {prefix && <span className="text-fg-subtle">{prefix}</span>}
-          {item.file.name}
-        </div>
-        {item.renamedTo && (
-          <div className="truncate text-[11px] text-fg-subtle" title={item.renamedTo}>
-            {t.dialogs.renamedTo(item.renamedTo)}
-          </div>
-        )}
-        {item.err && (
-          <div className="truncate text-[11px] text-danger" title={item.err}>
-            {item.err}
-          </div>
-        )}
-      </td>
-      <td className="px-2 py-1.5 text-fg-muted" title={t.dialogs.uploadCategories[category]}>
-        {ext}
-      </td>
-      <td className="px-2 py-1.5 text-right text-fg-muted">
-        {formatBytes(item.file.size)}
-      </td>
-      <td className="px-2 py-1.5 text-right text-fg-muted">
-        {item.status === "uploading" ? `${pct}%`
-         : item.status === "done" ? t.dialogs.done
-         : item.status === "error" ? "!"
-         : skipped ? t.dialogs.skipped
-         : "-"}
-      </td>
-    </tr>
-  );
-}
-
-function updateAt<T>(arr: T[], i: number, patch: Partial<T>): T[] {
-  const next = [...arr];
-  next[i] = { ...next[i], ...patch };
-  return next;
-}
-
-function summarizeUploadPlan(items: UploadItem[]) {
-  const groups = new Map<UploadCategory, UploadGroup>();
-  let selectedFiles = 0;
-  let selectedBytes = 0;
-  let skippedFiles = 0;
-  let skippedBytes = 0;
-
-  for (const category of CATEGORY_ORDER) {
-    groups.set(category, {
-      category,
-      files: 0,
-      bytes: 0,
-      selectedFiles: 0,
-      selectedBytes: 0,
-      extensions: [],
-    });
-  }
-
-  const extMaps = new Map<UploadCategory, Map<string, {
-    files: number;
-    bytes: number;
-    selectedFiles: number;
-    selectedBytes: number;
-  }>>();
-  for (const item of items) {
-    const category = categoryForFile(item.file);
-    const ext = extensionForFile(item.file);
-    const group = groups.get(category)!;
-    group.files += 1;
-    group.bytes += item.file.size;
-    if (!extMaps.has(category)) extMaps.set(category, new Map());
-    const extMap = extMaps.get(category)!;
-    const extStat = extMap.get(ext) ?? {
-      files: 0,
-      bytes: 0,
-      selectedFiles: 0,
-      selectedBytes: 0,
-    };
-    extStat.files += 1;
-    extStat.bytes += item.file.size;
-
-    if (item.selected) {
-      selectedFiles += 1;
-      selectedBytes += item.file.size;
-      group.selectedFiles += 1;
-      group.selectedBytes += item.file.size;
-      extStat.selectedFiles += 1;
-      extStat.selectedBytes += item.file.size;
-    } else {
-      skippedFiles += 1;
-      skippedBytes += item.file.size;
-    }
-    extMap.set(ext, extStat);
-  }
-
-  for (const [category, extMap] of extMaps) {
-    const group = groups.get(category)!;
-    group.extensions = [...extMap.entries()]
-      .map(([ext, stat]) => ({ ext, ...stat }))
-      .sort((a, b) => b.files - a.files || a.ext.localeCompare(b.ext));
-  }
-
-  return {
-    groups: CATEGORY_ORDER.map((category) => groups.get(category)!)
-      .filter((group) => group.files > 0),
-    selectedFiles,
-    selectedBytes,
-    skippedFiles,
-    skippedBytes,
-  };
-}
-
-function categoryForFile(file: File): UploadCategory {
-  const mime = (file.type || "").toLowerCase();
-  const ext = extensionForFile(file);
-  if (mime === "application/pdf" || ext === ".pdf") return "pdfs";
-  if (mime.startsWith("video/") || VIDEO_EXTENSIONS.has(ext)) return "videos";
-  if (mime.startsWith("audio/") || AUDIO_EXTENSIONS.has(ext)) return "audio";
-  if (mime.startsWith("image/") || IMAGE_EXTENSIONS.has(ext)) return "images";
-  if (ARCHIVE_EXTENSIONS.has(ext) || ARCHIVE_MIMES.has(mime)) return "archives";
-  if (
-    mime.startsWith("text/")
-    || DOCUMENT_EXTENSIONS.has(ext)
-    || DOCUMENT_MIMES.has(mime)
-  ) {
-    return "documents";
-  }
-  return "unknown";
-}
-
-function extensionForFile(file: File): string {
-  const idx = file.name.lastIndexOf(".");
-  if (idx <= 0 || idx === file.name.length - 1) return "(none)";
-  return file.name.slice(idx).toLowerCase();
-}
-
-const VIDEO_EXTENSIONS = new Set([
-  ".3gp", ".avi", ".flv", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg",
-  ".mpg", ".webm", ".wmv",
-]);
-const AUDIO_EXTENSIONS = new Set([
-  ".aac", ".aiff", ".flac", ".m4a", ".mp3", ".oga", ".ogg", ".opus",
-  ".wav", ".wma",
-]);
-const IMAGE_EXTENSIONS = new Set([
-  ".avif", ".bmp", ".gif", ".heic", ".heif", ".jpeg", ".jpg", ".png",
-  ".svg", ".tif", ".tiff", ".webp",
-]);
-const ARCHIVE_EXTENSIONS = new Set([
-  ".7z", ".bz2", ".gz", ".rar", ".tar", ".tgz", ".xz", ".zip",
-]);
-const DOCUMENT_EXTENSIONS = new Set([
-  ".bat", ".c", ".cpp", ".csv", ".docx", ".eml", ".epub", ".go", ".h", ".hpp",
-  ".htm", ".html", ".java", ".js", ".json", ".jsx", ".kt", ".log",
-  ".md", ".msg", ".odf", ".ods", ".odt", ".php", ".pptm", ".pptx", ".ps1",
-  ".py", ".rb", ".rs", ".rst", ".rtf", ".scala", ".sh", ".sql",
-  ".swift", ".tex", ".toml", ".ts", ".tsx", ".txt", ".xls", ".xlsm", ".xlsx",
-  ".xml", ".yaml", ".yml",
-]);
-const ARCHIVE_MIMES = new Set([
-  "application/gzip",
-  "application/vnd.rar",
-  "application/x-7z-compressed",
-  "application/x-bzip2",
-  "application/x-tar",
-  "application/zip",
-]);
-const DOCUMENT_MIMES = new Set([
-  "application/epub+zip",
-  "application/json",
-  "application/rtf",
-  "application/vnd.ms-excel",
-  "application/vnd.ms-outlook",
-  "application/vnd.ms-excel.sheet.macroenabled.12",
-  "application/vnd.ms-powerpoint.presentation.macroenabled.12",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/xml",
-  "message/rfc822",
-]);
-
-function ModalShell({ title, onClose, children, wide }: {
   title: React.ReactNode;
   onClose: () => void;
   children: React.ReactNode;
@@ -1053,37 +889,62 @@ function ModalShell({ title, onClose, children, wide }: {
 }) {
   const { t } = useI18n();
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40"
-         onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fade-in select-none"
+      onClick={onClose}
+    >
       <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "flex max-h-[calc(100vh-32px)] flex-col overflow-hidden rounded-lg border border-border bg-bg-elevated shadow-2xl",
+          "flex max-h-[calc(100vh-32px)] flex-col overflow-hidden rounded-3xl border border-border/80 bg-bg-card shadow-modal animate-scale-in",
           wide
-            ? "w-[900px] max-w-[calc(100vw-32px)]"
-            : "w-[360px] max-w-[calc(100vw-32px)]",
+            ? "w-[720px] max-w-[calc(100vw-32px)]"
+            : "w-[440px] max-w-[calc(100vw-32px)]",
         )}
       >
-        <header className="flex items-center justify-between border-b border-border px-4 py-2.5 text-sm font-medium">
-          <span className="flex items-center gap-2">{title}</span>
-          <button onClick={onClose}
-                  title={t.common.close}
-                  className="rounded-md p-1 text-fg-muted hover:bg-bg-muted">
-            <X size={14} />
+        <header className="flex items-center justify-between border-b border-border/80 px-6 py-4 text-xs font-bold text-fg-base bg-bg-subtle/50">
+          <div className="flex items-center gap-2.5 text-sm font-bold">{title}</div>
+          <button
+            onClick={onClose}
+            title={t.common.close}
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-fg-muted hover:bg-bg-muted hover:text-fg-base active:scale-95 transition-all"
+          >
+            <X size={16} />
           </button>
         </header>
-        <div className="overflow-y-auto p-4">{children}</div>
+        <div className="overflow-y-auto p-6">{children}</div>
       </div>
     </div>
   );
 }
 
-// ---- folder-drop helpers --------------------------------------------------
+function extensionForFile(file: File): string {
+  const parts = file.name.split(".");
+  return parts.length > 1 ? `.${parts.pop()!.toLowerCase()}` : "";
+}
 
-/** Recursively flatten a dropped FileSystemEntry into UploadItems whose
- *  relDirs reflects the path within the dropped tree. The dropped folder's
- *  own name is the first segment (so a folder "notes/a.md" dropped on
- *  target T becomes T/notes/a.md), matching what users intuitively expect. */
+function categoryForFile(file: File): UploadCategory {
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (["pdf"].includes(ext)) return "pdfs";
+  if (["md", "markdown", "txt", "rtf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "epub"].includes(ext)) {
+    return "documents";
+  }
+  if (["png", "jpg", "jpeg", "webp", "gif", "svg", "heic", "tiff"].includes(ext)) {
+    return "images";
+  }
+  if (["zip", "tar", "gz", "7z", "rar"].includes(ext)) {
+    return "archives";
+  }
+  if (["mp3", "wav", "flac", "ogg", "m4a"].includes(ext)) {
+    return "audio";
+  }
+  if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) {
+    return "videos";
+  }
+  return "unknown";
+}
+
 async function walkEntry(
   entry: FileSystemEntry,
   parentDirs: string[],
@@ -1103,7 +964,6 @@ async function walkEntry(
   if ((entry as FileSystemDirectoryEntry).isDirectory) {
     const dir = entry as FileSystemDirectoryEntry;
     const reader = dir.createReader();
-    // readEntries returns children in chunks; loop until empty.
     const children: FileSystemEntry[] = [];
     while (true) {
       const chunk = await new Promise<FileSystemEntry[]>((res, rej) =>
@@ -1123,9 +983,6 @@ function fileFromEntry(entry: FileSystemFileEntry): Promise<File> {
   return new Promise((resolve, reject) => entry.file(resolve, reject));
 }
 
-/** Create folders for relDirs under the cached target, returning the
- *  leaf folder_id (or null if relDirs is empty AND target itself is null,
- *  meaning the upload should go to root via remote_path). */
 async function mkdirP(
   cache: Map<string, string | null>,
   relDirs: string[],
@@ -1145,8 +1002,6 @@ async function mkdirP(
   return parentId;
 }
 
-/** Idempotent folder create: tries POST /v1/folders, on 409 fetches the
- *  existing one out of the parent listing. */
 async function ensureFolder(name: string, parentId: string | null): Promise<string> {
   try {
     const f = await foldersApi.create(name, parentId);
@@ -1157,11 +1012,31 @@ async function ensureFolder(name: string, parentId: string | null): Promise<stri
         ? (e.body.detail as { existing_id?: string } | undefined)
         : undefined;
       if (body?.existing_id) return body.existing_id;
-      // Fallback: list and find by name.
       const listing = await foldersApi.list(parentId ?? null);
       const hit = listing.folders.find((f) => f.name === name);
       if (hit) return hit.id;
     }
     throw e;
   }
+}
+
+function webdavProgressText(
+  last: WebDavSyncLast | null,
+  mode: "upload" | "download",
+  t: I18nStrings,
+): string {
+  if (!last) return t.common.loading;
+  if (last.phase) return t.library.webdavSyncPhase(last.phase);
+  if (mode === "upload") {
+    return t.library.webdavProgressBlobs(
+      last.processed_blobs ?? 0,
+      last.total_blobs ?? 0,
+      last.uploaded_blobs ?? 0,
+      last.skipped_blobs ?? 0,
+    );
+  }
+  return t.library.webdavProgressMetadata(
+    last.last_download?.downloaded_files ?? 0,
+    last.last_download?.requested_files ?? 0,
+  );
 }

@@ -651,10 +651,10 @@ export function ViewerToolbarButton({
       disabled={disabled}
       onClick={onClick}
       className={
-        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border text-fg-muted transition-colors " +
+        "inline-flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-lg border text-fg-muted transition-all active:scale-95 shadow-xs " +
         (active
           ? "border-accent/50 bg-accent/10 text-accent"
-          : "border-border hover:bg-bg-muted disabled:cursor-not-allowed disabled:opacity-40")
+          : "border-border/80 bg-bg-card hover:bg-bg-subtle hover:text-fg-base disabled:cursor-not-allowed disabled:opacity-40")
       }
     >
       {children}

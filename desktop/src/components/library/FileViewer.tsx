@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Download, Cloud, Loader2 } from "lucide-react";
+import { FileText, Download, Cloud, Loader2, FileCode, FileImage, FileSpreadsheet, Book, FileArchive, FileBox } from "lucide-react";
 
 import { fileEntries, maybeAuthDownload, webdavSync } from "@/api/client";
 import type { FileMetadata } from "@/types/api";
+import { formatBytes } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import {
   ArchiveView,
@@ -109,120 +110,158 @@ export function FileViewer({ entryId, meta, locator, onLocatorConsumed, onHydrat
   }, [kind, locator, onLocatorConsumed]);
 
   return (
-    <div className="flex h-full min-w-0 flex-1 flex-col">
-      <header className="flex shrink-0 items-center gap-2 border-b border-border bg-bg-subtle px-4 py-2 text-sm">
-        <FileText size={14} className="text-fg-muted" />
-        <span className="flex-1 truncate font-medium">{name || t.common.unset}</span>
-        {needsHydrate ? (
-          <button
-            type="button"
-            disabled={hydrating}
-            onClick={async () => {
-              setHydrating(true);
-              setHydrateError(null);
-              try {
-                await webdavSync.hydrate(entryId);
-                onHydrated?.();
-              } catch (e) {
-                setHydrateError(e instanceof Error ? e.message : String(e));
-              } finally {
-                setHydrating(false);
-              }
-            }}
-            className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-bg-muted disabled:opacity-50"
-          >
-            {hydrating ? <Loader2 size={12} className="animate-spin" /> : <Cloud size={12} />}
-            {t.library.hydrateFromWebDav}
-          </button>
-        ) : (
-          <a href={downloadUrl} download onClick={(e) => maybeAuthDownload(e, downloadUrl, name)} className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-bg-muted">
-            <Download size={12} /> {t.library.download}
-          </a>
-        )}
+    <div className="flex h-full min-w-0 flex-1 flex-col select-none">
+      {/* File Header Bar */}
+      <header className="flex h-11 shrink-0 items-center justify-between border-b border-border/80 bg-bg-subtle/80 px-4 text-xs backdrop-blur">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <FileHeaderIcon kind={kind} />
+          <span className="truncate font-semibold text-fg-base text-sm">{name || t.common.unset}</span>
+          <span className="rounded bg-bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-fg-subtle">
+            {kind}
+          </span>
+          {typeof meta?.size_bytes === "number" && (
+            <span className="hidden sm:inline-block font-mono text-[11px] text-fg-subtle">
+              {formatBytes(meta.size_bytes)}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {needsHydrate ? (
+            <button
+              type="button"
+              disabled={hydrating}
+              onClick={async () => {
+                setHydrating(true);
+                setHydrateError(null);
+                try {
+                  await webdavSync.hydrate(entryId);
+                  onHydrated?.();
+                } catch (e) {
+                  setHydrateError(e instanceof Error ? e.message : String(e));
+                } finally {
+                  setHydrating(false);
+                }
+              }}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border/80 bg-bg-card px-3.5 text-xs font-semibold text-fg-muted hover:bg-bg-subtle hover:text-fg-base disabled:opacity-50 transition-all shadow-xs active:scale-95"
+            >
+              {hydrating ? <Loader2 size={12} className="animate-spin text-accent" /> : <Cloud size={12} />}
+              <span>{t.library.hydrateFromWebDav}</span>
+            </button>
+          ) : (
+            <a
+              href={downloadUrl}
+              download
+              onClick={(e) => maybeAuthDownload(e, downloadUrl, name)}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border/80 bg-bg-card px-3.5 text-xs font-semibold text-fg-muted hover:bg-bg-subtle hover:text-fg-base transition-all shadow-xs active:scale-95"
+            >
+              <Download size={12} />
+              <span>{t.library.download}</span>
+            </a>
+          )}
+        </div>
       </header>
-      <div className="flex-1 overflow-hidden">
+
+      {/* Viewer Canvas Area */}
+      <div className="flex-1 overflow-hidden bg-bg-base">
         {needsHydrate && (
-          <div className="flex h-full items-center justify-center p-8 text-center">
-            <div className="max-w-sm">
-              <Cloud className="mx-auto h-8 w-8 text-fg-muted" />
-              <h2 className="mt-3 text-sm font-semibold">{t.library.remoteFileTitle}</h2>
-              <p className="mt-1 text-sm text-fg-muted">{t.library.remoteFileBody}</p>
-              {hydrateError && <p className="mt-3 text-xs text-danger">{hydrateError}</p>}
+          <div className="flex h-full items-center justify-center p-8 text-center animate-fade-in">
+            <div className="max-w-sm rounded-2xl border border-border/80 bg-bg-card p-6 shadow-card">
+              <Cloud className="mx-auto h-10 w-10 text-accent mb-2" />
+              <h2 className="text-sm font-semibold text-fg-base">{t.library.remoteFileTitle}</h2>
+              <p className="mt-1 text-xs text-fg-muted leading-relaxed">{t.library.remoteFileBody}</p>
+              {hydrateError && (
+                <p className="mt-3 rounded bg-danger-subtle p-2 text-xs text-danger border border-danger/20 font-mono">
+                  {hydrateError}
+                </p>
+              )}
             </div>
           </div>
         )}
+
         {!needsHydrate && (
           <>
-        {kind === "pdf" && (
-          <PdfView
-            url={contentUrl}
-            page={Number.isFinite(pageLoc as number) ? (pageLoc as number) : null}
-          />
-        )}
-        {kind === "image" && <ImageView url={contentUrl} name={name} sizeBytes={meta?.size_bytes} />}
-        {kind === "md" && (
-          <MdView
-            url={contentUrl}
-            quote={quoteLoc}
-            lineRange={lineLoc}
-            onScrolled={onLocatorConsumed}
-          />
-        )}
-        {kind === "text" && (
-          <TextView
-            url={contentUrl}
-            quote={quoteLoc}
-            lineRange={lineLoc}
-            onScrolled={onLocatorConsumed}
-          />
-        )}
-        {kind === "code" && (
-          <CodeView
-            url={contentUrl}
-            lang={CODE_EXT_TO_LANG[(name.split(".").pop() || "").toLowerCase()] || "text"}
-            quote={quoteLoc}
-            lineRange={lineLoc}
-            onScrolled={onLocatorConsumed}
-          />
-        )}
-        {isOfficeKind(kind) && (
-          <OfficeDocumentView
-            url={contentUrl}
-            format={kind}
-            name={name}
-            downloadUrl={downloadUrl}
-            quote={quoteLoc}
-            page={Number.isFinite(pageLoc as number) ? (pageLoc as number) : null}
-            block={Number.isFinite(blockLoc as number) ? (blockLoc as number) : null}
-            sheet={locator?.sheet || null}
-            cell={locator?.cell || null}
-            row={Number.isFinite(rowLoc as number) ? (rowLoc as number) : null}
-            onScrolled={onLocatorConsumed}
-          />
-        )}
-        {kind === "epub" && (
-          <EpubView
-            url={contentUrl}
-            name={name}
-            downloadUrl={downloadUrl}
-            quote={quoteLoc}
-            page={Number.isFinite(pageLoc as number) ? (pageLoc as number) : null}
-            onScrolled={onLocatorConsumed}
-          />
-        )}
-        {kind === "email" && (
-          <ExtractedMarkdownView
-            entryId={entryId}
-            quote={quoteLoc}
-            lineRange={lineLoc}
-            onScrolled={onLocatorConsumed}
-          />
-        )}
-        {kind === "archive" && <ArchiveView url={downloadUrl} name={name} />}
-        {kind === "binary" && <BinaryView url={downloadUrl} name={name} />}
+            {kind === "pdf" && (
+              <PdfView
+                url={contentUrl}
+                page={Number.isFinite(pageLoc as number) ? (pageLoc as number) : null}
+              />
+            )}
+            {kind === "image" && <ImageView url={contentUrl} name={name} sizeBytes={meta?.size_bytes} />}
+            {kind === "md" && (
+              <MdView
+                url={contentUrl}
+                quote={quoteLoc}
+                lineRange={lineLoc}
+                onScrolled={onLocatorConsumed}
+              />
+            )}
+            {kind === "text" && (
+              <TextView
+                url={contentUrl}
+                quote={quoteLoc}
+                lineRange={lineLoc}
+                onScrolled={onLocatorConsumed}
+              />
+            )}
+            {kind === "code" && (
+              <CodeView
+                url={contentUrl}
+                lang={CODE_EXT_TO_LANG[(name.split(".").pop() || "").toLowerCase()] || "text"}
+                quote={quoteLoc}
+                lineRange={lineLoc}
+                onScrolled={onLocatorConsumed}
+              />
+            )}
+            {isOfficeKind(kind) && (
+              <OfficeDocumentView
+                url={contentUrl}
+                format={kind}
+                name={name}
+                downloadUrl={downloadUrl}
+                quote={quoteLoc}
+                page={Number.isFinite(pageLoc as number) ? (pageLoc as number) : null}
+                block={Number.isFinite(blockLoc as number) ? (blockLoc as number) : null}
+                sheet={locator?.sheet || null}
+                cell={locator?.cell || null}
+                row={Number.isFinite(rowLoc as number) ? (rowLoc as number) : null}
+                onScrolled={onLocatorConsumed}
+              />
+            )}
+            {kind === "epub" && (
+              <EpubView
+                url={contentUrl}
+                name={name}
+                downloadUrl={downloadUrl}
+                quote={quoteLoc}
+                page={Number.isFinite(pageLoc as number) ? (pageLoc as number) : null}
+                onScrolled={onLocatorConsumed}
+              />
+            )}
+            {kind === "email" && (
+              <ExtractedMarkdownView
+                entryId={entryId}
+                quote={quoteLoc}
+                lineRange={lineLoc}
+                onScrolled={onLocatorConsumed}
+              />
+            )}
+            {kind === "archive" && <ArchiveView url={downloadUrl} name={name} />}
+            {kind === "binary" && <BinaryView url={downloadUrl} name={name} />}
           </>
         )}
       </div>
     </div>
   );
+}
+
+function FileHeaderIcon({ kind }: { kind: Kind }) {
+  if (kind === "pdf") return <FileText size={15} className="text-rose-500" />;
+  if (kind === "md" || kind === "text") return <FileText size={15} className="text-blue-500" />;
+  if (kind === "image") return <FileImage size={15} className="text-emerald-500" />;
+  if (kind === "code") return <FileCode size={15} className="text-amber-500" />;
+  if (kind === "docx" || kind === "xlsx" || kind === "pptx") return <FileSpreadsheet size={15} className="text-indigo-500" />;
+  if (kind === "epub") return <Book size={15} className="text-purple-500" />;
+  if (kind === "archive") return <FileArchive size={15} className="text-orange-500" />;
+  return <FileBox size={15} className="text-fg-subtle" />;
 }
