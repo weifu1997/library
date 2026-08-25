@@ -310,7 +310,7 @@ Stop-Process -Id <PID> -Force
 
 不要在 `src\library` 里执行 `python .\main.py`。这个文件只是 FastAPI 应用定义，不会自己启动服务器。
 
-在仓库根目录用 `library serve` 启动后端，也可以用 Docker 启动：
+在仓库根目录用 `library serve` 启动后端：
 
 ```bash
 library serve

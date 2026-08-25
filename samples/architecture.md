@@ -375,23 +375,7 @@ Postgres + S3 + API server + worker
 
 SQLite is appropriate for one writer process. Use Postgres when multiple processes or machines can write.
 
-## 11. Release Pipeline
-
-The release workflow builds a multi-arch Docker image and pushes it to
-ghcr.io, and only one job mutates the GitHub Release:
-
-```text
-docker
-  -> build and push multi-arch ghcr.io image
-
-publish-release
-  -> create/update the GitHub Release once
-  -> verify release assets
-```
-
-A single publish job updating the GitHub Release avoids draft-release races.
-
-## 12. Design Boundaries
+## 11. Design Boundaries
 
 Library is not a vector search engine, a chat memory database, or a document summarizer that treats summaries as final evidence.
 

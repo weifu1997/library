@@ -305,7 +305,7 @@ Stop-Process -Id <PID> -Force
 
 Do not run `python .\main.py` from `src\library`. That file defines the FastAPI app but does not start the server.
 
-Start the backend from the repository root with `library serve`, or run it with Docker:
+Start the backend from the repository root with `library serve`:
 
 ```bash
 library serve

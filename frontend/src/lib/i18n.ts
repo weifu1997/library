@@ -109,7 +109,7 @@ const en = {
     slow: (seconds: number) =>
       `The backend hasn't responded in ${seconds}s. It usually starts within a few seconds.`,
     startBackend:
-      "Start the backend separately (e.g. `library serve` or Docker), then retry.",
+      "Start the backend separately (e.g. `library serve`), then retry.",
     retry: "Retry",
     customBaseTitle: "A custom backend URL is active",
     customBaseBody:
@@ -943,7 +943,7 @@ const zh: I18nStrings = {
     waiting: "正在等待本地后端启动。",
     slow: (seconds: number) =>
       `后端已经 ${seconds} 秒没有响应。通常几秒内会启动完成。`,
-    startBackend: "请先单独启动后端（如 `library serve` 或 Docker），然后重试。",
+    startBackend: "请先单独启动后端（如 `library serve`），然后重试。",
     retry: "重试",
     customBaseTitle: "当前启用了自定义后端地址",
     customBaseBody:

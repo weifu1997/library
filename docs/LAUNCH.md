@@ -84,7 +84,7 @@ It has two modes:
 - Quick: bounded evidence gathering for short lookups.
 - Deep: a slower investigation loop for reports where coverage matters.
 
-There is a Python CLI and a multi-arch Docker image. It is AGPL.
+There is a Python CLI. It is AGPL.
 
 Repo: https://github.com/weifu1997/library
 
@@ -180,7 +180,7 @@ journal 和可选语义召回缩小范围,再读取原文窗口,最后输出带�
 
 - Post a low-key build note to an existing community where you already
   participate.
-- Ask 3-5 users to try the Docker/CLI setup and report install blockers.
+- Ask 3-5 users to try the CLI setup and report install blockers.
 
 **Launch Day**
 

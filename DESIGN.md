@@ -669,8 +669,6 @@ CLI or web GUI
 Remote API deployments can set `LIBRARY_API_TOKEN`; when present, all
 routes except `/health`, `/live`, `/ready`, and CORS preflight require
 `Authorization: Bearer`.
-Docker compose starts API, worker, Postgres, and MinIO, and binds published
-ports to `127.0.0.1` by default.
 
 Foreground chat runs independently from the attached HTTP stream. Every public
 event is stored with a monotonic per-conversation cursor before SSE delivery;
@@ -692,23 +690,7 @@ Runtime schema bootstrap remains enabled for zero-setup local installs. A
 managed rollout applies Alembic first and disables it on API and worker
 replicas, preventing concurrent startup DDL.
 
-## 13. Release Pipeline
-
-A multi-arch Docker image is the release artifact. The Docker build pushes
-the ghcr.io image, and a single publish job mutates the GitHub Release:
-
-```text
-docker
-  -> build and push multi-arch ghcr.io image
-
-publish-release
-  -> create/update the GitHub Release once
-  -> verify release assets
-```
-
-A single publish job updating the GitHub Release avoids draft-release races.
-
-## 14. Non-goals
+## 13. Non-goals
 
 Current system behavior intentionally excludes:
 

@@ -540,21 +540,6 @@ library --server http://server:8000
 library --server http://server:8000 --api-token "$LIBRARY_API_TOKEN"
 ```
 
-Docker compose starts API, worker, Postgres, and MinIO:
-
-```bash
-echo "LLM_DEFAULT_API_KEY=sk-..." > .env
-docker compose up -d
-```
-
-Compose runs the one-shot database preparation service first, then starts API
-and worker with runtime schema bootstrap disabled.
-
-The compose file binds the API and MinIO console to `127.0.0.1` by default.
-If you deliberately expose the API on a LAN, set `LIBRARY_API_TOKEN` and
-send `Authorization: Bearer <token>` from the CLI or web GUI connection
-settings.
-
 ### Multi-device sync
 
 Do not use Dropbox, Syncthing, iCloud Drive, OneDrive, or similar file-sync

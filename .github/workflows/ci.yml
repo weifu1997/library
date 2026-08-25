@@ -4,9 +4,7 @@ name: CI
 #   1. lock-check     — fast fail if uv.lock drifts from pyproject.toml
 #   2. backend-tests  — pytest on the full tests/ tree, three OSes
 #   3. frontend-build — frontend/ TypeScript typecheck + Vite build
-#   4. docker-build   — `docker build .` so Dockerfile rot surfaces on PRs
 #
-# The release pipeline (release.yml) does the heavy bundling on tag pushes;
 # CI only proves the code compiles and tests pass.
 
 on:
@@ -86,30 +84,3 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
-
-  docker-build:
-    name: docker build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
-
-      # Build (no push) with the same mirror overrides release.yml uses so the
-      # GitHub runner (outside mainland China) doesn't route through the tuna
-      # mirror. This validates the linux/amd64 build only (load: true implies a
-      # single arch); the release builds linux/amd64,linux/arm64, so an
-      # arm64-only regression (e.g. a pinned dep with no aarch64 wheel) still
-      # surfaces at release time, not here. The GHA layer cache keeps runs fast.
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          load: true
-          tags: library:ci
-          build-args: |
-            APT_MIRROR=
-            PIP_INDEX_URL=https://pypi.org/simple
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

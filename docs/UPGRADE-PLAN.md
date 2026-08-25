@@ -88,20 +88,6 @@
   在加载授权表后均被引擎拒绝；正常的针对已加载表的 SELECT 仍工作。
 - 依赖：无。
 
-### T5. compose 端口绑定 localhost + 可选 bearer 中间件 【S/M】
-- 背景：API 层无请求鉴权（`api/` 下 `api_key` 命中均为存储的 LLM 密钥，非请求认证）。
-  本地使用绑 localhost 无碍，但 `docker-compose.yml:90` 写 `"8000:8000"`、`:39` 写
-  `"9001:9001"`，等于局域网任何人可读整库、并能 PUT `/settings` 改 LLM endpoint
-  到攻击者服务器（后续请求会把 LLM 密钥作为 Authorization 头发出）。
-- 改动：
-  - compose 默认改 `"127.0.0.1:8000:8000"`、`"127.0.0.1:9001:9001"`；
-    在 compose 注释和 `README.md` 部署节说明如何显式开放。
-  - 中期（M）：加可选 bearer 中间件——`LIBRARY_API_TOKEN` 设置存在时，
-    `main.py` 注册一个校验 `Authorization: Bearer` 的中间件（`/health` 豁免）；
-    未设置则保持现状（嵌入式/Web 默认免认证）。CLI/web GUI client 支持带 token。
-- 验收：默认 compose 起栈后宿主外网卡无法访问 8000/9001；设置 token 后无 token 请求 401。
-- 依赖：无。
-
 ---
 
 ## Phase 2 — 理念对齐（核心赌注校正）

@@ -522,25 +522,6 @@ library --server http://server.lan:8000 --api-token "$LIBRARY_API_TOKEN"
 # 或写入持久配置: LIBRARY_SERVER=http://server.lan:8000 -> ~/.library/.env
 ```
 
-### Docker
-
-`docker-compose.yml` 启动 api + worker + Postgres + MinIO:
-
-```bash
-echo "LLM_DEFAULT_API_KEY=sk-..." > .env
-docker compose up -d
-library --server http://localhost:8000
-```
-
-Compose 会先运行一次性 `library-db-prepare`，成功后才启动不执行 DDL 的
-API/worker；另一个一次性 init 容器创建 MinIO bucket。卷
-(`pgdata` / `miniodata` / `margdata`)
-跨重启持久化。
-
-Compose 默认只把 API 和 MinIO 控制台绑定到 `127.0.0.1`。如果要主动暴露到
-局域网,请设置 `LIBRARY_API_TOKEN`,并在 CLI 或 Web GUI 连接设置中发送
-`Authorization: Bearer <token>`。
-
 ### 多设备同步
 
 不要用 Dropbox、Syncthing、iCloud Drive、OneDrive 等文件同步工具同步正在

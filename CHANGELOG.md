@@ -4,11 +4,14 @@
 
 ### Removed
 
+- Docker assets removed: `Dockerfile`, `docker-compose.yml`, `.dockerignore`,
+  and the `release.yml` Docker release workflow. The project runs via bare
+  Python (`library serve`); server deployments are git-based.
 - Desktop/Tauri application shell removed. The GUI is now browser-only
   (`frontend/`, a Vite dev server) and connects to a separately started
-  backend (`library serve` or Docker). Releases are Docker-image only;
-  Windows/macOS/Linux desktop bundles, the packaged Python sidecar, and the
-  NSIS/DMG/deb/rpm/AppImage packaging tooling are gone.
+  backend (`library serve`). Windows/macOS/Linux desktop bundles, the
+  packaged Python sidecar, and the NSIS/DMG/deb/rpm/AppImage packaging
+  tooling are gone.
 
 ## 0.3.6 - 2026-08-20
 
@@ -188,9 +191,8 @@
 - GUI search tokenizes multi-word queries and ranks results instead of
   matching one contiguous phrase; the per-hit related-entries walk is limited
   to the top hits so latency no longer scales with match count.
-- Release artifacts (Docker image) install from the locked
-  requirements exported from `uv.lock`, so shipped versions match what CI
-  tested; CI gained a `uv.lock` drift gate and a Docker build check.
+- Releases install from the locked requirements exported from `uv.lock`, so
+  shipped versions match what CI tested; CI gained a `uv.lock` drift gate.
 
 ### Fixed
 
@@ -502,7 +504,6 @@ semantic recall, the agent runtime, and the CLI/MCP surfaces.
   model-authored SQL, blocking path-literal, scan-function, and glob-style
   local file reads outside the loaded entries.
 - E2E test temp directories are cleaned with a retrying Windows-aware helper.
-- Docker compose now binds API and MinIO ports to localhost by default.
 - OCR PDF VLM readback no longer counts PDF pages synchronously on the async
   read path.
 - Mixed metadata queries keep short CJK terms via LIKE fallback instead of
