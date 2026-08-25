@@ -1,6 +1,6 @@
 """Process-wide lifecycle manager for the in-process TaskRunner.
 
-The single-process / desktop deployment runs the task runner inside the
+The single-process deployment runs the task runner inside the
 API process (uvicorn). ``main.py`` used to construct a ``TaskRunner``
 directly in its lifespan, which made it impossible to start or stop the
 worker from the Settings page without a process restart. This module owns

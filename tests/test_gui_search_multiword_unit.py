@@ -1,4 +1,4 @@
-"""GUI/desktop file-search tokenization (audit 二.9).
+"""GUI file-search tokenization (audit 二.9).
 
 `user_files.search_entries` used to pass the raw box query as a single
 substring to the repository, so a 2+ word query only matched when the whole

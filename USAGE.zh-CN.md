@@ -423,7 +423,7 @@ docker compose up -d
 启动时自动跑,MinIO bucket 由一次性 init 容器创建。
 
 Compose 默认只把 API 和 MinIO 控制台绑定到 `127.0.0.1`。如果要主动暴露到
-局域网,请设置 `LIBRARY_API_TOKEN`,并让 CLI/桌面端发送
+局域网,请设置 `LIBRARY_API_TOKEN`,并让 CLI/Web 端发送
 `Authorization: Bearer <token>`。
 
 ```bash

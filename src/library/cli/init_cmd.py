@@ -32,8 +32,8 @@ LIBRARY_HOME={home}
 
 DB_BACKEND=sqlite
 
-# HTTP backend bind settings. `library serve`, the desktop app, and
-# auto-discovery all use these values when they are present.
+# HTTP backend bind settings. `library serve` and auto-discovery all use
+# these values when they are present.
 LIBRARY_API_HOST=127.0.0.1
 LIBRARY_API_PORT=8000
 

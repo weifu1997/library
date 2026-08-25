@@ -41,19 +41,19 @@ Local-first AI library with cited answers from original files.
   `Local-first AI library that reads private files and answers with citations.`
 - Suggested topics:
   `local-first`, `rag`, `research-agent`, `knowledge-management`, `llm`,
-  `ai-agents`, `pdf`, `sqlite`, `tauri`, `self-hosted`
+  `ai-agents`, `pdf`, `sqlite`, `self-hosted`
 - Upload a social preview under repository Settings -> Social preview.
   GitHub recommends 1280x640 for best display and an image under 1 MB.
   Use `docs/images/social-preview-en.jpg` for the repository preview; use
   `docs/images/social-preview-zh-CN.jpg` for Chinese community posts.
-- Pin the latest desktop release and make the release assets easy to scan.
+- Pin the latest release and make the release assets easy to scan.
 - Add a 60-90 second demo video or GIF near the top of the README.
 
 ## Demo Script
 
 Goal: show the value in one minute.
 
-1. Start from an empty Library desktop app.
+1. Start from an empty Library instance.
 2. Upload a folder containing a Raft paper, Paxos notes, a meeting note, and a
    small log or spreadsheet.
 3. Ask: `What are the key differences between Raft and Paxos? Cite the sources.`
@@ -84,7 +84,7 @@ It has two modes:
 - Quick: bounded evidence gathering for short lookups.
 - Deep: a slower investigation loop for reports where coverage matters.
 
-There are desktop builds for Windows/macOS/Linux and a Python CLI. It is AGPL.
+There is a Python CLI and a multi-arch Docker image. It is AGPL.
 
 Repo: https://github.com/weifu1997/library
 
@@ -115,7 +115,7 @@ is not another black-box vector database. The goal is a local library where the
 agent can narrow the search space, read original sources, cite its evidence,
 and leave behind durable investigation notes for future questions.
 
-The current release includes desktop builds, CLI, upload/ingest pipelines,
+The current release includes the CLI, upload/ingest pipelines,
 Quick/Deep chat modes, optional embeddings/reranking, and evaluation commands.
 
 ## Reddit / Technical Communities
@@ -180,11 +180,11 @@ journal 和可选语义召回缩小范围,再读取原文窗口,最后输出带�
 
 - Post a low-key build note to an existing community where you already
   participate.
-- Ask 3-5 users to try the desktop build and report install blockers.
+- Ask 3-5 users to try the Docker/CLI setup and report install blockers.
 
 **Launch Day**
 
-- Post Show HN only when the repo, desktop build, and demo are ready to try.
+- Post Show HN only when the repo and demo are ready to try.
 - Reply to every substantive question with concrete examples.
 - Do not ask friends to upvote or leave coordinated comments.
 

@@ -1,0 +1,14 @@
+# Editors / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+# Build output
+node_modules/
+dist/
+dist-ssr/
+*.local
+*.tsbuildinfo
+
+# Env
+.env.local

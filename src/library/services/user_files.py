@@ -464,7 +464,7 @@ async def get_entry_path(
     """Resolve `entry_id` to its folder ancestor chain (root → leaf).
 
     Drives the GUI's "click a search hit → expand the Library tree to
-    that file" navigation: the desktop side feeds the chain to the
+    that file" navigation: the GUI feeds the chain to the
     FolderTree as a controlled-expansion path so each ancestor opens
     in order. Root-folder entries return an empty chain.
     """

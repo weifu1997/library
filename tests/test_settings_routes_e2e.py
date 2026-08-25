@@ -1,6 +1,6 @@
 """GET/PUT /v1/settings — overlay round-trip without secret echo.
 
-The Settings page in the desktop GUI calls these to render server
+The Settings page in the GUI calls these to render server
 status, list LLM profiles, and write back per-profile overrides. Two
 behaviours we lock in here:
 

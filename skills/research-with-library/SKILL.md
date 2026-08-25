@@ -143,15 +143,15 @@ library background --json
 
 Add `--json` for machine-parseable output. Omit it for human-readable text.
 `--server URL` (or `LIBRARY_SERVER`) connects to a remote backend;
-otherwise the CLI auto-discovers a running `library serve` / desktop
-sidecar, or starts an embedded backend.
+otherwise the CLI auto-discovers a running `library serve`, or starts an
+embedded backend.
 
 One-shot CLI requires **full UUIDs** (e.g. `library info b123a833-...`).
 The 8-char prefix shorthand described in the REPL workflow above does not
 work outside the REPL.
 
-`library export` requires a persistent backend (`library serve` or
-desktop). Two separate embedded-mode invocations (e.g. `library ask` then
+`library export` requires a persistent backend (`library serve`). Two
+separate embedded-mode invocations (e.g. `library ask` then
 `library export`) do not share state — the first process exits and its
 conversations are gone. Export works inside the REPL because the embedded
 backend stays alive across turns. When passing a conversation id, use the

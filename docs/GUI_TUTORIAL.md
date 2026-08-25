@@ -1,4 +1,4 @@
-# Library Desktop GUI Tutorial
+# Library Web GUI Tutorial
 
 This guide is written for non-technical users. It explains the first-run setup, what each Settings field means, recommended values, local model setup, embeddings, rerank, and common troubleshooting steps.
 
@@ -126,8 +126,8 @@ If local responses are unstable, lower concurrency before increasing token budge
 
 | Setting | Meaning | Recommended |
 | --- | --- | --- |
-| API base URL | Where the GUI sends backend API requests. | Leave empty in the packaged desktop app. Use `http://host:8000` only for a remote backend. |
-| API bearer token | Token used when the backend sets `LIBRARY_API_TOKEN`. | Leave empty for a local single-user desktop setup. |
+| API base URL | Where the GUI sends backend API requests. | Leave empty for a local backend (Vite proxies /v1 to 127.0.0.1:8000). Set `http://host:8000` only for a remote backend. |
+| API bearer token | Token used when the backend sets `LIBRARY_API_TOKEN`. | Leave empty for a local single-user setup. |
 
 Only change Connection when the GUI talks to a separate backend. The API base
 URL is the address of a **Library backend**, not an Ollama or LM Studio model
@@ -146,7 +146,7 @@ endpoint. Configure local model URLs under **LLM profiles**.
 | Concurrent ingest tasks | Number of background file-analysis tasks at once. | `3-5` for typical computers, `1-2` for local models, `10` for stable cloud APIs. |
 | Ingest LLM concurrency | Parallel LLM calls for long document chunks and scanned-PDF OCR pages. | `1` for local models, `2-5` for normal cloud APIs, `10` for high-rate-limit APIs. |
 | Status refresh | How often the bottom status bar refreshes. | `4 s`. |
-| Compact sidebar | Icon-only navigation. | Off on desktop, on for small screens. |
+| Compact sidebar | Icon-only navigation. | Off on large screens, on for small screens. |
 
 ### Retrieval
 
@@ -188,9 +188,9 @@ These are mostly read-only diagnostics.
 
 | Item | Meaning | Recommended |
 | --- | --- | --- |
-| App env | Runtime environment. | No change needed for desktop use. |
+| App env | Runtime environment. | No change needed for local use. |
 | Home | Data root containing database, library files, logs, and GUI overlay settings. | Default per-user folder. |
-| DB | Database engine. | `sqlite` for desktop/single user. |
+| DB | Database engine. | `sqlite` for local/single user. |
 | Storage | How imported files are stored. | `mirror` for readable folders and easier backups. |
 | Worker | Whether background analysis runs. | Enabled. |
 | Auto lifecycle | Whether files are automatically demoted or archived. | Disabled for personal and small libraries. |
@@ -227,7 +227,7 @@ Per-profile fields:
 
 ### 1. Check Backend Health
 
-Packaged desktop builds start the backend automatically. In development mode, start it yourself.
+Start the backend yourself with `library serve`, then run the GUI in the browser.
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
@@ -277,20 +277,15 @@ If the backend says:
 
 Use port `8001`:
 
-```powershell
-cd "D:\AI Platform\library"
-$env:PYTHONPATH="src"
-$env:LIBRARY_DESKTOP="1"
-$env:LIBRARY_API_PORT="8001"
-& ".\.venv\Scripts\python.exe" -m library
+```bash
+library serve --port 8001
 ```
 
 For frontend development, point Vite to the same port:
 
-```powershell
-cd "D:\AI Platform\library\desktop"
-$env:VITE_API_TARGET="http://127.0.0.1:8001"
-npm run dev
+```bash
+cd frontend
+VITE_API_TARGET="http://127.0.0.1:8001" npm run dev
 ```
 
 To inspect port `8000`:
@@ -310,68 +305,38 @@ Stop-Process -Id <PID> -Force
 
 Do not run `python .\main.py` from `src\library`. That file defines the FastAPI app but does not start the server.
 
-Start the backend from the repository root:
+Start the backend from the repository root with `library serve`, or run it with Docker:
 
-```powershell
-cd "D:\AI Platform\library"
-$env:PYTHONPATH="src"
-$env:LIBRARY_DESKTOP="1"
-& ".\.venv\Scripts\python.exe" -m library
+```bash
+library serve
 ```
 
-If port `8000` is unavailable:
+If port `8000` is unavailable, bind to another port:
 
-```powershell
-cd "D:\AI Platform\library"
-$env:PYTHONPATH="src"
-$env:LIBRARY_DESKTOP="1"
-$env:LIBRARY_API_PORT="8001"
-& ".\.venv\Scripts\python.exe" -m library
+```bash
+library serve --port 8001
 ```
 
-Start the frontend:
+Start the frontend (Vite dev server):
 
-```powershell
-cd "D:\AI Platform\library\desktop"
+```bash
+cd frontend
+npm install
 npm run dev
 ```
 
-If the backend uses `8001`:
+If the backend uses `8001`, point Vite to the same port:
 
-```powershell
-cd "D:\AI Platform\library\desktop"
-$env:VITE_API_TARGET="http://127.0.0.1:8001"
-npm run dev
+```bash
+cd frontend
+VITE_API_TARGET="http://127.0.0.1:8001" npm run dev
 ```
 
-Open:
+Open the GUI in your browser:
 
 ```text
 http://localhost:5173
 ```
-
-## Local Packaging Test
-
-Run from the repository root:
-
-```powershell
-cd "D:\AI Platform\library"
-node scripts\prepare-backend.mjs
-cd desktop
-npm run tauri:build
-cd ..
-node scripts\package-windows-portable.mjs
-```
-
-Common output paths:
-
-```text
-desktop\src-tauri\target\release\library-tauri.exe
-desktop\src-tauri\target\release\bundle\
-desktop\src-tauri\target\release\bundle\nsis\library-v0.2.6-windows-x64-portable.zip
-```
-
-Packaged builds start the backend automatically. You do not need to run `python -m library` manually.
 
 ## Data, Config, and Logs
 
@@ -389,7 +354,7 @@ Typical contents:
 | `library\` | Library files for the default `mirror` storage backend. |
 | `objects\` | Object files for `local` storage mode. |
 | `config_overlay.json` | Settings saved from the GUI. |
-| `logs\backend.log` | Packaged backend log. |
+| `logs\backend.log` | Backend log. |
 | `semantic-index\` | Semantic index files. |
 
 Do not sync a running `LIBRARY_HOME` with OneDrive, Dropbox, Syncthing, iCloud Drive, or similar tools. SQLite can be corrupted by concurrent file sync. Exit Library first, then copy the whole directory for backup.

@@ -2,12 +2,20 @@
 
 ## Unreleased
 
+### Removed
+
+- Desktop/Tauri application shell removed. The GUI is now browser-only
+  (`frontend/`, a Vite dev server) and connects to a separately started
+  backend (`library serve` or Docker). Releases are Docker-image only;
+  Windows/macOS/Linux desktop bundles, the packaged Python sidecar, and the
+  NSIS/DMG/deb/rpm/AppImage packaging tooling are gone.
+
 ## 0.3.6 - 2026-08-20
 
 ### Changed
 
 - Chat delivery is now durable: every public event is committed before SSE
-  delivery, frames carry resumable cursors, desktop and CLI clients reconnect
+  delivery, frames carry resumable cursors, GUI and CLI clients reconnect
   automatically, and explicit cancellation is independent from viewer
   disconnects.
 - Tool calls expose replay-stable turn/index identifiers without leaking or
@@ -37,10 +45,6 @@
   completion and event commits race, avoiding prematurely closed streams.
 - Legacy CLI SSE streams without durable conversation identities still finish
   cleanly, while identified turns continue reconnecting until a terminal event.
-- Desktop backend overrides are now verified against Library's `/health`
-  response before they are saved. Ollama and LM Studio model endpoints can no
-  longer be mistaken for the GUI backend, and a bad existing override can be
-  cleared from the startup screen to restore the bundled backend.
 - The Settings page no longer exposes or persists the bundled sidecar's
   ephemeral runtime port as a user-configured remote backend.
 
@@ -73,8 +77,8 @@
   coverage metadata, and deterministic heuristic fallbacks.
 - Citation links now retain complete source locators: PDF page plus verified
   quote, DOCX block plus quote, PPTX slide plus quote, and XLSX sheet plus
-  cell or row plus quote. The desktop viewer preserves and consumes every
-  locator field together.
+  cell or row plus quote. The viewer preserves and consumes every locator
+  field together.
 - Agent replay now validates stored tool history strictly, keeps provider
   prompt prefixes append-only, applies per-tool timeouts, canonicalizes tool
   schemas, and reports cache-eligible hit/reuse metrics in live and replay APIs.
@@ -184,7 +188,7 @@
 - GUI search tokenizes multi-word queries and ranks results instead of
   matching one contiguous phrase; the per-hit related-entries walk is limited
   to the top hits so latency no longer scales with match count.
-- Release artifacts (Docker image, desktop sidecar) install from the locked
+- Release artifacts (Docker image) install from the locked
   requirements exported from `uv.lock`, so shipped versions match what CI
   tested; CI gained a `uv.lock` drift gate and a Docker build check.
 
@@ -206,7 +210,7 @@
 
 Hardening release from a full code audit: fixes for data-loss, correctness,
 and safety defects across WebDAV sync, the mirror vault, ingest pipelines,
-semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
+semantic recall, the agent runtime, and the CLI/MCP surfaces.
 
 ### Fixed
 
@@ -256,12 +260,6 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
   a wall-clock timeout; folder-download zip members are sanitized against
   zip-slip; WebDAV routes no longer echo raw internal errors; and the server
   logs a warning when bound to a non-loopback host without a token.
-- Desktop: token-protected backends load PDFs/images/EPUB/Office/downloads via
-  authenticated blob URLs; external links and the Office print button work
-  under Tauri; viewer toolbars and errors are localized; the "quote not found"
-  banner is styled; a stale search-error banner clears; and a port-conflict on
-  the fixed backend port surfaces an actionable error screen instead of an
-  infinite spinner (attaching to an already-running backend still works).
 - Alembic `upgrade head` succeeds on PostgreSQL when revision ids exceed 32
   characters; interrupted SQLite table rebuilds are recovered on next start;
   and the pooled connection is no longer left with foreign keys disabled.
@@ -292,7 +290,7 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 - PDF, PPTX, and DOCX image descriptions are inserted back into native document
   positions before indexing: PDF figures per page, PPTX images per slide, and
   DOCX images near their source block.
-- Embedding request batch size is capped at 10 for desktop and backend
+- Embedding request batch size is capped at 10 for the GUI and backend
   settings.
 
 ### Fixed
@@ -308,18 +306,14 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 - WebDAV knowledge-pack sync can publish and consume snapshots without
   syncing the live `LIBRARY_HOME` directory.
-- Desktop Library now provides separate WebDAV upload and download sync
-  flows that list changed files and let users choose which entries to sync.
-- Desktop Settings can save WebDAV connection details and sync lightweight
-  remote status, showing the remote snapshot time and id.
 
 ### Fixed
 
 - Follow-up chat turns now give the planner lightweight same-session context,
   so terse requests like "continue" or "expand that" stay on the prior topic
   instead of being mistaken for standalone small talk.
-- EPUB citation links now carry quote locators and the desktop EPUB viewer
-  searches the spine to jump to the cited passage.
+- EPUB citation links now carry quote locators and the EPUB viewer searches
+  the spine to jump to the cited passage.
 - WebDAV JSONL metadata parsing now preserves Unicode line separators inside
   JSON strings and reports the affected metadata file and line on parse errors.
 - WebDAV download sync now reuses existing local tags with the same name and
@@ -335,15 +329,6 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 ### Fixed
 
-- Desktop backend discovery now verifies `/health` instead of only checking
-  whether a local port is open, avoiding false reuse of unrelated local
-  services.
-- Packaged desktop builds now write early launcher diagnostics to
-  `<LIBRARY_HOME>/logs/launcher.log`, including skipped backend launches,
-  missing bundled backend resources, and sidecar spawn failures.
-- Packaged desktop builds now write frontend diagnostics to
-  `<LIBRARY_HOME>/logs/frontend.log`, including backend URL resolution,
-  health-check delays, network failures, and uncaught frontend errors.
 - Backend logs now include startup milestones, request failures, slow
   requests, upload diagnostics, and task runner lifecycle events.
 
@@ -355,12 +340,6 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
   text instead of ingest/index previews, with consistent heading, page, line,
   pattern, and offset behavior across EPUB, PDF, Office, email, and archive
   members.
-- Desktop file viewers are split by format (PDF, Office, EPUB, email, image,
-  archive) while keeping the Library toolbar entry point stable, reducing
-  regressions between unrelated preview types.
-- Desktop Office previews now allow the `@silurus/ooxml` WebAssembly and
-  worker sources required by the Tauri/WebView2 runtime, avoiding a stuck
-  loading state for DOCX/PPTX/XLSX files.
 - Office previews now surface a timeout error if the embedded viewer never
   finishes initializing.
 - Added regression coverage for continuing a loaded historical session with
@@ -378,18 +357,12 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 ## 0.2.8 - 2026-06-24
 
-### Added
-
-- Release builds now include a macOS Intel (x86_64) DMG alongside the Apple
-  Silicon DMG.
-
 ### Changed
 
 - Headroom-based read compression is now the standard path for long text,
   logs, archive members, PDFs, and read-files tool output.
 - The Headroom compression core is vendored so packaged builds no longer
   depend on the external Headroom package or its optional ONNX stack.
-- Desktop settings and help copy now use the current compression setting names.
 
 ### Fixed
 
@@ -401,12 +374,6 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 ### Added
 
-- Desktop folder uploads now show an import filter after scanning files and
-  folders. Videos are skipped by default, and users can include or exclude
-  whole file-type groups, individual extensions, or individual files in a
-  downloader-style selection table before upload creates files or ingest tasks.
-- The desktop Library sidebar can now be resized by dragging the separator,
-  with the chosen width saved locally.
 - Bundled agent skills now include `allowed-tools` / `compatibility` metadata
   and one-shot CLI command references for agents that do not enter the REPL.
 
@@ -420,17 +387,12 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 ### Fixed
 
-- Desktop navigation now uses hash routing in Tauri, avoiding full webview
-  reloads and repeated cold API calls while moving between Chat and Library.
-- The desktop Library now exposes failed-only reprocess actions globally and
-  per folder while keeping full-scope reprocess available.
 - Empty agent execute responses after planning now surface as explicit errors
   instead of silent zero-token answers.
 - Closed chat sessions can be reopened by sending another message, so users can
   continue the same conversation after restarting the app or computer.
 - Interrupted or overlong chat turns are finalized server-side and replay as
-  stopped/error turns instead of leaving the desktop transcript spinning
-  forever.
+  stopped/error turns instead of leaving the GUI transcript spinning forever.
 - Resumed tool results use the expected message roles.
 - Duplicate ingest tag attachments are de-duplicated before insert, avoiding
   `entry_tags(entry_id, tag_id)` uniqueness failures.
@@ -450,11 +412,6 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 ### Added
 
-- Desktop bundles now expose `library`, `library-mcp`, and
-  `library-worker` CLI wrappers backed by the bundled Python runtime:
-  Linux packages install commands under `/usr/bin`, Windows packages include
-  `.cmd` wrappers next to the app, and macOS bundles include wrappers under
-  `Library.app/Contents/MacOS`.
 - `library mcp` now follows CLI backend discovery and exposes structured
   workflow tools for asking Library, upload, download, export, search, and
   metadata reads.
@@ -465,18 +422,10 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
   pipeline, avoiding native rasterization dependencies while preserving
   searchable SVG structure and labels.
 
-### Fixed
-
-- Desktop latest-version checks now allow GitHub release API requests in the
-  packaged app CSP, fixing "Failed to fetch" on the About page.
-
 ## 0.2.5 - 2026-06-18
 
 ### Added
 
-- Desktop Help and About pages, including first-run guidance, settings
-  explanations, project links, privacy notes, and a manual latest-version
-  check.
 - Chinese and English GUI tutorials for non-technical users, linked from both
   README files.
 - Settings-page first-run status that explains missing LLM profile
@@ -488,15 +437,11 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 - Chat now checks required LLM profile configuration before sending a turn and
   surfaces a clearer setup message when model credentials are missing.
-- Linux release builds now include AppImage artifacts, and Linux desktop
-  bundles are built on Ubuntu 22.04 runners for a lower glibc baseline.
 
 ### Fixed
 
 - Ollama OpenAI-compatible profiles now use the legacy `max_tokens` chat
   parameter and avoid unsupported thinking controls during ingest.
-- Linux AppImage bundling now sets `NO_STRIP=true` for linuxdeploy and exposes
-  all bundled backend shared-library directories during dependency scanning.
 
 ## 0.2.4 - 2026-06-11
 
@@ -520,7 +465,7 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 ### Added
 
 - Optional API bearer authentication via `LIBRARY_API_TOKEN`, with CLI and
-  desktop client support for sending the token.
+  GUI client support for sending the token.
 - Auto chat mode now defaults new turns to planner-selected quick/standard/deep
   execution budgets, with visible budget upgrade notices when fresh evidence
   justifies continuing.
@@ -580,8 +525,6 @@ semantic recall, the agent runtime, the CLI/MCP surfaces, and the desktop app.
 
 ### Fixed
 
-- Desktop chat restores the latest quick/deep mode when returning to an active
-  stream or reopening a historical session.
 - Session list and transcript APIs now expose the latest recorded chat mode so
   the UI can replay sessions without silently falling back to deep mode.
 - Final-answer continuation and Quick-mode forced-answer guardrails now ask

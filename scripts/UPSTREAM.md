@@ -14,15 +14,12 @@ Source revision:
 
 | Library path                                          | AstrBot upstream path                                |
 | -------------------------------------------------------- | ---------------------------------------------------- |
-| scripts/cpython/resolve_packaged_cpython_runtime.py      | scripts/cpython/resolve_packaged_cpython_runtime.py  |
 | scripts/prepare-resources.mjs                            | scripts/prepare-resources.mjs                        |
 | scripts/prepare-resources/context.mjs                    | scripts/prepare-resources/context.mjs                |
 | scripts/prepare-resources/backend-runtime.mjs            | scripts/prepare-resources/backend-runtime.mjs        |
 | scripts/prepare-resources/mode-dispatch.mjs              | scripts/prepare-resources/mode-dispatch.mjs          |
 | scripts/prepare-resources/mode-tasks.mjs                 | scripts/prepare-resources/mode-tasks.mjs             |
 | scripts/prepare-resources/version-sync.mjs               | scripts/prepare-resources/version-sync.mjs           |
-| scripts/ci/codesign-macos-nested.sh                      | scripts/ci/codesign-macos-nested.sh                  |
-| scripts/ci/backend-smoke-test.mjs                        | scripts/ci/backend-smoke-test.mjs                    |
 
 The first commit on `feat/python-sidecar` is the verbatim copy. Adaptations
 to Library's pyproject layout, env-var names (`ASTRBOT_*` →

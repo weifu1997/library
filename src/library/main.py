@@ -32,7 +32,7 @@ from library.api.routes_tend import router as tend_router
 from library.api.routes_upload import router as upload_router
 from library.api.routes_user_files import router as user_files_router
 from library.api.routes_webdav_sync import router as webdav_sync_router
-from library.config import LlmConfigError, get_settings, validate_llm_config
+from library.config import get_settings, validate_llm_config
 from library.db.bootstrap import bootstrap_schema
 from library.db.engine import dispose_engine
 from library.db.engine import get_engine
@@ -56,25 +56,14 @@ async def lifespan(app: FastAPI):
     # The in-process runner is owned by worker_lifecycle so the Settings
     # page can start/stop it live; lifespan only decides whether to boot it.
     log.info(
-        "backend startup: home=%s storage_backend=%s worker_enabled=%s desktop=%s",
+        "backend startup: home=%s storage_backend=%s worker_enabled=%s",
         settings.library_home,
         settings.storage_backend,
         settings.worker_enabled,
-        os.environ.get("LIBRARY_DESKTOP") == "1",
     )
     _warn_if_unauthenticated_bind(settings)
-    # Desktop launch: server must come up even when the user hasn't entered
-    # an API key yet, so they can do it from the Settings page. Tasks that
-    # actually need an LLM call still fail at call time. Headless / CLI
-    # launches keep the historical hard-fail.
     try:
-        if os.environ.get("LIBRARY_DESKTOP") == "1":
-            try:
-                validate_llm_config(settings)
-            except LlmConfigError as e:
-                log.warning("desktop launch with incomplete LLM config: %s", e)
-        else:
-            validate_llm_config(settings)
+        validate_llm_config(settings)
         await bootstrap_schema()
         if settings.runtime_schema_bootstrap_enabled:
             log.info("database schema bootstrap complete")
@@ -234,25 +223,15 @@ class StorageBackendMismatchError(RuntimeError):
 
 app = FastAPI(title="Library", lifespan=lifespan)
 
-# Browser-based GUI (desktop/) runs on Vite dev server (5173) or via
-# Tauri (tauri://localhost). Both differ in origin from the API host
-# and need CORS to read responses; the CLI client (httpx ASGITransport
-# or remote-mode httpx) bypasses the browser stack and is unaffected.
+# Browser-based GUI (frontend/) runs on the Vite dev server (5173), which
+# differs in origin from the API host and needs CORS to read responses.
+# The CLI client (httpx ASGITransport or remote-mode httpx) bypasses the
+# browser stack and is unaffected.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "http://localhost:1420",
-        "tauri://localhost",
-        # Tauri 2's webview origin varies by platform: macOS uses
-        # `tauri://localhost`, Windows (WebView2) uses
-        # `http://tauri.localhost`, and the wry runtime occasionally
-        # serves over `https://tauri.localhost` as well. Whitelist all
-        # three so the production webview can read responses regardless
-        # of the host OS.
-        "http://tauri.localhost",
-        "https://tauri.localhost",
     ],
     allow_credentials=False,
     allow_methods=["*"],

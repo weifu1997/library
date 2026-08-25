@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     postgres_prepared_statement_cache_size: int = Field(
         default=100, ge=0, le=10_000,
     )
-    # Local and desktop installs keep the zero-setup bootstrap path. Managed
+    # Local installs keep the zero-setup bootstrap path. Managed
     # deployments can disable startup DDL after applying Alembic migrations,
     # preventing API and worker replicas from racing over schema changes.
     runtime_schema_bootstrap_enabled: bool = True
@@ -304,7 +304,7 @@ class Settings(BaseSettings):
     agent_final_answer_continue_turns: int = 3
     agent_final_answer_max_chars: int = 120_000
     # Hard wall-clock cap for one foreground chat turn. 0 disables the cap.
-    # This is intentionally backend-owned so desktop, web, and CLI clients
+    # This is intentionally backend-owned so web and CLI clients
     # get the same stuck-turn recovery behavior.
     agent_turn_timeout_seconds: float = 1800.0
     agent_cache_slo_min_hit_ratio: float = Field(default=0.95, ge=0.0, le=1.0)
@@ -699,11 +699,11 @@ def _default_home() -> str:
 
 
 def _settings_env_file() -> str:
-    """Prefer project-local `.env`, then the desktop/global home `.env`.
+    """Prefer project-local `.env`, then the home `.env` under LIBRARY_HOME.
 
     Editable installs historically read `.env` from the caller's working
-    directory. Packaged desktop CLI wrappers are commonly launched from any
-    shell directory, so they need the starter `.env` under LIBRARY_HOME.
+    directory. CLI wrappers can be launched from any shell directory, so
+    they need the starter `.env` under LIBRARY_HOME.
     """
     from pathlib import Path
 
