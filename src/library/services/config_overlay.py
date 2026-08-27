@@ -49,6 +49,7 @@ _ALLOWED_FIELDS: frozenset[str] = frozenset({
     "compression_max_ratio",
     "llm_ingest_max_tokens",
     "llm_ingest_concurrency",
+    "worker_enabled",
     "worker_batch_size",
     "bulk_reprocess_page_size",
     "maintenance_daily_token_budget",
@@ -73,24 +74,37 @@ _ALLOWED_FIELDS: frozenset[str] = frozenset({
     "llm_default_supports_tools",
     "llm_default_supports_temperature",
     "llm_default_token_limit_param",
+    # Backup model (failover target) for the default profile
+    "llm_default_backup_provider",
+    "llm_default_backup_api_key",
+    "llm_default_backup_base_url",
+    "llm_default_backup_model",
     # Per-profile overrides
     "llm_chat_provider", "llm_chat_api_key", "llm_chat_base_url", "llm_chat_model",
     "llm_chat_tps", "llm_chat_dialect", "llm_chat_context_window",
     "llm_chat_tokenizer", "llm_chat_supports_vision", "llm_chat_supports_tools",
     "llm_chat_supports_temperature", "llm_chat_token_limit_param",
+    "llm_chat_backup_provider", "llm_chat_backup_api_key",
+    "llm_chat_backup_base_url", "llm_chat_backup_model",
     "llm_reflect_provider", "llm_reflect_api_key", "llm_reflect_base_url", "llm_reflect_model",
     "llm_reflect_tps", "llm_reflect_dialect", "llm_reflect_context_window",
     "llm_reflect_tokenizer", "llm_reflect_supports_vision",
     "llm_reflect_supports_tools", "llm_reflect_supports_temperature",
     "llm_reflect_token_limit_param",
+    "llm_reflect_backup_provider", "llm_reflect_backup_api_key",
+    "llm_reflect_backup_base_url", "llm_reflect_backup_model",
     "llm_ingest_provider", "llm_ingest_api_key", "llm_ingest_base_url", "llm_ingest_model",
     "llm_ingest_tps", "llm_ingest_dialect", "llm_ingest_context_window",
     "llm_ingest_tokenizer", "llm_ingest_supports_vision", "llm_ingest_supports_tools",
     "llm_ingest_supports_temperature", "llm_ingest_token_limit_param",
+    "llm_ingest_backup_provider", "llm_ingest_backup_api_key",
+    "llm_ingest_backup_base_url", "llm_ingest_backup_model",
     "llm_vision_provider", "llm_vision_api_key", "llm_vision_base_url", "llm_vision_model",
     "llm_vision_tps", "llm_vision_dialect", "llm_vision_context_window",
     "llm_vision_tokenizer", "llm_vision_supports_vision", "llm_vision_supports_tools",
     "llm_vision_supports_temperature", "llm_vision_token_limit_param",
+    "llm_vision_backup_provider", "llm_vision_backup_api_key",
+    "llm_vision_backup_base_url", "llm_vision_backup_model",
     # llm_audio_* fields are intentionally NOT in the allowlist: no
     # pipeline consumes the audio profile yet, so accepting writes
     # would just persist dead config that misleads the user when
@@ -396,6 +410,7 @@ def validate_and_normalize(patch: dict[str, Any]) -> dict[str, Any]:
                 continue
         if k in (
             "compression_enabled",
+            "worker_enabled",
             "semantic_recall_enabled",
             "rerank_enabled",
             "relation_background_vetting_enabled",

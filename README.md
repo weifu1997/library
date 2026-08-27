@@ -12,13 +12,10 @@ knowledge bases. It keeps your files in a normal folder tree, builds useful
 library metadata around them, and makes the agent read the relevant original
 file windows before it writes a cited answer.
 
-[Download desktop app](https://github.com/weifu1997/library/releases) ·
 [GUI setup guide](docs/GUI_TUTORIAL.md) · [CLI quickstart](#cli-quickstart) · [Usage guide](USAGE.md) ·
 [Design notes](DESIGN.md)
 
 ![Library promotional hero](docs/images/library-promo-en.png)
-
-![Library desktop app screenshot](docs/images/desktop-screenshot-en.jpg)
 
 ## Why Use It
 
@@ -45,39 +42,21 @@ file windows before it writes a cited answer.
 
 ## Try It
 
-### Desktop App
+### Web GUI
 
-Download the latest desktop package from
-[GitHub Releases](https://github.com/weifu1997/library/releases):
+The browser GUI lives in `frontend/`. In development, start the backend
+first, then the Vite dev server:
 
-- **Windows**: x64/arm64 installer and portable zip.
-- **macOS**: Intel and Apple Silicon DMGs.
-- **Linux**: x64/arm64 `.deb` and `.rpm`.
+```bash
+library serve            # backend (task runner runs in-process by default)
+cd frontend
+npm install
+npm run dev              # open http://localhost:5173
+```
 
-The desktop builds bundle their own Python runtime. They are currently unsigned,
-so Windows SmartScreen or macOS Gatekeeper may ask you to confirm the first
-launch.
-
-Desktop bundles also include CLI wrappers backed by the bundled Python
-runtime. They share the same `LIBRARY_HOME` as the desktop app, so the CLI,
-MCP server, reusable backend, and worker work without installing a separate
-system Python package.
-
-- **Linux `.deb` / `.rpm`**: installs `library`, `library-mcp`, and
-  `library-worker` under `/usr/bin`.
-- **Windows installer / portable zip**: includes `library.cmd`,
-  `library-mcp.cmd`, and `library-worker.cmd` next to
-  `Library.exe`. Use full paths in MCP clients or add the install folder to
-  `PATH`.
-- **macOS DMG**: includes wrappers inside the app bundle:
-  `/Applications/Library.app/Contents/MacOS/library`,
-  `library-mcp`, and `library-worker`.
-
-- **Windows**: click **More info** -> **Run anyway** if SmartScreen blocks the
-  first launch.
-- **macOS**: after dragging the app to `/Applications`, run
-  `xattr -dr com.apple.quarantine /Applications/Library.app` if Gatekeeper
-  reports that the app is damaged or cannot be verified.
+Point the GUI at a remote backend by setting the API base URL in the
+Settings page, or keep the default (Vite proxies `/v1` and `/health` to
+`http://127.0.0.1:8000`).
 
 ### CLI Quickstart
 
@@ -125,7 +104,7 @@ The first launch bootstraps the database schema automatically. Managed
 deployments can instead run `library-db-prepare` before rollout and set
 `RUNTIME_SCHEMA_BOOTSTRAP_ENABLED=false` for both API and worker replicas.
 
-To share one backend across the desktop app, CLI sessions, MCP, skill-driven
+To share one backend across the web GUI, CLI sessions, MCP, skill-driven
 automation, or external HTTP clients, start the reusable HTTP backend instead:
 
 ```bash
@@ -134,7 +113,7 @@ library serve
 
 `library serve` reads `LIBRARY_API_HOST` and `LIBRARY_API_PORT` from
 `.env` and writes its live URL to `LIBRARY_HOME/runtime/server.json`.
-Desktop and CLI clients auto-discover that file; skills inherit this when they
+The web GUI and CLI clients auto-discover that file; skills inherit this when they
 drive the `library` CLI. Explicit `--server URL` or `LIBRARY_SERVER`
 still take precedence.
 
@@ -402,7 +381,7 @@ GET  /live
 GET  /ready
 ```
 
-The desktop GUI and CLI both use the same API.
+The web GUI and CLI both use the same API.
 
 `POST /v1/chat/{session_id}` accepts `{ "query": "...", "mode": "deep" }`
 or `{ "query": "...", "mode": "quick" }`. Omit `mode` for the default `auto`
@@ -491,7 +470,7 @@ if you want the periodic worker to batch-vet relation edges ahead of time.
 When a long final answer hits the model token limit, Library can continue it server-side and emit one merged answer event to the GUI. Tune `AGENT_FINAL_ANSWER_CONTINUE_TURNS` and `AGENT_FINAL_ANSWER_MAX_CHARS` for research-heavy deployments.
 
 Chat events are committed to a per-conversation ledger before delivery. SSE
-frames carry monotonic `id` cursors; desktop and CLI clients reconnect from
+frames carry monotonic `id` cursors; the web GUI and CLI clients reconnect from
 the last cursor, and `GET /v1/conversations/{id}/events` also accepts
 `Last-Event-ID`. Disconnecting a viewer does not cancel the turn. Explicit
 cancel requests stop the background task and persist a terminal error event.
@@ -523,7 +502,7 @@ windows. Transaction-pooled PostgreSQL proxies should set
 `POSTGRES_PREPARED_STATEMENT_CACHE_SIZE=0`; asyncpg then uses unique prepared
 statement names. `/live` checks only the process, while `/ready` concurrently
 checks database and storage with `READINESS_TIMEOUT_SECONDS` and returns 503
-when either dependency is unavailable. Local and desktop installs leave
+when either dependency is unavailable. Local installs leave
 `RUNTIME_SCHEMA_BOOTSTRAP_ENABLED=true`; managed deployments can run
 `library-db-prepare` once and set it to false so API and worker replicas do
 not run startup DDL concurrently.
@@ -560,21 +539,6 @@ library --server http://server:8000
 # If the server sets LIBRARY_API_TOKEN:
 library --server http://server:8000 --api-token "$LIBRARY_API_TOKEN"
 ```
-
-Docker compose starts API, worker, Postgres, and MinIO:
-
-```bash
-echo "LLM_DEFAULT_API_KEY=sk-..." > .env
-docker compose up -d
-```
-
-Compose runs the one-shot database preparation service first, then starts API
-and worker with runtime schema bootstrap disabled.
-
-The compose file binds the API and MinIO console to `127.0.0.1` by default.
-If you deliberately expose the API on a LAN, set `LIBRARY_API_TOKEN` and
-send `Authorization: Bearer <token>` from the CLI or desktop connection
-settings.
 
 ### Multi-device sync
 

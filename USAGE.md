@@ -77,7 +77,7 @@ LLM_VISION_MODEL=            # images, PDF figures, scanned-PDF OCR
 
 Unset profile fields inherit from `LLM_DEFAULT_*`. `chat`, `reflect`, and `ingest` must resolve to an API key. `vision` is optional.
 
-The desktop Settings page can write LLM overrides to `config_overlay.json`; those values take precedence over `.env` LLM fields.
+The Settings page in the GUI can write LLM overrides to `config_overlay.json`; those values take precedence over `.env` LLM fields.
 
 Long research answers are continued server-side if the final answer hits the
 model token limit. The GUI receives one merged `answer` event.
@@ -138,12 +138,12 @@ The investigator will plan, call `recall_knowledge` for broad material
 location, inspect candidate metadata, read original file slices, and answer
 with footnotes.
 
-The desktop chat composer has a per-turn **Quick / Deep** switch. Quick keeps
+The GUI chat composer has a per-turn **Quick / Deep** switch. Quick keeps
 the plan phase but caps execute to at most two evidence-gathering passes
 followed by a forced answer on the third execute call, which is useful for
 lookup-style questions. Deep is the default full investigation loop.
 
-If a network connection drops, desktop and CLI clients resume the same turn
+If a network connection drops, the GUI and CLI clients resume the same turn
 from the last durable SSE cursor; the background investigation keeps running.
 Stopping a turn is explicit and records a terminal event, so reopening the
 conversation never leaves an ambiguous spinner.

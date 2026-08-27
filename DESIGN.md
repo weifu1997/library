@@ -660,7 +660,7 @@ library CLI
 Remote:
 
 ```text
-CLI or desktop
+CLI or web GUI
   -> FastAPI server
   -> TaskRunner
   -> Postgres + S3 or shared storage
@@ -669,8 +669,6 @@ CLI or desktop
 Remote API deployments can set `LIBRARY_API_TOKEN`; when present, all
 routes except `/health`, `/live`, `/ready`, and CORS preflight require
 `Authorization: Bearer`.
-Docker compose starts API, worker, Postgres, and MinIO, and binds published
-ports to `127.0.0.1` by default.
 
 Foreground chat runs independently from the attached HTTP stream. Every public
 event is stored with a monotonic per-conversation cursor before SSE delivery;
@@ -692,35 +690,7 @@ Runtime schema bootstrap remains enabled for zero-setup local installs. A
 managed rollout applies Alembic first and disables it on API and worker
 replicas, preventing concurrent startup DDL.
 
-## 13. Release Pipeline
-
-Desktop and Docker releases are standard CI outputs. Desktop builds run in
-parallel, upload workflow artifacts, and a single publish job mutates the
-GitHub Release:
-
-```text
-desktop matrix
-  -> windows-x64
-  -> windows-arm64
-  -> macos-arm64
-  -> linux-x64
-  -> linux-arm64
-  -> upload workflow artifacts
-
-docker
-  -> build and push multi-arch ghcr.io image
-
-publish-release
-  -> download all desktop artifacts
-  -> verify the expected 9 assets
-  -> create/update the GitHub Release once
-  -> verify release assets
-```
-
-This avoids draft-release races from multiple matrix jobs uploading to the
-same Release while preserving parallel build time.
-
-## 14. Non-goals
+## 13. Non-goals
 
 Current system behavior intentionally excludes:
 

@@ -15,6 +15,7 @@ from library.config import (
     get_settings,
     has_audio_profile,
     has_vision_profile,
+    resolve_backup,
     resolve_profile,
 )
 from library.llm.anthropic_adapter import AnthropicChatClient
@@ -182,7 +183,8 @@ class _UsageRecordingChatClient:
         raise last_exc
 
 
-def _build_chat(profile: LlmProfile) -> ChatClient:
+def _build_single(profile: LlmProfile) -> ChatClient:
+    """Build one retry-wrapped adapter for a resolved profile (no failover)."""
     if profile.provider in ("openai", "openai-compatible"):
         inner: ChatClient = OpenAIChatClient(profile)
     elif profile.provider == "anthropic":
@@ -194,6 +196,63 @@ def _build_chat(profile: LlmProfile) -> ChatClient:
         profile=profile,
         disable_thinking_by_default=should_disable_thinking_by_default(profile),
     )
+
+
+class _FailoverChatClient:
+    """Delegating wrapper that fails over to a backup client ONCE when the
+    primary exhausts its transient-retry budget (rate limit / timeout / 5xx /
+    overload). Non-transient errors and ``retry=False`` calls (the settings
+    probe) never fail over.
+
+    Protocol attributes (profile_name / provider / model / capabilities) are
+    delegated to the primary so call sites keep reading the primary's
+    identity — e.g. the agent runtime's vision-capability probe
+    (agent/runtime.py) and the settings connection probe, which must keep
+    reporting the primary model."""
+
+    def __init__(self, primary: ChatClient, backup: ChatClient | None) -> None:
+        self._primary = primary
+        self._backup = backup
+        self.profile_name = primary.profile_name
+        self.provider = primary.provider
+        self.model = primary.model
+        self.capabilities = getattr(primary, "capabilities", None)
+
+    async def complete(self, request: ChatRequest, *, retry: bool = True) -> ChatResponse:
+        try:
+            return await self._primary.complete(request, retry=retry)
+        except Exception as exc:
+            if not retry or self._backup is None or not _is_transient_error(exc):
+                raise
+            log.warning(
+                "primary profile %s exhausted retries on a transient error (%s); "
+                "failing over to backup %s",
+                self.profile_name,
+                exc,
+                self._backup.model,
+            )
+            # One attempt on the backup — the primary already consumed the
+            # retry budget, so don't double it.
+            return await self._backup.complete(request, retry=False)
+
+
+def _build_chat(profile: LlmProfile, backup: LlmProfile | None = None) -> ChatClient:
+    """Build a chat client for the resolved profile, optionally wrapped for
+    failover to a backup profile. A broken backup config (e.g. a provider
+    typo) only disables failover — it never breaks the primary client."""
+    primary = _build_single(profile)
+    if backup is None:
+        return primary
+    try:
+        backup_wrapped = _build_single(backup)
+    except Exception:
+        log.warning(
+            "failed to build backup client for profile %s; failover disabled",
+            profile.name,
+            exc_info=True,
+        )
+        return primary
+    return _FailoverChatClient(primary, backup_wrapped)
 
 
 @lru_cache(maxsize=8)
@@ -221,7 +280,8 @@ def get_chat_client(profile: str = "ingest") -> ChatClient:
             "(or guard the call with has_vision_profile())"
         )
     p = resolve_profile(settings, profile)
-    return _build_chat(p)
+    backup = resolve_backup(settings, profile)
+    return _build_chat(p, backup=backup)
 
 
 @lru_cache(maxsize=2)

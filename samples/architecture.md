@@ -11,7 +11,7 @@ source windows, follow related evidence, and produce a cited report.
 ## 1. System Shape
 
 ```text
-CLI / desktop / HTTP client
+CLI / web GUI / HTTP client
         |
         v
 FastAPI app (`library.main`)
@@ -375,35 +375,7 @@ Postgres + S3 + API server + worker
 
 SQLite is appropriate for one writer process. Use Postgres when multiple processes or machines can write.
 
-## 11. Release Pipeline
-
-The release workflow builds desktop artifacts in parallel, but only one job
-mutates the GitHub Release:
-
-```text
-desktop matrix
-  -> windows-x64
-  -> windows-arm64
-  -> macos-x64
-  -> macos-arm64
-  -> linux-x64
-  -> linux-arm64
-  -> upload workflow artifacts
-
-docker
-  -> build and push multi-arch ghcr.io image
-
-publish-release
-  -> download all desktop artifacts
-  -> verify the expected 12 assets
-  -> create/update the GitHub Release once
-  -> verify release assets
-```
-
-This avoids the draft-release race that can happen when multiple matrix jobs
-directly upload to the same Release, while preserving parallel build time.
-
-## 12. Design Boundaries
+## 11. Design Boundaries
 
 Library is not a vector search engine, a chat memory database, or a document summarizer that treats summaries as final evidence.
 

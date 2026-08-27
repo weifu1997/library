@@ -303,11 +303,18 @@ def _restore_module_test_state(module: Any) -> None:
     from library.config import get_settings
     from library.db.engine import dispose_engine
     from library.llm.factory import reset_clients_cache
+    from library.services import worker_lifecycle
     from library.storage import reset_storage_cache
 
     get_settings.cache_clear()  # type: ignore[attr-defined]
     reset_clients_cache()
     reset_storage_cache()
+    # worker_lifecycle is a process-wide singleton; a running runner (real
+    # TaskRunner, or a fake left behind by a unit test) must be stopped and
+    # the module globals cleared, or the next module sees is_running()==True
+    # and web-toggle baselines fail. reset() also clears the lock so one
+    # bound to a previous event loop can't leak across tests either.
+    asyncio.run(worker_lifecycle.reset())
     asyncio.run(dispose_engine())
 
 

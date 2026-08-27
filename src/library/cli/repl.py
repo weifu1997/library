@@ -541,7 +541,7 @@ def main() -> int:
     parser.add_argument(
         "--server", default=None,
         help="Server URL for remote mode. If omitted, discovers a local "
-             "library serve/desktop backend, then falls back to in-process "
+             "library serve backend, then falls back to in-process "
              "mode (reads LIBRARY_SERVER env first).",
     )
     parser.add_argument(

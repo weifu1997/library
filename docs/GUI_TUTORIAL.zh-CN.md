@@ -1,4 +1,4 @@
-# Library 桌面 GUI 使用教程
+# Library Web GUI 使用教程
 
 这份教程面向没有编程经验的非技术用户。目标是：安装后知道先配置什么、每个设置项是什么意思、哪些保持默认即可、什么时候才需要本地模型、嵌入模型和重排模型。
 
@@ -128,8 +128,8 @@ Ollama 可以执行 ingest，但前提是模型上下文能容纳当前文件分
 
 | 设置项 | 含义 | 推荐值 |
 | --- | --- | --- |
-| API base URL | GUI 请求后端 API 的地址。 | 打包版桌面应用留空；浏览器开发模式通常也留空；连接远程服务器时填 `http://host:8000`。 |
-| API bearer token | 如果后端设置了 `LIBRARY_API_TOKEN`，这里填写对应 token。 | 单机桌面版留空。 |
+| API base URL | GUI 请求后端 API 的地址。 | 本地后端留空（Vite 会把 /v1 代理到 127.0.0.1:8000）；连接远程服务器时填 `http://host:8000`。 |
+| API bearer token | 如果后端设置了 `LIBRARY_API_TOKEN`，这里填写对应 token。 | 单机本地使用留空。 |
 
 只有在“前端和后端分开跑”或“连接另一台服务器”时，才需要改这里。API base URL
 必须是 **Library 后端**地址，不能填写 Ollama 或 LM Studio 模型服务地址；
@@ -148,7 +148,7 @@ Ollama 可以执行 ingest，但前提是模型上下文能容纳当前文件分
 | Concurrent ingest tasks | 后台同时分析多少个文件任务。 | 普通电脑 `3-5`；本地模型 `1-2`；稳定云 API 可用 `10`。 |
 | Ingest LLM concurrency | 长文档分块、扫描 PDF OCR 等过程中，同时发起多少个模型请求。 | 本地模型 `1`；普通云 API `2-5`；高限额云 API 可用 `10`。 |
 | Status refresh | 底部状态栏刷新频率。 | 默认 `4 s`。电脑慢或远程服务器可改 `10 s`。 |
-| Compact sidebar | 左侧导航是否只显示图标。 | 桌面大屏关闭，小屏打开。 |
+| Compact sidebar | 左侧导航是否只显示图标。 | 大屏关闭，小屏打开。 |
 
 ### Retrieval：检索
 
@@ -190,9 +190,9 @@ Ollama 可以执行 ingest，但前提是模型上下文能容纳当前文件分
 
 | 项目 | 含义 | 推荐 |
 | --- | --- | --- |
-| App env | 当前运行环境。 | 桌面使用无需修改。 |
+| App env | 当前运行环境。 | 本地使用无需修改。 |
 | Home | Library 数据根目录，包含数据库、资料库、日志、配置覆盖文件。 | 默认 `%USERPROFILE%\LibraryData`。 |
-| DB | 数据库类型。 | 单机桌面版用 `sqlite`。 |
+| DB | 数据库类型。 | 本地/单机使用 `sqlite`。 |
 | Storage | 文件存储方式。 | `mirror`，文件夹结构更直观，方便备份。 |
 | Worker | 后台任务是否启用。 | 启用。 |
 | Auto lifecycle | 是否自动把文件降级/归档。 | 个人或小型资料库建议关闭，手动管理。 |
@@ -230,7 +230,7 @@ Ollama 可以执行 ingest，但前提是模型上下文能容纳当前文件分
 
 ### 1. 后端是否启动
 
-打包版桌面应用会自动启动后端。开发模式下需要手动启动。
+后端需要用 `library serve` 手动启动，然后再在浏览器里打开 GUI。
 
 在 PowerShell 中执行：
 
@@ -282,20 +282,15 @@ Invoke-RestMethod http://127.0.0.1:1234/v1/models
 
 说明 `8000` 端口已被占用。可以换 `8001`：
 
-```powershell
-cd "D:\AI Platform\library"
-$env:PYTHONPATH="src"
-$env:LIBRARY_DESKTOP="1"
-$env:LIBRARY_API_PORT="8001"
-& ".\.venv\Scripts\python.exe" -m library
+```bash
+library serve --port 8001
 ```
 
 前端开发模式也要指向同一个端口：
 
-```powershell
-cd "D:\AI Platform\library\desktop"
-$env:VITE_API_TARGET="http://127.0.0.1:8001"
-npm run dev
+```bash
+cd frontend
+VITE_API_TARGET="http://127.0.0.1:8001" npm run dev
 ```
 
 查看谁占用了 `8000`：
@@ -315,68 +310,38 @@ Stop-Process -Id <PID> -Force
 
 不要在 `src\library` 里执行 `python .\main.py`。这个文件只是 FastAPI 应用定义，不会自己启动服务器。
 
-正确后端启动方式：
+在仓库根目录用 `library serve` 启动后端：
 
-```powershell
-cd "D:\AI Platform\library"
-$env:PYTHONPATH="src"
-$env:LIBRARY_DESKTOP="1"
-& ".\.venv\Scripts\python.exe" -m library
+```bash
+library serve
 ```
 
-如果 `8000` 被占用：
+如果 `8000` 被占用，可以换端口：
 
-```powershell
-cd "D:\AI Platform\library"
-$env:PYTHONPATH="src"
-$env:LIBRARY_DESKTOP="1"
-$env:LIBRARY_API_PORT="8001"
-& ".\.venv\Scripts\python.exe" -m library
+```bash
+library serve --port 8001
 ```
 
-前端开发界面：
+启动前端（Vite 开发服务器）：
 
-```powershell
-cd "D:\AI Platform\library\desktop"
+```bash
+cd frontend
+npm install
 npm run dev
 ```
 
-如果后端用了 `8001`：
+如果后端用了 `8001`，让 Vite 指向同一个端口：
 
-```powershell
-cd "D:\AI Platform\library\desktop"
-$env:VITE_API_TARGET="http://127.0.0.1:8001"
-npm run dev
+```bash
+cd frontend
+VITE_API_TARGET="http://127.0.0.1:8001" npm run dev
 ```
 
-浏览器打开：
+在浏览器打开 GUI：
 
 ```text
 http://localhost:5173
 ```
-
-## 本地打包测试命令
-
-在仓库根目录执行：
-
-```powershell
-cd "D:\AI Platform\library"
-node scripts\prepare-backend.mjs
-cd desktop
-npm run tauri:build
-cd ..
-node scripts\package-windows-portable.mjs
-```
-
-常见输出位置：
-
-```text
-desktop\src-tauri\target\release\library-tauri.exe
-desktop\src-tauri\target\release\bundle\
-desktop\src-tauri\target\release\bundle\nsis\library-v0.2.6-windows-x64-portable.zip
-```
-
-打包版启动后会自动拉起后端，不需要你手动运行 `python -m library`。
 
 ## 数据、配置和日志在哪里
 
@@ -394,7 +359,7 @@ desktop\src-tauri\target\release\bundle\nsis\library-v0.2.6-windows-x64-portable
 | `library\` | 默认 mirror 存储下的资料库文件。 |
 | `objects\` | local 存储模式下的对象文件。 |
 | `config_overlay.json` | GUI 保存的设置覆盖项。 |
-| `logs\backend.log` | 打包版后端日志。 |
+| `logs\backend.log` | 后端日志。 |
 | `semantic-index\` | 语义索引文件。 |
 
 不要在程序运行时用 OneDrive、Dropbox、Syncthing、iCloud Drive 等同步整个 `LIBRARY_HOME`。SQLite 数据库在并发同步下可能损坏。需要备份时，先退出程序，再复制整个目录。

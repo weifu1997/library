@@ -126,7 +126,7 @@ async def file_entry_path(
 ) -> dict[str, Any]:
     """Folder ancestor chain (root → leaf) for an entry.
 
-    The desktop GUI calls this when the user clicks a search hit or a
+    The GUI calls this when the user clicks a search hit or a
     chat citation, so the Library tree can expand each ancestor in
     order before selecting the file. Returns 404 if the entry is
     soft-deleted or unknown.

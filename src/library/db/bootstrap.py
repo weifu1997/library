@@ -563,7 +563,7 @@ def _recover_interrupted_rebuild(bind, name: str) -> None:
     ``ALTER TABLE x RENAME TO _x_old; CREATE TABLE x; INSERT INTO x SELECT …
     FROM _x_old; DROP TABLE _x_old``. Under pysqlite's default driver the
     RENAME/CREATE autocommit while the INSERT/DROP run in a later transaction,
-    so a crash (or the desktop app being killed) in that window leaves an
+    so a crash (or the process being killed) in that window leaves an
     EMPTY live table plus a fully-populated ``_x_old`` — and the shim's
     constraint guard then no-ops because the freshly-created table already
     carries the new CHECK, permanently stranding every row in ``_x_old``.

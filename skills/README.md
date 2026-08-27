@@ -47,13 +47,12 @@ uses this order:
 
 1. explicit `--server URL`
 2. `LIBRARY_SERVER`
-3. `LIBRARY_HOME/runtime/server.json` written by `library serve` or the
-   desktop sidecar, after a `/health` check
+3. `LIBRARY_HOME/runtime/server.json` written by `library serve`, after a
+   `/health` check
 4. embedded in-process backend if nothing is running
 
-Do not hard-code the desktop port in a skill. Packaged desktop builds may use
-`.env` to pin `LIBRARY_API_PORT`, but runtime state still comes from
-`runtime/server.json`.
+Do not hard-code the port in a skill. `.env` can pin `LIBRARY_API_PORT`, but
+runtime state still comes from `runtime/server.json`.
 
 The MCP server follows the same order. If no running backend is discovered, it
 starts an embedded backend in the MCP process, matching the CLI fallback.

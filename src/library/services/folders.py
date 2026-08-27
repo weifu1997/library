@@ -69,8 +69,8 @@ def split_remote_path(
          - if `display_name_override` given -> folders = ALL parts, display_name = override
          - else                              -> AmbiguousRemotePathError
 
-    The third rule resolves git-style ambiguity (LICENSE, Dockerfile, .env in
-    the middle of a path): the client must EITHER mark the path as a folder
+    The third rule resolves git-style ambiguity (LICENSE, package.json, .env
+    in the middle of a path): the client must EITHER mark the path as a folder
     with a trailing slash, OR pass an explicit display_name parameter.
 
     Examples:

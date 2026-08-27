@@ -11,13 +11,10 @@ Library 是本地优先的个人研究 agent。它把杂乱的私有文件整理
 检索、可追溯的知识库:文件仍然放在普通文件夹里,AI 负责编目、打标签、
 建立关联;你提问时,agent 会先找材料,再读原文片段,最后给出带引用的回答。
 
-[下载桌面应用](https://github.com/weifu1997/library/releases) ·
 [GUI 教程](docs/GUI_TUTORIAL.zh-CN.md) · [CLI 快速开始](#cli-快速开始) · [使用手册](USAGE.zh-CN.md) ·
 [设计文档](DESIGN.md)
 
 ![Library 宣传图](docs/images/library-promo.png)
-
-![Library 桌面应用截图](docs/images/desktop-screenshot-zh-CN.jpg)
 
 ## 适合谁
 
@@ -37,34 +34,19 @@ Library 是本地优先的个人研究 agent。它把杂乱的私有文件整理
 
 ## 立即试用
 
-### 桌面应用
+### Web GUI
 
-[Releases 页面](https://github.com/weifu1997/library/releases) 提供桌面包:
+浏览器 GUI 位于 `frontend/`。开发模式下先启动后端，再启动 Vite 开发服务器:
 
-- **Windows**: x64/arm64 安装包和 portable zip。
-- **macOS**: Intel 和 Apple Silicon DMG。
-- **Linux**: x64/arm64 `.deb` 和 `.rpm`。
+```bash
+library serve            # 后端(任务 runner 默认内置在进程中运行)
+cd frontend
+npm install
+npm run dev              # 打开 http://localhost:5173
+```
 
-每个包都内置 Python 运行时,无需系统 Python。当前二进制还没有代码签名,
-所以 Windows SmartScreen 或 macOS Gatekeeper 第一次打开时可能会要求手动
-确认。
-
-桌面包也会带 CLI wrapper,它们使用包内置的 Python runtime,并和桌面端共用
-同一个 `LIBRARY_HOME`。因此无需另装系统 Python 包,就可以使用 CLI、MCP
-server、可复用后端和 worker。
-
-- **Linux `.deb` / `.rpm`**: 在 `/usr/bin` 安装 `library`、
-  `library-mcp` 和 `library-worker`。
-- **Windows 安装包 / portable zip**: 在 `Library.exe` 旁边提供
-  `library.cmd`、`library-mcp.cmd` 和 `library-worker.cmd`。MCP
-  客户端里可以写完整路径,或者手动把安装目录加到 `PATH`。
-- **macOS DMG**: wrapper 位于 app bundle 内:
-  `/Applications/Library.app/Contents/MacOS/library`,
-  `library-mcp` 和 `library-worker`。
-
-- **Windows**: 如果 SmartScreen 拦截,点 **更多信息** -> **仍要运行**。
-- **macOS**: 把 App 拖到 `/Applications` 后,如果提示 App 已损坏或无法验证,
-  运行 `xattr -dr com.apple.quarantine /Applications/Library.app`。
+如需连接远程后端，可在 Settings 页设置 API base URL；默认配置下 Vite 会把
+`/v1` 和 `/health` 代理到 `http://127.0.0.1:8000`。
 
 ### CLI 快速开始
 
@@ -109,7 +91,7 @@ library> 比较一下 raft 和 paxos
 托管部署可在发布前执行 `library-db-prepare`，然后为 API 和 worker 都设置
 `RUNTIME_SCHEMA_BOOTSTRAP_ENABLED=false`，避免副本启动时并发执行 DDL。
 
-如果希望桌面端、CLI、MCP、通过 skill 驱动的自动化或外部 HTTP 客户端共用
+如果希望 Web GUI、CLI、MCP、通过 skill 驱动的自动化或外部 HTTP 客户端共用
 同一个后端,启动可复用的 HTTP 后端:
 
 ```bash
@@ -118,7 +100,7 @@ library serve
 
 `library serve` 会读取 `.env` 里的 `LIBRARY_API_HOST` 和
 `LIBRARY_API_PORT`,并把当前实际 URL 写到
-`LIBRARY_HOME/runtime/server.json`。桌面端和 CLI 会自动发现这个文件;
+`LIBRARY_HOME/runtime/server.json`。Web GUI 和 CLI 会自动发现这个文件;
 skill 只要调用 `library` CLI,也会继承这套发现逻辑。显式传入
 `--server URL` 或设置 `LIBRARY_SERVER` 时仍然优先使用显式配置。
 
@@ -474,7 +456,7 @@ GUI 仍然只收到一个合并后的 `answer` 事件。可用
 `AGENT_FINAL_ANSWER_CONTINUE_TURNS` 和 `AGENT_FINAL_ANSWER_MAX_CHARS`
 调节续写轮数与最终答案字符上限。
 
-每个对话事件会先写入持久事件表再交付。SSE 使用单调 `id` 游标，桌面端与 CLI
+每个对话事件会先写入持久事件表再交付。SSE 使用单调 `id` 游标，Web GUI 与 CLI
 会从最后游标自动续播；`GET /v1/conversations/{id}/events` 也支持
 `Last-Event-ID`。断开查看连接不会取消后台 turn，只有显式 cancel 才会终止并
 持久化终态错误事件。
@@ -501,7 +483,7 @@ pending/running 任务不会进入清理范围。
 pooling 代理时应设置 `POSTGRES_PREPARED_STATEMENT_CACHE_SIZE=0`，此时 asyncpg
 使用唯一 prepared statement 名称。`/live` 只检查进程，`/ready` 会并发检查
 数据库和存储，任一依赖超时或失败即返回 503。
-本地与桌面安装保持 `RUNTIME_SCHEMA_BOOTSTRAP_ENABLED=true` 即可；托管部署可先
+本地安装保持 `RUNTIME_SCHEMA_BOOTSTRAP_ENABLED=true` 即可；托管部署可先
 统一执行 `library-db-prepare`，再设为 false，使 API/worker 副本启动不碰 DDL。
 
 有意不支持的服务运行时能力仅限于必须更换数据模型的部分：组织/用户与
@@ -540,25 +522,6 @@ library --server http://server.lan:8000 --api-token "$LIBRARY_API_TOKEN"
 # 或写入持久配置: LIBRARY_SERVER=http://server.lan:8000 -> ~/.library/.env
 ```
 
-### Docker
-
-`docker-compose.yml` 启动 api + worker + Postgres + MinIO:
-
-```bash
-echo "LLM_DEFAULT_API_KEY=sk-..." > .env
-docker compose up -d
-library --server http://localhost:8000
-```
-
-Compose 会先运行一次性 `library-db-prepare`，成功后才启动不执行 DDL 的
-API/worker；另一个一次性 init 容器创建 MinIO bucket。卷
-(`pgdata` / `miniodata` / `margdata`)
-跨重启持久化。
-
-Compose 默认只把 API 和 MinIO 控制台绑定到 `127.0.0.1`。如果要主动暴露到
-局域网,请设置 `LIBRARY_API_TOKEN`,并在 CLI 或桌面连接设置中发送
-`Authorization: Bearer <token>`。
-
 ### 多设备同步
 
 不要用 Dropbox、Syncthing、iCloud Drive、OneDrive 等文件同步工具同步正在
@@ -567,7 +530,7 @@ Compose 默认只把 API 和 MinIO 控制台绑定到 `127.0.0.1`。如果要主
 
 ### WebDAV 知识库快照
 
-v0.3.0 起桌面端支持 WebDAV knowledge-pack 同步。它不会同步运行中的
+v0.3.0 起 Library 支持 WebDAV knowledge-pack 同步。它不会同步运行中的
 SQLite、cache、runtime 或任务队列，而是把当前知识库导出成可验证快照:
 
 ```text

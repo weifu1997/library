@@ -1,6 +1,6 @@
 """GET /v1/file-entries/{id}/path — folder ancestor chain.
 
-The desktop GUI uses this to expand the Library tree when arriving
+The GUI uses this to expand the Library tree when arriving
 from a search hit or chat citation: it asks for the chain of folder
 ids root → leaf, opens each one, and finally selects the file.
 

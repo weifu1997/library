@@ -32,8 +32,8 @@ LIBRARY_HOME={home}
 
 DB_BACKEND=sqlite
 
-# HTTP backend bind settings. `library serve`, the desktop app, and
-# auto-discovery all use these values when they are present.
+# HTTP backend bind settings. `library serve` and auto-discovery all use
+# these values when they are present.
 LIBRARY_API_HOST=127.0.0.1
 LIBRARY_API_PORT=8000
 
@@ -42,10 +42,10 @@ LIBRARY_API_PORT=8000
 # s3     = remote object storage; configure S3_* below
 STORAGE_BACKEND=mirror
 
-# Set WORKER_ENABLED=true for development mode (TaskRunner runs in the
-# uvicorn process). Production: keep this false and run `library-worker`
-# as a separate process.
-WORKER_ENABLED=false
+# The task runner runs inside the uvicorn process by default, so `library
+# serve` alone processes uploads/analysis. Only flip this to false when you
+# run `library-worker` as a separate process (split deployment).
+WORKER_ENABLED=true
 
 # Automatic active -> demoted -> archived lifecycle transitions. Personal
 # knowledge bases usually want manual lifecycle control; shared/team
@@ -138,7 +138,9 @@ def render_report(cwd: Path, artifacts: list[_Artifact]) -> str:
     lines.append("Next steps:")
     lines.append("  1. Edit .env and set LLM_DEFAULT_API_KEY (or per-profile keys).")
     lines.append("  2. Start the backend:        library serve")
-    lines.append("  3. (Production) start the worker:  library-worker")
+    lines.append("     (the task runner runs in-process by default)")
+    lines.append("  3. Split deployments only:  run `library-worker` as a daemon")
+    lines.append("     and set WORKER_ENABLED=false in .env")
     lines.append("  4. Open the CLI:             library")
     lines.append("")
     return "\n".join(lines)

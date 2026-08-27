@@ -42,7 +42,11 @@ _MIMO_THINKING_MODELS = frozenset({
 
 
 def should_disable_thinking_by_default(profile: LlmProfile) -> bool:
-    if profile.name != "ingest":
+    # A backup client carries the name "<profile>.backup" (see resolve_backup);
+    # it must inherit the primary profile's thinking policy — an ingest backup
+    # that emitted reasoning blocks would break the strict-JSON parse.
+    name = profile.name.removesuffix(".backup")
+    if name != "ingest":
         return False
     if profile.provider == "anthropic":
         return True

@@ -62,7 +62,6 @@ dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "fpdf2>=2.8",
-    "moto[s3]>=5.0",
     "ruff>=0.8",
 ]
 
@@ -80,8 +79,7 @@ packages = ["src/library"]
 exclude = [
     "/.venv",
     "/.pytest_cache",
-    "/desktop/node_modules",
-    "/desktop/src-tauri/target",
+    "/frontend/node_modules",
     "/dist",
     "/runtime",
     "/tests/_*_e2e_data",
@@ -101,8 +99,7 @@ exclude = [
     ".venv",
     ".codex-pycache",
     ".codex-run",
-    "desktop/node_modules",
-    "desktop/src-tauri/target",
+    "frontend/node_modules",
     "dist",
     "runtime",
     "tests/_*_e2e_data",

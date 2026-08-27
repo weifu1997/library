@@ -412,24 +412,6 @@ library --server http://A.lan:8000
 或在 B 机的 `~/.library/.env` 里写 `LIBRARY_SERVER=http://A.lan:8000`,
 之后直接 `library` 即可。
 
-### Docker compose 一键起栈
-
-```bash
-echo "LLM_DEFAULT_API_KEY=sk-..." > .env
-docker compose up -d
-```
-
-会启动 api + worker + Postgres + MinIO。`alembic upgrade head` 在 api
-启动时自动跑,MinIO bucket 由一次性 init 容器创建。
-
-Compose 默认只把 API 和 MinIO 控制台绑定到 `127.0.0.1`。如果要主动暴露到
-局域网,请设置 `LIBRARY_API_TOKEN`,并让 CLI/桌面端发送
-`Authorization: Bearer <token>`。
-
-```bash
-library --server http://localhost:8000
-```
-
 ### WebDAV 快照同步
 
 如果只想用 WebDAV 在多设备间传递知识库,不要把 `LIBRARY_HOME` 放进

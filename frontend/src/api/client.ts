@@ -1,0 +1,616 @@
+/** Typed fetch wrapper for the /v1/ API.
+ *
+ *  Base URL precedence:
+ *    1. localStorage["library.api_base"]  (set from Settings → Connection)
+ *    2. VITE_API_BASE                         (compile-time override)
+ *    3. ""                                    (browser dev → vite proxy)
+ *
+ *  All errors surface as ApiError with status + parsed body so UI can show
+ *  conflict details (e.g. display_name_conflict on upload).
+ */
+import type {
+  ActiveTasks,
+  ApiErrorBody,
+  EntryPath,
+  FileMetadata,
+  FilePreviewText,
+  Folder,
+  FolderDetail,
+  FolderListing,
+  IngestStatus,
+  LlmModelsResult,
+  LlmSettings,
+  OnConflict,
+  RecentTasks,
+  RunningCount,
+  SearchResult,
+  SemanticIndexRebuildResult,
+  ServerSettings,
+  SessionInfo,
+  SessionList,
+  SessionTotals,
+  SessionTranscript,
+  StatsOverview,
+  UploadResult,
+  WebDavDownloadResult,
+  WebDavHydrateResult,
+  WebDavPlanResult,
+  WebDavPullResult,
+  WebDavPublishSelectedResult,
+  WebDavPublishResult,
+  WebDavRemoteStatusResult,
+  WebDavStatus,
+} from "@/types/api";
+const STORAGE_KEY = "library.api_base";
+const TOKEN_STORAGE_KEY = "library.api_token";
+
+function initialBase(): string {
+  if (typeof window !== "undefined") {
+    const stored = window.localStorage?.getItem(STORAGE_KEY);
+    if (stored) return stored.replace(/\/$/, "");
+  }
+  if (import.meta.env.VITE_API_BASE) return import.meta.env.VITE_API_BASE;
+  return "";
+}
+
+let _base = initialBase();
+
+/** Return the user-saved backend override, if any. This is intentionally
+ * separate from getBaseUrl(): the latter may be the default base URL
+ * (VITE_API_BASE or the vite proxy). */
+export function getBaseUrlOverride(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage?.getItem(STORAGE_KEY)?.trim().replace(/\/$/, "") || "";
+}
+
+/** Remove a broken remote-backend override so the GUI falls back to the
+ * default base URL (VITE_API_BASE or the vite proxy). BackendGate exposes
+ * this recovery path even when the bad override prevents the Settings page
+ * from loading. */
+export function clearBaseUrlOverride(): void {
+  if (typeof window !== "undefined") {
+    window.localStorage?.removeItem(STORAGE_KEY);
+  }
+  _base = import.meta.env.VITE_API_BASE
+    ? String(import.meta.env.VITE_API_BASE).replace(/\/$/, "")
+    : "";
+}
+
+export function setBaseUrl(url: string) {
+  _base = url.replace(/\/$/, "");
+}
+export function getBaseUrl() {
+  return _base;
+}
+export function setApiToken(token: string) {
+  if (typeof window === "undefined") return;
+  const v = token.trim();
+  if (v) window.localStorage?.setItem(TOKEN_STORAGE_KEY, v);
+  else window.localStorage?.removeItem(TOKEN_STORAGE_KEY);
+}
+export function getApiToken() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage?.getItem(TOKEN_STORAGE_KEY) || "";
+}
+
+interface BackendHealth {
+  status: string;
+  storage_backend: string;
+  version?: string;
+}
+
+function isBackendHealth(payload: unknown): payload is BackendHealth {
+  return Boolean(
+    typeof payload === "object" &&
+      payload !== null &&
+      (payload as Record<string, unknown>).status === "ok" &&
+      typeof (payload as Record<string, unknown>).storage_backend === "string",
+  );
+}
+
+/** Verify that a custom GUI API base points to Library itself, rather than
+ * to an Ollama/LM Studio OpenAI-compatible model endpoint. */
+export async function probeBackendBaseUrl(url: string, token = ""): Promise<void> {
+  const base = url.trim().replace(/\/$/, "");
+  const headers: Record<string, string> = {};
+  if (token.trim()) headers.Authorization = `Bearer ${token.trim()}`;
+  const response = await fetch(`${base}/health`, {
+    headers,
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!response.ok) {
+    throw new Error(`/health returned HTTP ${response.status}`);
+  }
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error("/health did not return JSON");
+  }
+  if (!isBackendHealth(payload)) {
+    throw new Error("/health is not a Library backend response");
+  }
+}
+
+export class ApiError extends Error {
+  status: number;
+  body: ApiErrorBody | string | null;
+  constructor(status: number, body: ApiErrorBody | string | null, msg: string) {
+    super(msg);
+    this.status = status;
+    this.body = body;
+  }
+}
+
+async function _request<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(_base + path, {
+      ...init,
+      headers: {
+        ...(init.body && !(init.body instanceof FormData)
+          ? { "Content-Type": "application/json" }
+          : {}),
+        ...authHeaders(),
+        ...(init.headers || {}),
+      },
+    });
+  } catch (e) {
+    console.error("fetch failed", { path, baseUrl: _base, error: e });
+    throw e;
+  }
+  if (!res.ok) {
+    let body: ApiErrorBody | string | null = null;
+    const ct = res.headers.get("content-type") || "";
+    try {
+      body = ct.includes("application/json") ? await res.json() : await res.text();
+    } catch {
+      body = null;
+    }
+    const detail =
+      typeof body === "object" && body && "detail" in body
+        ? typeof body.detail === "string"
+          ? body.detail
+          : JSON.stringify(body.detail)
+        : typeof body === "string"
+          ? body
+          : res.statusText;
+    throw new ApiError(res.status, body, `${res.status} ${detail}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+// ---- folders --------------------------------------------------------------
+
+export const folders = {
+  list: (parentId?: string | null) =>
+    _request<FolderListing>(
+      `/v1/folders${parentId ? `?parent_id=${encodeURIComponent(parentId)}` : ""}`,
+    ),
+  get: (id: string) => _request<FolderDetail>(`/v1/folders/${encodeURIComponent(id)}`),
+  create: (name: string, parentId: string | null) =>
+    _request<Folder>(`/v1/folders`, {
+      method: "POST",
+      body: JSON.stringify({ parent_id: parentId, name }),
+    }),
+  rename: (id: string, name: string) =>
+    _request<Folder>(`/v1/folders/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+  move: (id: string, parentId: string | null) =>
+    _request<Folder>(`/v1/folders/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        update_parent: true,
+        parent_id: parentId === null ? "root" : parentId,
+      }),
+    }),
+  delete: (id: string) =>
+    _request<{ folder_id: string; deleted_at: string | null }>(
+      `/v1/folders/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    ),
+  downloadUrl: (id: string) =>
+    `${_base}/v1/folders/${encodeURIComponent(id)}/download`,
+};
+
+// ---- file entries ---------------------------------------------------------
+
+export const fileEntries = {
+  metadata: (id: string) =>
+    _request<FileMetadata>(`/v1/file-entries/${encodeURIComponent(id)}/metadata`),
+  path: (id: string) =>
+    _request<EntryPath>(`/v1/file-entries/${encodeURIComponent(id)}/path`),
+  rename: (id: string, displayName: string, onConflict: OnConflict = "rename") =>
+    _request(`/v1/file-entries/${encodeURIComponent(id)}/name`, {
+      method: "PATCH",
+      body: JSON.stringify({ display_name: displayName, on_conflict: onConflict }),
+    }),
+  move: (id: string, folderId: string, onConflict: OnConflict = "rename") =>
+    _request(`/v1/file-entries/${encodeURIComponent(id)}/folder`, {
+      method: "PATCH",
+      body: JSON.stringify({ folder_id: folderId, on_conflict: onConflict }),
+    }),
+  setLifecycle: (id: string, lifecycle: string) =>
+    _request(`/v1/file-entries/${encodeURIComponent(id)}/lifecycle`, {
+      method: "PATCH",
+      body: JSON.stringify({ lifecycle }),
+    }),
+  delete: (id: string, purgeAfterSeconds?: number) => {
+    const q =
+      purgeAfterSeconds !== undefined
+        ? `?purge_after_seconds=${purgeAfterSeconds}`
+        : "";
+    return _request(`/v1/file-entries/${encodeURIComponent(id)}${q}`, {
+      method: "DELETE",
+    });
+  },
+  contentUrl: (id: string) =>
+    `${_base}/v1/file-entries/${encodeURIComponent(id)}/content`,
+  previewText: (id: string, maxChars = 2_000_000) =>
+    _request<FilePreviewText>(
+      `/v1/file-entries/${encodeURIComponent(id)}/preview-text?max_chars=${maxChars}`,
+    ),
+  downloadUrl: (id: string) =>
+    `${_base}/v1/file-entries/${encodeURIComponent(id)}/download`,
+};
+
+// ---- files (whole-file ops) -----------------------------------------------
+
+export interface ReprocessResult {
+  file_id: string;
+  task_id: string | null;
+  reused: boolean;
+}
+
+export type BulkReprocessFilter =
+  | ({ file_ids: string[] } & { status?: IngestStatus })
+  | ({ catalog_id: string } & { status?: IngestStatus })
+  | ({ folder_id: string } & { status?: IngestStatus })
+  | ({ tag_id: string } & { status?: IngestStatus })
+  | ({ all: true } & { status?: IngestStatus })
+  | { status: IngestStatus };
+
+export interface BulkReprocessResult {
+  dispatcher_task_id: string;
+  file_count: number;
+  task_ids: string[];
+  reused: boolean;
+  reused_count: number;
+  skipped_count: number;
+  scope: string;
+  status: "scheduled";
+  status_filter?: IngestStatus | null;
+}
+
+export const files = {
+  reprocess: (fileId: string) =>
+    _request<ReprocessResult>(
+      `/v1/files/${encodeURIComponent(fileId)}/reprocess`,
+      { method: "POST" },
+    ),
+  reprocessBulk: (filter: BulkReprocessFilter) =>
+    _request<BulkReprocessResult>(`/v1/files/reprocess`, {
+      method: "POST",
+      body: JSON.stringify(filter),
+    }),
+};
+
+// ---- upload ---------------------------------------------------------------
+
+export const uploads = {
+  upload: async (
+    file: File,
+    dest: { remotePath: string } | { folderId: string },
+    opts: {
+      displayName?: string;
+      onConflict?: OnConflict;
+      onProgress?: (loaded: number, total: number) => void;
+    } = {},
+  ): Promise<UploadResult> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const params = new URLSearchParams();
+    if ("remotePath" in dest) params.set("remote_path", dest.remotePath);
+    else params.set("folder_id", dest.folderId);
+    if (opts.displayName) params.set("display_name", opts.displayName);
+    if (opts.onConflict) params.set("on_conflict", opts.onConflict);
+
+    // XHR for progress events; fetch doesn't expose upload progress yet.
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${_base}/v1/upload?${params.toString()}`);
+      const token = getApiToken();
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && opts.onProgress) {
+          opts.onProgress(e.loaded, e.total);
+        }
+      };
+      xhr.onload = () => {
+        const ct = xhr.getResponseHeader("content-type") || "";
+        const body = ct.includes("application/json")
+          ? safeParseJson(xhr.responseText)
+          : xhr.responseText;
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(body as UploadResult);
+        } else {
+          const detail =
+            (body && typeof body === "object" && "detail" in body
+              ? JSON.stringify((body as ApiErrorBody).detail)
+              : String(body)) || xhr.statusText;
+          reject(new ApiError(xhr.status, body as ApiErrorBody, `${xhr.status} ${detail}`));
+        }
+      };
+      xhr.onerror = () => {
+        console.error("upload request failed", {
+          path: "/v1/upload",
+          baseUrl: _base,
+          status: xhr.status,
+        });
+        reject(new ApiError(0, null, "network error"));
+      };
+      xhr.send(fd);
+    });
+  },
+};
+
+function safeParseJson(s: string): unknown {
+  try { return JSON.parse(s); } catch { return s; }
+}
+
+export function authHeaders(): Record<string, string> {
+  const token = getApiToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function hasApiToken(): boolean {
+  return Boolean(getApiToken());
+}
+
+/** Anchor onClick guard for `<a href download>` links. Plain anchors
+ *  can't carry the Authorization header, so when a bearer token is
+ *  configured we fetch the blob ourselves and click a temporary
+ *  object-URL anchor instead. No-op (native anchor download) when no
+ *  token is set, so the streaming download path stays the default. */
+export function maybeAuthDownload(
+  e: { preventDefault: () => void },
+  url: string,
+  name?: string,
+): void {
+  if (!hasApiToken()) return;
+  e.preventDefault();
+  void (async () => {
+    try {
+      const res = await fetch(url, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = name || "";
+      document.body.appendChild(a);
+      a.click();
+      // Deferred cleanup: revoking synchronously races the queued
+      // download navigation on WebKit-based webviews (macOS WKWebView /
+      // Linux WebKitGTK) and can abort it. Same 60s grace as the
+      // print-iframe cleanup in OfficeViewer.
+      window.setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(objectUrl);
+      }, 60_000);
+    } catch (err) {
+      console.error("authenticated download failed", { url, error: err });
+    }
+  })();
+}
+
+// ---- search / discover ----------------------------------------------------
+
+export const search = {
+  query: (q: string, limit = 25) =>
+    _request<SearchResult>(
+      `/v1/search?q=${encodeURIComponent(q)}&limit=${limit}`,
+    ),
+  discover: (entryId: string, topK = 8) =>
+    _request<{
+      seed_entry_id: string;
+      count: number;
+      results: Array<{
+        entry_id: string;
+        display_name: string;
+        score: number;
+        visit_count: number;
+        direct_edge_weight: number;
+      }>;
+    }>(`/v1/discover/${encodeURIComponent(entryId)}?top_k=${topK}`),
+};
+
+// ---- sessions / chat ------------------------------------------------------
+
+export const sessions = {
+  open: (initiatingMessage?: string) =>
+    _request<SessionInfo>(`/v1/sessions`, {
+      method: "POST",
+      body: JSON.stringify({ initiating_user_message: initiatingMessage || null }),
+    }),
+  close: (id: string) =>
+    _request<SessionTotals>(`/v1/sessions/${encodeURIComponent(id)}/close`, {
+      method: "POST",
+    }),
+  list: (limit = 50, offset = 0) =>
+    _request<SessionList>(
+      `/v1/sessions?limit=${limit}&offset=${offset}`,
+    ),
+  messages: (id: string) =>
+    _request<SessionTranscript>(
+      `/v1/sessions/${encodeURIComponent(id)}/messages`,
+    ),
+  delete: (id: string) =>
+    _request<void>(`/v1/sessions/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
+};
+
+// ---- tasks ----------------------------------------------------------------
+
+export const tasks = {
+  runningCount: () => _request<RunningCount>(`/v1/tasks/running-count`),
+  active: () => _request<ActiveTasks>(`/v1/tasks/active`),
+  recent: (limit = 30) =>
+    _request<RecentTasks>(`/v1/tasks/recent?limit=${limit}`),
+};
+
+// ---- stats / overview -----------------------------------------------------
+
+export const stats = {
+  overview: () => _request<StatsOverview>(`/v1/stats/overview`),
+};
+
+// ---- exports --------------------------------------------------------------
+
+export const exports_ = {
+  latest: () =>
+    _request<{
+      conversation_id: string;
+      session_id: string;
+      started_at: string | null;
+      ended_at: string | null;
+      user_message_preview: string;
+    }>(`/v1/conversations/latest`),
+  zipUrl: (conversationId: string) =>
+    `${_base}/v1/conversations/${encodeURIComponent(conversationId)}/export`,
+  markdownUrl: (conversationId: string) =>
+    `${_base}/v1/conversations/${encodeURIComponent(conversationId)}/export.md`,
+};
+
+// ---- health ---------------------------------------------------------------
+
+export const health = async (): Promise<BackendHealth> => {
+  const payload = await _request<unknown>(`/health`);
+  if (!isBackendHealth(payload)) {
+    throw new Error("Connected URL is not a Library backend");
+  }
+  return payload;
+};
+
+// ---- settings -------------------------------------------------------------
+
+/** Per-profile result from POST /v1/settings/llm/test. `ok` is `null` for an
+ *  optional profile (vision) that isn't configured. */
+export interface LlmTestResult {
+  ok: boolean | null;
+  model?: string;
+  provider?: string;
+  error?: string;
+  configured?: boolean;
+  duration_ms?: number;
+  mode?: "text" | "image";
+  dimensions?: number;
+}
+
+export interface ModelDiagnosticsResult {
+  profiles: Record<string, LlmTestResult>;
+  embedding: LlmTestResult;
+  rerank: LlmTestResult;
+  duration_ms: number;
+}
+
+export const settings = {
+  server: () => _request<ServerSettings>(`/v1/settings/server`),
+  llm: () => _request<LlmSettings>(`/v1/settings/llm`),
+  /** Patch the LLM overlay. Pass `null` for a field to clear that
+   *  override and fall back to the .env / default. When this PUT makes the
+   *  required profiles valid for the first time, the server auto-retries
+   *  ingests that failed before the key existed and reports the count via
+   *  `reprocessed_failed`. */
+  updateLlm: (patch: Record<string, string | number | boolean | null>) =>
+    _request<LlmSettings & { reprocessed_failed?: number }>(`/v1/settings/llm`, {
+      method: "PUT",
+      body: JSON.stringify({ patch, replace: false }),
+    }),
+  /** Probe every resolved LLM profile plus enabled embedding/rerank providers. */
+  testLlm: () =>
+    _request<ModelDiagnosticsResult>(
+      `/v1/settings/llm/test`,
+      { method: "POST" },
+    ),
+  /** Probe ONLY the default profile (`?profile=default`), skipping
+   *  embedding/rerank. The Settings quick-config form uses this to give a
+   *  fast verdict on the one config it edits. */
+  testLlmDefault: () =>
+    _request<{ profiles: { default: LlmTestResult }; duration_ms?: number }>(
+      `/v1/settings/llm/test?profile=default`,
+      { method: "POST" },
+    ),
+  /** List the models a profile's provider serves so the GUI can offer a
+   *  picker instead of a hand-typed model name. `provider`/`base_url`/
+   *  `api_key` are optional form overrides layered on the resolved profile
+   *  (empty = inherit). */
+  fetchLlmModels: (body: {
+    profile: string;
+    backup?: boolean;
+    provider?: string | null;
+    base_url?: string | null;
+    api_key?: string | null;
+  }) =>
+    _request<LlmModelsResult>(`/v1/settings/llm/models`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  rebuildSemanticIndex: (concurrency = 1) =>
+    _request<SemanticIndexRebuildResult>(`/v1/semantic-index/rebuild`, {
+      method: "POST",
+      body: JSON.stringify({ concurrency }),
+    }),
+};
+
+// ---- WebDAV knowledge-pack sync ------------------------------------------
+
+export const webdavSync = {
+  status: () => _request<WebDavStatus>(`/v1/sync/webdav/status`),
+  updateConfig: (patch: Record<string, string | number | boolean | null>) =>
+    _request<WebDavStatus>(`/v1/sync/webdav/config`, {
+      method: "PUT",
+      body: JSON.stringify({ patch }),
+    }),
+  test: () => _request<{ ok: boolean; remote_path: string; latest?: unknown }>(
+    `/v1/sync/webdav/test`,
+    { method: "POST" },
+  ),
+  remoteStatus: () => _request<WebDavRemoteStatusResult>(
+    `/v1/sync/webdav/remote-status`,
+    { method: "POST" },
+  ),
+  publish: () => _request<WebDavPublishResult>(`/v1/sync/webdav/publish`, {
+    method: "POST",
+  }),
+  uploadPlan: () => _request<WebDavPlanResult>(`/v1/sync/webdav/upload-plan`),
+  publishSelected: (entryIds: string[]) =>
+    _request<WebDavPublishSelectedResult>(`/v1/sync/webdav/publish-selected`, {
+      method: "POST",
+      body: JSON.stringify({ entry_ids: entryIds }),
+    }),
+  pull: () => _request<WebDavPullResult>(`/v1/sync/webdav/pull`, {
+    method: "POST",
+  }),
+  downloadPlan: () => _request<WebDavPlanResult>(`/v1/sync/webdav/download-plan`),
+  download: () => _request<WebDavDownloadResult>(`/v1/sync/webdav/download`, {
+    method: "POST",
+  }),
+  downloadSelected: (entryIds: string[]) =>
+    _request<WebDavDownloadResult>(`/v1/sync/webdav/download-selected`, {
+      method: "POST",
+      body: JSON.stringify({ entry_ids: entryIds }),
+    }),
+  hydrate: (entryId: string) =>
+    _request<WebDavHydrateResult>(
+      `/v1/sync/webdav/hydrate/${encodeURIComponent(entryId)}`,
+      { method: "POST" },
+    ),
+};
