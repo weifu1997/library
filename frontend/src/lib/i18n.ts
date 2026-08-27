@@ -819,6 +819,7 @@ const en = {
     presets: "Quick provider presets",
     presetsHint:
       "Fill the default profile from a preset. Every field stays editable.",
+    unsaved: "unsaved",
     advancedProfiles: "Advanced profiles",
     advancedProfilesHint:
       "chat · reflect · ingest · vision — inherit the default unless you override them.",
@@ -1635,6 +1636,7 @@ const zh: I18nStrings = {
     reprocessedFailed: (n: number) => `正在重试 ${n} 个此前失败的文件…`,
     presets: "快速服务商预设",
     presetsHint: "从预设一键填充默认配置，每个字段仍可手动修改。",
+    unsaved: "未保存",
     advancedProfiles: "高级配置",
     advancedProfilesHint:
       "chat · reflect · ingest · vision —— 默认继承 default，仅在需要覆盖时配置。",

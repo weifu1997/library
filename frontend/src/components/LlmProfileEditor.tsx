@@ -3,9 +3,12 @@
  *  The panel is structured as a quick-config flow for the *default*
  *  profile plus an "advanced" section for per-task overrides:
  *
- *    - A row of provider presets (OpenAI / Anthropic / DashScope /
- *      DeepSeek / Kimi / Ollama) that auto-fill provider, model, and
- *      base URL into the default form.
+ *    - A row of provider presets (OpenAI / DashScope / DeepSeek / Kimi)
+ *      that auto-fill provider, model, and base URL into the default
+ *      form. The default card scrolls into view and the filled fields
+ *      flash briefly so the change is visible above the fold; the fill
+ *      is staged in the form only until the user presses Save (the row
+ *      header marks pending edits as "unsaved").
  *    - The default form, open by default, with an api-key "set / missing"
  *      badge and its own Save (PUT with PATCH semantics — only
  *      `llm_default_*` fields change).
@@ -82,10 +85,6 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     base_url: "https://api.openai.com/v1", model: "gpt-4o-mini",
   },
   {
-    key: "anthropic", label: "Anthropic", provider: "anthropic",
-    base_url: "https://api.anthropic.com/v1", model: "claude-sonnet-5",
-  },
-  {
     key: "dashscope", label: "通义千问", provider: "openai-compatible",
     base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     model: "qwen-plus",
@@ -97,10 +96,6 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
   {
     key: "moonshot", label: "Kimi", provider: "openai-compatible",
     base_url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k",
-  },
-  {
-    key: "ollama", label: "Ollama", provider: "openai-compatible",
-    base_url: "http://127.0.0.1:11434/v1", model: "qwen2.5:7b",
   },
 ];
 
@@ -122,6 +117,14 @@ export function LlmProfileEditor({ data, onChange }: Props) {
     // Spread so clicking the same preset twice still re-fires the effect.
     setPreset({ ...p });
     setOpen("default");
+    // Bring the default quick-config form into view so the fill is
+    // visible even when presets sit above the fold on short screens.
+    window.setTimeout(() => {
+      document.getElementById("llm-default-row")?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }, 0);
   };
 
   const runTest = async () => {
@@ -207,14 +210,16 @@ export function LlmProfileEditor({ data, onChange }: Props) {
       </div>
 
       {/* Default profile (quick config) */}
-      <ProfileRow
-        name="default"
-        data={data}
-        preset={preset}
-        isOpen={open === "default"}
-        onToggle={() => setOpen(open === "default" ? null : "default")}
-        onChange={onChange}
-      />
+      <div id="llm-default-row">
+        <ProfileRow
+          name="default"
+          data={data}
+          preset={preset}
+          isOpen={open === "default"}
+          onToggle={() => setOpen(open === "default" ? null : "default")}
+          onChange={onChange}
+        />
+      </div>
 
       {/* Advanced profiles — collapsed by default */}
       <div className="overflow-hidden rounded-2xl border border-border/80 bg-bg-card shadow-xs">
@@ -388,18 +393,25 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
   // A provider preset fills provider / model / base_url into the default
   // form and marks it dirty so Save is enabled. Only the default row uses
   // this; the spread in applyPreset gives presets fresh identity so
-  // clicking the same one twice still applies.
+  // clicking the same one twice still applies. The affected controls get
+  // a brief ring flash so the fill reads as an explicit change.
+  const [flash, setFlash] = useState(false);
   useEffect(() => {
-    if (isDefault && preset) {
-      setForm((prev) => ({
-        ...prev,
-        provider: preset.provider,
-        base_url: preset.base_url,
-        model: preset.model,
-      }));
-      setDirty(true);
-    }
+    if (!isDefault || !preset) return;
+    setForm((prev) => ({
+      ...prev,
+      provider: preset.provider,
+      base_url: preset.base_url,
+      model: preset.model,
+    }));
+    setDirty(true);
+    setFlash(true);
   }, [isDefault, preset]);
+  useEffect(() => {
+    if (!flash) return;
+    const t = window.setTimeout(() => setFlash(false), 1800);
+    return () => window.clearTimeout(t);
+  }, [flash]);
 
   const updateField = (field: string, val: string) => {
     setForm((prev) => ({ ...prev, [field]: val }));
@@ -514,6 +526,17 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
   const Icon = getProfileIcon(name);
   const isConfigured = view.api_key_set || !isDefault;
 
+  // While the form holds unsaved edits the header preview shows those
+  // pending values (with an "unsaved" tag) instead of the stored ones —
+  // preset fills and manual edits are visible without scrolling to Save.
+  const flashClass = "border-accent ring-2 ring-accent/40";
+  const shownProvider =
+    dirty && form.provider !== undefined && form.provider !== ""
+      ? form.provider
+      : view.provider;
+  const shownModel =
+    dirty && form.model ? form.model : view.model;
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border/80 bg-bg-card shadow-xs transition-all">
       {/* Header button — 56px height standard */}
@@ -559,7 +582,12 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
               )}
             </div>
             <p className="mt-0.5 truncate font-mono text-xs text-fg-subtle">
-              {view.provider || "openai-compatible"} · {view.model || "(unset)"}
+              {shownProvider || "openai-compatible"} · {shownModel || "(unset)"}
+              {dirty && (
+                <span className="ml-1.5 inline-flex items-center rounded-md border border-warning/30 bg-warning/10 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-warning">
+                  {t.llm.unsaved}
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -589,7 +617,10 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
               <select
                 value={form.provider ?? ""}
                 onChange={(e) => updateField("provider", e.target.value)}
-                className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 text-xs font-medium outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+                className={cn(
+                  "h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 text-xs font-medium outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20",
+                  flash && flashClass,
+                )}
               >
                 <option value="">
                   {isDefault ? "openai-compatible" : `(Inherit: ${data.defaults.provider || "openai-compatible"})`}
@@ -607,6 +638,7 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
                   error={fetchErr}
                   models={models}
                   value={form.model ?? ""}
+                  flash={flash}
                   onPick={(v) => updateField("model", v)}
                   onManual={() => setModels([])}
                   onFetch={() => fetchModels("model")}
@@ -622,7 +654,10 @@ function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps
                   value={form.base_url ?? ""}
                   onChange={(e) => updateField("base_url", e.target.value)}
                   placeholder={isDefault ? "https://api.openai.com/v1" : (view.base_url || "https://api.openai.com/v1")}
-                  className="h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  className={cn(
+                    "h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20",
+                    flash && flashClass,
+                  )}
                 />
               </Field>
             </div>
@@ -909,6 +944,7 @@ function ModelListPicker({
   error,
   models,
   value,
+  flash = false,
   onPick,
   onManual,
   onFetch,
@@ -919,6 +955,8 @@ function ModelListPicker({
   error: string | null;
   models: LlmModelInfo[] | null;
   value: string;
+  /** Brief accent ring while a preset fill is being highlighted. */
+  flash?: boolean;
   onPick: (v: string) => void;
   onManual: () => void;
   onFetch: () => void;
@@ -927,8 +965,10 @@ function ModelListPicker({
 }) {
   const list = models ?? [];
   const hasModels = list.length > 0;
-  const controlClass =
-    "h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20";
+  const controlClass = cn(
+    "h-10 w-full rounded-xl border border-border/80 bg-bg-base/70 px-3 font-mono text-xs outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20",
+    flash && "border-accent ring-2 ring-accent/40",
+  );
   return (
     <div className="space-y-1.5">
       {hasModels ? (
