@@ -30,7 +30,14 @@ from library.citations import (
 )
 from library.db.models import Conversation
 from library.repositories import entries as entries_repo
-from library.services.user_files import get_user_metadata
+# NOTE: `library.services.user_files` is imported lazily inside the one
+# function that needs it. At module scope it closes an import cycle:
+#   user_files -> pipelines.registry -> pipelines.archive -> tasks
+#     -> tasks.runner -> tasks.handlers -> mine_relations
+#     -> mine_citation_graph -> services.exports -> user_files
+# which makes `import library.services.user_files` fail outright when it is
+# the first thing imported in a process. Nothing in this module needs the
+# symbol at import time.
 
 
 _EXPORT_METADATA_KEYS = frozenset({
@@ -159,6 +166,10 @@ async def build_export_plan(
             c.entry_id = full
     entry_ids = list({c.entry_id for c in plan.citations})
     if entry_ids:
+        # Lazy import: see the note at the top of this module — pulling this in
+        # at module scope closes an import cycle through pipelines/tasks.
+        from library.services.user_files import get_user_metadata
+
         rows = await entries_repo.list_live_with_file_by_ids(session, entry_ids)
         live_by_id = {e.id: (e, f) for e, f in rows}
         # Also fetch metadata blobs (in user-visible shape).

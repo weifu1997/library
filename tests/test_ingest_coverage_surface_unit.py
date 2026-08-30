@@ -7,7 +7,6 @@ leak internal diagnostics to the client.
 """
 from __future__ import annotations
 
-import library.main  # noqa: F401  (import order: avoids a pre-existing cycle)
 from library.services.user_files import _coverage_summary
 
 
