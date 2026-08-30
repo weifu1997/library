@@ -50,19 +50,34 @@ export async function streamChat(
   let conversationId: string | undefined;
   let cursor = 0;
   let terminal = false;
+  // Transient failures are held back rather than reported as they happen. A
+  // dropped connection that the next attempt recovers from is not something
+  // the user needs to see: reporting it immediately put an error banner on
+  // screen above an answer that then streamed in correctly and completely,
+  // leaving no way to tell whether the turn could be trusted. Only a failure
+  // that survives every attempt is real, and by then it is the thrown error.
+  let lastTransientError: unknown;
   for (let attempt = 0; attempt < 4 && !terminal; attempt += 1) {
     try {
       const state = await consumeResponse(res, opts, { conversationId, cursor });
       conversationId = state.conversationId;
       cursor = state.cursor;
       terminal = state.terminal;
+      lastTransientError = undefined;
     } catch (error) {
       if (opts.signal?.aborted) throw error;
-      opts.onError?.(error);
+      lastTransientError = error;
+      // The reader is done with, but the body may still be open; releasing it
+      // here stops the abandoned connection lingering until GC.
+      await cancelBody(res);
     }
     if (terminal) break;
     if (!conversationId || attempt >= 3) {
-      throw new Error("chat stream ended before the turn completed");
+      const failure =
+        lastTransientError ??
+        new Error("chat stream ended before the turn completed");
+      opts.onError?.(failure);
+      throw failure;
     }
     await reconnectDelay(250 * (2 ** attempt), opts.signal);
     const resumeUrl = `${getBaseUrl()}/v1/conversations/${encodeURIComponent(conversationId)}`
@@ -72,6 +87,15 @@ export async function streamChat(
       signal: opts.signal,
     });
     await assertStreamResponse(res);
+  }
+}
+
+/** Release an abandoned response body; never throws. */
+async function cancelBody(res: Response): Promise<void> {
+  try {
+    await res.body?.cancel();
+  } catch {
+    /* already closed or locked — nothing to release */
   }
 }
 
@@ -124,11 +148,19 @@ async function consumeResponse(
 
 async function reconnectDelay(milliseconds: number, signal?: AbortSignal): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    const timer = window.setTimeout(resolve, milliseconds);
-    signal?.addEventListener("abort", () => {
+    // `{ once: true }` only removes the listener when abort actually fires.
+    // On the normal timeout path it would stay attached to a signal that
+    // outlives this call — a caller reusing one AbortController across a long
+    // session accumulates one listener per reconnect.
+    const onAbort = () => {
       window.clearTimeout(timer);
       reject(new DOMException("Aborted", "AbortError"));
-    }, { once: true });
+    };
+    const timer = window.setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, milliseconds);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 
