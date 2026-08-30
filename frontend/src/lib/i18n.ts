@@ -336,6 +336,20 @@ const en = {
       tags: "Tags",
       related: "Related",
     },
+    coverage: {
+      title: "Partial index",
+      pages: (indexed: number, total: number) =>
+        `Indexed ${indexed} of ${total} pages`,
+      ocrFailed: (failed: number) =>
+        `${failed} page${failed === 1 ? "" : "s"} could not be read by OCR and are missing from the index`,
+      reasons: {
+        text_page_cap: "Stopped at the page limit for text extraction",
+        ocr_page_cap: "Stopped at the page limit for OCR",
+        prompt_text_cap: "Text was truncated to fit the indexing prompt",
+        ocr_page_failures: "Some pages failed OCR",
+      } as Record<string, string>,
+      unknownReason: (key: string) => `Not fully indexed (${key})`,
+    },
     previewUnavailable: "Preview not available for this file type.",
     truncatedPreview: "File truncated to first 2 MB for preview. Download for full content.",
     jumpedLine: (span: string) => `jumped to ${span}`,
@@ -1166,6 +1180,20 @@ const zh: I18nStrings = {
       extra: "额外信息",
       tags: "标签",
       related: "相关文件",
+    },
+    coverage: {
+      title: "索引不完整",
+      pages: (indexed: number, total: number) =>
+        `已索引 ${indexed} / ${total} 页`,
+      ocrFailed: (failed: number) =>
+        `${failed} 页 OCR 未能识别，这些内容不在索引中`,
+      reasons: {
+        text_page_cap: "达到文本提取的页数上限",
+        ocr_page_cap: "达到 OCR 的页数上限",
+        prompt_text_cap: "文本被截断以适配索引提示",
+        ocr_page_failures: "部分页面 OCR 失败",
+      } as Record<string, string>,
+      unknownReason: (key: string) => `索引不完整（${key}）`,
     },
     previewUnavailable: "该文件类型无法预览。",
     truncatedPreview: "预览仅显示前 2 MB。下载文件可查看完整内容。",

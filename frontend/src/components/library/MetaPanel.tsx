@@ -1,10 +1,10 @@
 /** Right-side metadata drawer for the selected entry.
  *  Collapsed by default to reserve real-estate for the viewer.
  */
-import { ChevronRight, ChevronLeft, Tag, Sparkles, FileText, Folder, Layers, ArrowRight } from "lucide-react";
+import { ChevronRight, ChevronLeft, Tag, Sparkles, FileText, Folder, Layers, ArrowRight, FileWarning } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import type { FileMetadata } from "@/types/api";
+import type { FileMetadata, IngestCoverage } from "@/types/api";
 import { cn, formatBytes } from "@/lib/utils";
 import { useI18n, type I18nStrings } from "@/lib/i18n";
 
@@ -71,6 +71,9 @@ function MetaBody({ meta, t }: { meta: FileMetadata; t: I18nStrings }) {
           </div>
         )}
       </div>
+
+      {/* Partial-index notice — read this before trusting the summary below */}
+      <CoverageNotice coverage={meta.coverage} t={t} />
 
       {/* AI Summary Card */}
       {meta.summary && (
@@ -165,6 +168,62 @@ function Field({
         </div>
       )}
     </div>
+  );
+}
+
+/** Shown only when the file was NOT indexed in full.
+ *
+ *  Amber, not red: a partial index is a normal degradation (a page cap was
+ *  hit, a few OCR calls failed) and the ingest itself succeeded — red is
+ *  reserved for actual ingest failure. The point is that a document missing
+ *  pages must not look identical to a complete one, which is exactly what
+ *  happened while this data had no outlet at all. */
+function CoverageNotice({
+  coverage,
+  t,
+}: {
+  coverage?: IngestCoverage | null;
+  t: I18nStrings;
+}) {
+  if (!coverage?.indexed_partial) return null;
+
+  const { total_pages, indexed_pages, ocr_failed_pages } = coverage;
+  const showPages =
+    typeof total_pages === "number" &&
+    typeof indexed_pages === "number" &&
+    total_pages > 0;
+  // `partial_reasons` is an open vocabulary; an unknown key still renders,
+  // carrying the raw key so it stays searchable in a support conversation.
+  const reasons = (coverage.partial_reasons ?? []).map(
+    (key) => t.library.coverage.reasons[key] ?? t.library.coverage.unknownReason(key),
+  );
+
+  return (
+    <section className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3.5 shadow-subtle">
+      <SectionHeader
+        icon={<FileWarning size={12} className="text-amber-500" />}
+        text={t.library.coverage.title}
+      />
+      {showPages && (
+        <p className="mt-2 text-[12px] font-medium text-fg-base/90">
+          {t.library.coverage.pages(indexed_pages, total_pages)}
+        </p>
+      )}
+      {typeof ocr_failed_pages === "number" && ocr_failed_pages > 0 && (
+        <p className="mt-1.5 text-[11.5px] leading-relaxed text-fg-muted">
+          {t.library.coverage.ocrFailed(ocr_failed_pages)}
+        </p>
+      )}
+      {reasons.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {reasons.map((reason, i) => (
+            <li key={i} className="text-[11.5px] leading-relaxed text-fg-muted">
+              · {reason}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

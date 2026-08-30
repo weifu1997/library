@@ -216,6 +216,11 @@ async def get_user_metadata(
         # §14.3 #4 carves this out as the legitimate cross-boundary view.
         "summary": file_row.summary,
         "preview": _description_preview(file_row.description),
+        # Ingest coverage: was this record indexed completely, and if not,
+        # why. Without an outlet here the answer only exists in a JSON
+        # column, and a document missing 14 OCR'd pages looks in the UI
+        # exactly like a complete one.
+        "coverage": _coverage_summary(file_row.description),
         # Tags: resolved tag names with facets for the Library panel.
         "tags": await _tags_for_entry(session, entry.id),
         # Extra: per-entry mutable AI field. Falls back to per-file
@@ -226,6 +231,47 @@ async def get_user_metadata(
         ),
         "webdav_remote": remote_marker,
     }
+
+
+_COVERAGE_BOOL_FIELDS = ("indexed_partial", "ocr_used")
+_COVERAGE_INT_FIELDS = (
+    "total_pages", "indexed_pages", "ocr_pages_done", "ocr_failed_pages",
+)
+
+
+def _coverage_summary(description: Any | None) -> dict[str, Any] | None:
+    """User-facing slice of `description['coverage']`, or None.
+
+    `description` is an AI-written JSON column with no enforced shape, so
+    every level is checked rather than assumed. Fields are white-listed:
+    internal diagnostics (`unit`, `chunked`, `chunk_count`, `max_index_pages`)
+    stay out of the user-facing payload.
+
+    Individual fields are dropped when their type is wrong instead of failing
+    the whole call — a malformed coverage block should degrade the panel, not
+    break the metadata endpoint. Older records predate `ocr_failed_pages`
+    entirely; absence is normal, not an error.
+    """
+    if not isinstance(description, dict):
+        return None
+    coverage = description.get("coverage")
+    if not isinstance(coverage, dict):
+        return None
+
+    out: dict[str, Any] = {}
+    for key in _COVERAGE_BOOL_FIELDS:
+        value = coverage.get(key)
+        if isinstance(value, bool):
+            out[key] = value
+    for key in _COVERAGE_INT_FIELDS:
+        value = coverage.get(key)
+        # bool is an int subclass; a stray True here would be nonsense.
+        if isinstance(value, int) and not isinstance(value, bool):
+            out[key] = value
+    reasons = coverage.get("partial_reasons")
+    if isinstance(reasons, list):
+        out["partial_reasons"] = [r for r in reasons if isinstance(r, str)]
+    return out or None
 
 
 def _description_preview(

@@ -65,9 +65,27 @@ export interface FileMetadata {
   summary?: string | null;
   tags?: { name: string; facet?: string | null }[];
   extra?: string | null;
+  coverage?: IngestCoverage | null;
   related_entries?: RelatedEntry[];
   webdav_remote?: WebDavRemoteMarker | null;
   [key: string]: unknown;
+}
+
+/** How completely this file was indexed at ingest time. Absent on records
+ *  ingested before coverage tracking, and every field is optional — the
+ *  backend drops anything malformed rather than failing the request.
+ *
+ *  `partial_reasons` is an open vocabulary: the backend adds new reasons
+ *  over time (`ocr_page_failures` arrived with the OCR retry work), so the
+ *  UI must render unknown keys instead of blanking them. */
+export interface IngestCoverage {
+  indexed_partial?: boolean;
+  partial_reasons?: string[];
+  total_pages?: number;
+  indexed_pages?: number;
+  ocr_used?: boolean;
+  ocr_pages_done?: number;
+  ocr_failed_pages?: number;
 }
 
 export interface WebDavRemoteMarker {

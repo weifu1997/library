@@ -33,7 +33,11 @@
 
 - `get_user_metadata` 返回 coverage（至少 `indexed_partial` / `partial_reasons` /
   `total_pages` / `indexed_pages`），字段缺失或格式异常时安全降级为 `null`
-- OpenAPI 响应模型同步更新，前端类型经 `npm run gen:api` 重新生成
+- 契约再生成后**不得产生漂移**（CI 的 contract job 会 `git diff --exit-code`）
+  - 范围调整：**不给该端点新增 `response_model`**。核实后发现 `routes_user_files.py`
+    的 8 个路由中只有 `/search` 有响应模型，其余均返回 `dict[str, Any]`；
+    单独给 metadata 补一个 15 字段模型属于 API 契约改造，是另一条线的工作。
+    前端消费的是手写的 `types/api.ts:FileMetadata`（已有索引签名，加字段兼容）。
 - 文件详情界面在 `indexed_partial` 为真时给出明确提示，说明**哪些内容没被索引**及原因
 - `partial_reasons` 的**未知值必须有兜底文案**——后端会继续新增原因，前端不能因此空白或崩溃
 - 提示不得使用告警红色：部分索引是正常降级而非错误，视觉权重要低于 ingest 失败
