@@ -572,7 +572,4 @@ eval 命令等路径。
 
 Copyright (c) 2026 weifu1997
 
-AGPL-3.0-or-later。完整条款见 [LICENSE](LICENSE)。
-
-如果你以网络服务的形式运行修改过的 Library,AGPL 要求你向你的用户
-公开对应源码。
+MIT。完整条款见 [LICENSE](LICENSE)。

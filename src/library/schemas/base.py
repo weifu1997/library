@@ -10,6 +10,12 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ExtraAllowModel(BaseModel):
+    """Variable payloads (WebDAV ops, rare folder patch fallback)."""
+
+    model_config = ConfigDict(extra="allow")
+
+
 class OmitUnsetModel(BaseModel):
     """Polymorphic 200s: omit keys that were not in the source dict.
 

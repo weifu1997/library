@@ -30,6 +30,17 @@ from library.services.webdav_sync import (
     test_connection,
     upload_plan,
 )
+from library.schemas.errors import OPTIONAL_AUTH_RESPONSES, WEBDAV_ERROR_RESPONSES
+from library.schemas.settings import WebDavStatus
+from library.schemas.webdav import (
+    WebDavHydrateResponse,
+    WebDavPlanResponse,
+    WebDavPublishResponse,
+    WebDavPublishSelectedResponse,
+    WebDavPullResponse,
+    WebDavRemoteStatusResponse,
+    WebDavTestResponse,
+)
 from library.tasks.enqueue import enqueue
 from library.tasks.kinds import KIND_WEBDAV_PUBLISH
 
@@ -59,12 +70,20 @@ class WebDavSelectedEntriesBody(BaseModel):
     entry_ids: list[str] = Field(default_factory=list)
 
 
-@router.get("/status")
+@router.get(
+    "/status",
+    response_model=WebDavStatus,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def webdav_status() -> dict[str, Any]:
     return read_status()
 
 
-@router.put("/config")
+@router.put(
+    "/config",
+    response_model=WebDavStatus,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def update_webdav_config(body: WebDavConfigBody) -> dict[str, Any]:
     patch = {k: v for k, v in body.patch.items() if k in _CONFIG_FIELDS}
     unknown = sorted(set(body.patch) - _CONFIG_FIELDS)
@@ -87,7 +106,11 @@ async def update_webdav_config(body: WebDavConfigBody) -> dict[str, Any]:
     return read_status()
 
 
-@router.post("/test")
+@router.post(
+    "/test",
+    response_model=WebDavTestResponse,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def webdav_test() -> dict[str, Any]:
     try:
         return await test_connection()
@@ -98,7 +121,11 @@ async def webdav_test() -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=_GENERIC_WEBDAV_ERROR)
 
 
-@router.post("/remote-status")
+@router.post(
+    "/remote-status",
+    response_model=WebDavRemoteStatusResponse,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def webdav_remote_status() -> dict[str, Any]:
     try:
         return await sync_remote_status()
@@ -109,7 +136,11 @@ async def webdav_remote_status() -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=_GENERIC_WEBDAV_ERROR)
 
 
-@router.post("/publish")
+@router.post(
+    "/publish",
+    response_model=WebDavPublishResponse,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def webdav_publish(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
@@ -133,7 +164,11 @@ async def webdav_publish(
     return {"ok": True, "task_id": task.id if task is not None else None}
 
 
-@router.get("/upload-plan")
+@router.get(
+    "/upload-plan",
+    response_model=WebDavPlanResponse,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def webdav_upload_plan() -> dict[str, Any]:
     try:
         return await upload_plan()
@@ -144,7 +179,11 @@ async def webdav_upload_plan() -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=_GENERIC_WEBDAV_ERROR)
 
 
-@router.post("/publish-selected")
+@router.post(
+    "/publish-selected",
+    response_model=WebDavPublishSelectedResponse,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def webdav_publish_selected(body: WebDavSelectedEntriesBody) -> dict[str, Any]:
     try:
         return await publish_selected(body.entry_ids)
@@ -155,7 +194,11 @@ async def webdav_publish_selected(body: WebDavSelectedEntriesBody) -> dict[str, 
         raise HTTPException(status_code=502, detail=_GENERIC_WEBDAV_ERROR)
 
 
-@router.post("/pull")
+@router.post(
+    "/pull",
+    response_model=WebDavPullResponse,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def webdav_pull() -> dict[str, Any]:
     try:
         return await pull_latest_metadata()
@@ -166,7 +209,11 @@ async def webdav_pull() -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=_GENERIC_WEBDAV_ERROR)
 
 
-@router.get("/download-plan")
+@router.get(
+    "/download-plan",
+    response_model=WebDavPlanResponse,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def webdav_download_plan() -> dict[str, Any]:
     try:
         return await download_plan()
@@ -177,7 +224,11 @@ async def webdav_download_plan() -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=_GENERIC_WEBDAV_ERROR)
 
 
-@router.post("/download")
+@router.post(
+    "/download",
+    response_model=WebDavPullResponse,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def webdav_download() -> dict[str, Any]:
     try:
         return await download_latest()
@@ -188,7 +239,11 @@ async def webdav_download() -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=_GENERIC_WEBDAV_ERROR)
 
 
-@router.post("/download-selected")
+@router.post(
+    "/download-selected",
+    response_model=WebDavPullResponse,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def webdav_download_selected(body: WebDavSelectedEntriesBody) -> dict[str, Any]:
     try:
         return await download_selected(body.entry_ids)
@@ -199,7 +254,11 @@ async def webdav_download_selected(body: WebDavSelectedEntriesBody) -> dict[str,
         raise HTTPException(status_code=502, detail=_GENERIC_WEBDAV_ERROR)
 
 
-@router.post("/hydrate/{entry_id}")
+@router.post(
+    "/hydrate/{entry_id}",
+    response_model=WebDavHydrateResponse,
+    responses=WEBDAV_ERROR_RESPONSES,
+)
 async def webdav_hydrate(entry_id: str) -> dict[str, Any]:
     try:
         return await hydrate_entry(entry_id)

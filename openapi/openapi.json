@@ -173,6 +173,35 @@
         "title": "BulkReprocessBody",
         "type": "object"
       },
+      "CacheSlo": {
+        "additionalProperties": false,
+        "properties": {
+          "minimum_eligible_requests": {
+            "title": "Minimum Eligible Requests",
+            "type": "integer"
+          },
+          "minimum_hit_ratio": {
+            "title": "Minimum Hit Ratio",
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "met",
+              "breached",
+              "insufficient_data"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "minimum_hit_ratio",
+          "minimum_eligible_requests"
+        ],
+        "title": "CacheSlo",
+        "type": "object"
+      },
       "ChatBody": {
         "properties": {
           "images": {
@@ -276,6 +305,411 @@
           "detail"
         ],
         "title": "FastAPIDetail",
+        "type": "object"
+      },
+      "FileEntrySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "file_id": {
+            "title": "File Id",
+            "type": "string"
+          },
+          "folder_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ingest_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Error"
+          },
+          "ingest_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Status"
+          },
+          "lifecycle": {
+            "title": "Lifecycle",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "folder_id",
+          "file_id",
+          "display_name",
+          "lifecycle"
+        ],
+        "title": "FileEntrySummary",
+        "type": "object"
+      },
+      "FolderDeletedResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "folder_id": {
+            "title": "Folder Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder_id",
+          "deleted_at"
+        ],
+        "title": "FolderDeletedResponse",
+        "type": "object"
+      },
+      "FolderDetailResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/FolderResponse"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/FileEntrySummary"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ingest_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FolderIngestSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "parent_id",
+          "name",
+          "created_at",
+          "updated_at",
+          "children",
+          "entries"
+        ],
+        "title": "FolderDetailResponse",
+        "type": "object"
+      },
+      "FolderIngestSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "incomplete": {
+            "title": "Incomplete",
+            "type": "integer"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          },
+          "processing": {
+            "title": "Processing",
+            "type": "integer"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "pending",
+          "processing",
+          "done",
+          "failed",
+          "incomplete",
+          "status"
+        ],
+        "title": "FolderIngestSummary",
+        "type": "object"
+      },
+      "FolderListingResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/FileEntrySummary"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "folders": {
+            "items": {
+              "$ref": "#/components/schemas/FolderResponse"
+            },
+            "title": "Folders",
+            "type": "array"
+          }
+        },
+        "required": [
+          "folders",
+          "entries"
+        ],
+        "title": "FolderListingResponse",
+        "type": "object"
+      },
+      "FolderPatchResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "folder_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Id"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "ingest_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FolderIngestSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "title": "FolderPatchResponse",
+        "type": "object"
+      },
+      "FolderResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ingest_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FolderIngestSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "parent_id",
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "FolderResponse",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -1279,6 +1713,221 @@
         "title": "RenameBody",
         "type": "object"
       },
+      "ReplayedToolCall": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "additionalProperties": true,
+            "title": "Arguments",
+            "type": "object"
+          },
+          "display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "error": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview"
+          },
+          "tool_call_id": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Call Id"
+          },
+          "tool_index": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Index"
+          },
+          "turn": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn"
+          }
+        },
+        "required": [
+          "name",
+          "arguments",
+          "ok"
+        ],
+        "title": "ReplayedToolCall",
+        "type": "object"
+      },
+      "ReplayedTurn": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Response"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/TurnAttachment"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/TurnMetrics"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "plan_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Text"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "tool_calls": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayedToolCall"
+            },
+            "title": "Tool Calls",
+            "type": "array"
+          },
+          "turn_index": {
+            "title": "Turn Index",
+            "type": "integer"
+          },
+          "user_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Message"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "turn_index",
+          "mode",
+          "started_at",
+          "ended_at",
+          "user_message",
+          "attachments",
+          "agent_response",
+          "error",
+          "plan_text",
+          "tool_calls",
+          "metrics"
+        ],
+        "title": "ReplayedTurn",
+        "type": "object"
+      },
       "RunningCountResponse": {
         "additionalProperties": false,
         "properties": {
@@ -2085,6 +2734,374 @@
         "title": "ServerSettingsResponse",
         "type": "object"
       },
+      "SessionCloseResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "end_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Reason"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/SessionTotalsBody"
+          }
+        },
+        "required": [
+          "session_id",
+          "ended_at",
+          "end_reason",
+          "totals"
+        ],
+        "title": "SessionCloseResponse",
+        "type": "object"
+      },
+      "SessionCreateResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          }
+        },
+        "required": [
+          "session_id",
+          "started_at"
+        ],
+        "title": "SessionCreateResponse",
+        "type": "object"
+      },
+      "SessionListEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "end_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Reason"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "preview": {
+            "title": "Preview",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "total_input_tokens": {
+            "title": "Total Input Tokens",
+            "type": "integer"
+          },
+          "total_output_tokens": {
+            "title": "Total Output Tokens",
+            "type": "integer"
+          },
+          "total_tool_calls": {
+            "title": "Total Tool Calls",
+            "type": "integer"
+          },
+          "turn_count": {
+            "title": "Turn Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session_id",
+          "started_at",
+          "ended_at",
+          "end_reason",
+          "preview",
+          "mode",
+          "turn_count",
+          "total_input_tokens",
+          "total_output_tokens",
+          "total_tool_calls"
+        ],
+        "title": "SessionListEntry",
+        "type": "object"
+      },
+      "SessionListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SessionListEntry"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions",
+          "limit",
+          "offset",
+          "next_cursor"
+        ],
+        "title": "SessionListResponse",
+        "type": "object"
+      },
+      "SessionTotalsBody": {
+        "additionalProperties": false,
+        "properties": {
+          "cache_creation": {
+            "title": "Cache Creation",
+            "type": "integer"
+          },
+          "cache_eligible_estimated_tokens": {
+            "title": "Cache Eligible Estimated Tokens",
+            "type": "integer"
+          },
+          "cache_eligible_hit_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Eligible Hit Ratio"
+          },
+          "cache_eligible_prompt_tokens": {
+            "title": "Cache Eligible Prompt Tokens",
+            "type": "integer"
+          },
+          "cache_eligible_read_tokens": {
+            "title": "Cache Eligible Read Tokens",
+            "type": "integer"
+          },
+          "cache_eligible_requests": {
+            "title": "Cache Eligible Requests",
+            "type": "integer"
+          },
+          "cache_eligible_reuse_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Eligible Reuse Ratio"
+          },
+          "cache_prompt_coverage_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Prompt Coverage Ratio"
+          },
+          "cache_read": {
+            "title": "Cache Read",
+            "type": "integer"
+          },
+          "cache_slo": {
+            "$ref": "#/components/schemas/CacheSlo"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "llm_calls": {
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "prompt_prefix_breaks": {
+            "title": "Prompt Prefix Breaks",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "tool_calls": {
+            "title": "Tool Calls",
+            "type": "integer"
+          },
+          "turn_count": {
+            "title": "Turn Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "turn_count",
+          "input_tokens",
+          "output_tokens",
+          "prompt_tokens",
+          "cache_read",
+          "cache_creation",
+          "cache_eligible_prompt_tokens",
+          "cache_eligible_read_tokens",
+          "cache_eligible_estimated_tokens",
+          "cache_eligible_requests",
+          "cache_prompt_coverage_ratio",
+          "cache_eligible_hit_ratio",
+          "cache_eligible_reuse_ratio",
+          "prompt_prefix_breaks",
+          "cache_slo",
+          "tool_calls",
+          "llm_calls"
+        ],
+        "title": "SessionTotalsBody",
+        "type": "object"
+      },
+      "SessionTranscriptResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "end_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Reason"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/TurnMetrics"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayedTurn"
+            },
+            "title": "Turns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "session_id",
+          "started_at",
+          "ended_at",
+          "end_reason",
+          "mode",
+          "metrics",
+          "turns"
+        ],
+        "title": "SessionTranscriptResponse",
+        "type": "object"
+      },
       "StatsOverviewResponse": {
         "additionalProperties": false,
         "properties": {
@@ -2409,6 +3426,139 @@
         "title": "TaskThroughputResponse",
         "type": "object"
       },
+      "TurnAttachment": {
+        "additionalProperties": false,
+        "properties": {
+          "media_type": {
+            "title": "Media Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "media_type"
+        ],
+        "title": "TurnAttachment",
+        "type": "object"
+      },
+      "TurnMetrics": {
+        "additionalProperties": false,
+        "properties": {
+          "cache_creation": {
+            "title": "Cache Creation",
+            "type": "integer"
+          },
+          "cache_eligible_estimated_tokens": {
+            "title": "Cache Eligible Estimated Tokens",
+            "type": "integer"
+          },
+          "cache_eligible_hit_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Eligible Hit Ratio"
+          },
+          "cache_eligible_prompt_tokens": {
+            "title": "Cache Eligible Prompt Tokens",
+            "type": "integer"
+          },
+          "cache_eligible_read_tokens": {
+            "title": "Cache Eligible Read Tokens",
+            "type": "integer"
+          },
+          "cache_eligible_requests": {
+            "title": "Cache Eligible Requests",
+            "type": "integer"
+          },
+          "cache_eligible_reuse_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Eligible Reuse Ratio"
+          },
+          "cache_prompt_coverage_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Prompt Coverage Ratio"
+          },
+          "cache_read": {
+            "title": "Cache Read",
+            "type": "integer"
+          },
+          "cache_slo": {
+            "$ref": "#/components/schemas/CacheSlo"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "llm_calls": {
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "prompt_prefix_breaks": {
+            "title": "Prompt Prefix Breaks",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          },
+          "tool_calls": {
+            "title": "Tool Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tokens_in",
+          "tokens_out",
+          "prompt_tokens",
+          "cache_read",
+          "cache_creation",
+          "cache_eligible_prompt_tokens",
+          "cache_eligible_read_tokens",
+          "cache_eligible_estimated_tokens",
+          "cache_eligible_requests",
+          "cache_prompt_coverage_ratio",
+          "cache_eligible_hit_ratio",
+          "cache_eligible_reuse_ratio",
+          "prompt_prefix_breaks",
+          "cache_slo",
+          "tool_calls",
+          "llm_calls",
+          "duration_ms"
+        ],
+        "title": "TurnMetrics",
+        "type": "object"
+      },
       "UploadResponse": {
         "additionalProperties": false,
         "properties": {
@@ -2511,6 +3661,697 @@
         "title": "WebDavConfigBody",
         "type": "object"
       },
+      "WebDavHydrateResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "already_local": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Already Local"
+          },
+          "entry_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Id"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "hydrated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydrated"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "storage_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Key"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "WebDavHydrateResponse",
+        "type": "object"
+      },
+      "WebDavPlanItem": {
+        "additionalProperties": true,
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "entry_id": {
+            "title": "Entry Id",
+            "type": "string"
+          },
+          "folder_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Id"
+          },
+          "folder_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Path"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "entry_id",
+          "display_name",
+          "reason"
+        ],
+        "title": "WebDavPlanItem",
+        "type": "object"
+      },
+      "WebDavPlanResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/WebDavPlanItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "remote_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Path"
+          },
+          "remote_updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Updated At"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "WebDavPlanResponse",
+        "type": "object"
+      },
+      "WebDavPublishResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          }
+        },
+        "required": [
+          "ok",
+          "task_id"
+        ],
+        "title": "WebDavPublishResponse",
+        "type": "object"
+      },
+      "WebDavPublishSelectedResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "blob_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blob Bytes"
+          },
+          "blob_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blob Count"
+          },
+          "entry_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Count"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "latest_snapshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Snapshot"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "processed_blobs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed Blobs"
+          },
+          "remote_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Path"
+          },
+          "selected_entries": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Entries"
+          },
+          "selected_files": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Files"
+          },
+          "skipped_blobs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped Blobs"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "total_blobs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Blobs"
+          },
+          "total_metadata_files": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Metadata Files"
+          },
+          "uploaded_blobs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploaded Blobs"
+          },
+          "uploaded_metadata_files": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploaded Metadata Files"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "WebDavPublishSelectedResponse",
+        "type": "object"
+      },
+      "WebDavPullResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "catalogs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogs"
+          },
+          "downloaded_files": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Downloaded Files"
+          },
+          "entries": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entries"
+          },
+          "entry_tags": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Tags"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errors"
+          },
+          "failed_files": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failed Files"
+          },
+          "folders": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folders"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "relations": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relations"
+          },
+          "remote_files": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Files"
+          },
+          "remote_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Path"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "tag_aliases": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Aliases"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "views": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Views"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "WebDavPullResponse",
+        "type": "object"
+      },
+      "WebDavRemoteStatusResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "latest": {
+            "title": "Latest"
+          },
+          "manifest": {
+            "title": "Manifest"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "remote_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Path"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "WebDavRemoteStatusResponse",
+        "type": "object"
+      },
       "WebDavSelectedEntriesBody": {
         "properties": {
           "entry_ids": {
@@ -2593,6 +4434,34 @@
           "last"
         ],
         "title": "WebDavStatus",
+        "type": "object"
+      },
+      "WebDavTestResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "latest": {
+            "title": "Latest"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "remote_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Path"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "WebDavTestResponse",
         "type": "object"
       }
     }
@@ -5462,13 +7331,29 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List Folder V1 Folders Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/FolderListingResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -5504,23 +7389,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Folder V1 Folders Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/FolderResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FastAPIDetail"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid folder name or move"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Folder not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Folder name conflict"
+          },
+          "422": {
+            "description": "Validation error"
           }
         },
         "summary": "Create Folder",
@@ -5560,23 +7484,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Delete Folder V1 Folders  Folder Id  Delete",
-                  "type": "object"
+                  "$ref": "#/components/schemas/FolderDeletedResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FastAPIDetail"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid folder name or move"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Folder not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Folder name conflict"
+          },
+          "422": {
+            "description": "Validation error"
           }
         },
         "summary": "Delete Folder",
@@ -5602,23 +7565,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Folder V1 Folders  Folder Id  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/FolderDetailResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FastAPIDetail"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid folder name or move"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Folder not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Folder name conflict"
+          },
+          "422": {
+            "description": "Validation error"
           }
         },
         "summary": "Get Folder",
@@ -5655,23 +7657,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Patch Folder V1 Folders  Folder Id  Patch",
-                  "type": "object"
+                  "$ref": "#/components/schemas/FolderPatchResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FastAPIDetail"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid folder name or move"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Folder not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Folder name conflict"
+          },
+          "422": {
+            "description": "Validation error"
           }
         },
         "summary": "Patch Folder",
@@ -5993,13 +8034,29 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List Sessions V1 Sessions Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SessionListResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -6041,13 +8098,29 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Session V1 Sessions Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SessionCreateResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -6085,15 +8158,36 @@
           "204": {
             "description": "Successful Response"
           },
-          "422": {
+          "401": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/BearerAuthError"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Session not found"
+          },
+          "422": {
+            "description": "Validation error"
           }
         },
         "summary": "Delete Session",
@@ -6121,23 +8215,42 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Close Session V1 Sessions  Session Id  Close Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SessionCloseResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
+          "401": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/BearerAuthError"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Session not found"
+          },
+          "422": {
+            "description": "Validation error"
           }
         },
         "summary": "Close Session",
@@ -6166,23 +8279,42 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Session Messages V1 Sessions  Session Id  Messages Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SessionTranscriptResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
+          "401": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/BearerAuthError"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Session not found"
+          },
+          "422": {
+            "description": "Validation error"
           }
         },
         "summary": "Session Messages",
@@ -6521,23 +8653,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Update Webdav Config V1 Sync Webdav Config Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavStatus"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FastAPIDetail"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Update Webdav Config",
@@ -6554,13 +8725,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Download V1 Sync Webdav Download Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavPullResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Webdav Download",
@@ -6577,13 +8797,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Download Plan V1 Sync Webdav Download Plan Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavPlanResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Webdav Download Plan",
@@ -6610,23 +8879,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Download Selected V1 Sync Webdav Download Selected Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavPullResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FastAPIDetail"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Webdav Download Selected",
@@ -6654,23 +8962,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Hydrate V1 Sync Webdav Hydrate  Entry Id  Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavHydrateResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FastAPIDetail"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Webdav Hydrate",
@@ -6687,13 +9034,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Publish V1 Sync Webdav Publish Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavPublishResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Webdav Publish",
@@ -6720,23 +9116,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Publish Selected V1 Sync Webdav Publish Selected Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavPublishSelectedResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FastAPIDetail"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Webdav Publish Selected",
@@ -6753,13 +9188,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Pull V1 Sync Webdav Pull Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavPullResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Webdav Pull",
@@ -6776,13 +9260,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Remote Status V1 Sync Webdav Remote Status Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavRemoteStatusResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Webdav Remote Status",
@@ -6799,13 +9332,29 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Status V1 Sync Webdav Status Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavStatus"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Webdav Status",
@@ -6822,13 +9371,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Test V1 Sync Webdav Test Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavTestResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Webdav Test",
@@ -6845,13 +9443,62 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Webdav Upload Plan V1 Sync Webdav Upload Plan Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WebDavPlanResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV not configured or invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BearerAuthError"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "example": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "Remote entry not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FastAPIDetail"
+                }
+              }
+            },
+            "description": "WebDAV request failed; see server logs"
           }
         },
         "summary": "Webdav Upload Plan",

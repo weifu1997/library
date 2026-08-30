@@ -84,7 +84,7 @@ It has two modes:
 - Quick: bounded evidence gathering for short lookups.
 - Deep: a slower investigation loop for reports where coverage matters.
 
-There is a Python CLI. It is AGPL.
+There is a Python CLI. It is MIT.
 
 Repo: https://github.com/weifu1997/library
 
@@ -126,7 +126,7 @@ I built a local-first research agent that reads original files before answering
 
 **Body**
 
-Library is an AGPL local-first AI library for private heterogeneous files:
+Library is an MIT-licensed local-first AI library for private heterogeneous files:
 PDFs, Markdown, DOCX, images, spreadsheets, logs, and archives.
 
 Instead of only retrieving top-k chunks, it uses a structured retrieval funnel:

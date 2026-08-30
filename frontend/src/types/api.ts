@@ -9,50 +9,36 @@ import type {} from "./generated/usage";
 
 export type IngestStatus = "pending" | "processing" | "done" | "failed";
 
-export interface FolderIngestSummary {
-  total: number;
-  pending: number;
-  processing: number;
-  done: number;
-  failed: number;
-  incomplete: number;
+export type FolderIngestSummary = Omit<
+  components["schemas"]["FolderIngestSummary"],
+  "status"
+> & {
   status: IngestStatus | null;
-}
+};
 
-export interface Folder {
-  id: string;
-  parent_id: string | null;
-  name: string;
-  created_at: string | null;
-  updated_at: string | null;
-  /** Recursive file ingest summary for this folder subtree. Present on
-   *  folder-listing responses so collapsed rows can show unfinished work. */
+export type Folder = Omit<
+  components["schemas"]["FolderResponse"],
+  "ingest_summary"
+> & {
   ingest_summary?: FolderIngestSummary | null;
-}
+};
 
-export interface FolderDetail extends Folder {
-  children: Folder[];
-  entries: FileEntrySummary[];
-}
+export type FileEntrySummary = Omit<
+  components["schemas"]["FileEntrySummary"],
+  "ingest_status"
+> & {
+  ingest_status?: IngestStatus | null;
+};
 
-export interface FolderListing {
+export type FolderListing = {
   folders: Folder[];
   entries: FileEntrySummary[];
-}
+};
 
-export interface FileEntrySummary {
-  id: string;
-  folder_id: string | null;
-  file_id: string;
-  display_name: string;
-  lifecycle: string;
-  /** File-side ingest state — pending | processing | done | failed.
-   *  Sourced from the joined `files.ingest_status` so the row can
-   *  paint a "failed" badge without a second round-trip. */
-  ingest_status?: IngestStatus | null;
-  ingest_error?: string | null;
-  created_at?: string | null;
-}
+export type FolderDetail = Folder & {
+  children: Folder[];
+  entries: FileEntrySummary[];
+};
 
 export type UploadResult = components["schemas"]["UploadResponse"];
 
@@ -105,31 +91,24 @@ export interface EntryPath {
   ancestors: { id: string; name: string }[];
 }
 
-export interface SessionInfo {
-  session_id: string;
-  started_at: string | null;
+export type SessionInfo = components["schemas"]["SessionCreateResponse"] & {
   mode?: ChatMode;
-}
+};
 
-export interface SessionListEntry {
-  session_id: string;
-  started_at: string | null;
-  ended_at: string | null;
-  end_reason: string | null;
-  preview: string;
+export type SessionListEntry = Omit<
+  components["schemas"]["SessionListEntry"],
+  "mode"
+> & {
   mode: ChatMode;
-  turn_count: number;
-  total_input_tokens: number;
-  total_output_tokens: number;
-  total_tool_calls: number;
-}
+};
 
-export interface SessionList {
+export type SessionList = Omit<
+  components["schemas"]["SessionListResponse"],
+  "sessions" | "next_cursor"
+> & {
   sessions: SessionListEntry[];
-  limit: number;
-  offset: number;
   next_cursor?: string | null;
-}
+};
 
 export interface ReplayedToolCall {
   tool_call_id?: string | null;
@@ -202,36 +181,9 @@ export interface SessionTranscript {
   turns: ReplayedTurn[];
 }
 
-export interface SessionTotals {
-  session_id: string;
-  ended_at: string | null;
-  end_reason: string | null;
-  totals: {
-    turn_count: number;
-    input_tokens: number;
-    output_tokens: number;
-    prompt_tokens: number;
-    cache_read: number;
-    cache_creation: number;
-    cache_eligible_prompt_tokens: number;
-    cache_eligible_read_tokens: number;
-    cache_eligible_estimated_tokens: number;
-    cache_eligible_requests: number;
-    cache_eligible_hit_ratio: number | null;
-    cache_prompt_coverage_ratio: number | null;
-    cache_eligible_reuse_ratio: number | null;
-    prompt_prefix_breaks: number;
-    cache_slo: CacheSlo;
-    tool_calls: number;
-    llm_calls: number;
-  };
-}
+export type SessionTotals = components["schemas"]["SessionCloseResponse"];
 
-export interface CacheSlo {
-  status: "met" | "breached" | "insufficient_data";
-  minimum_hit_ratio: number;
-  minimum_eligible_requests: number;
-}
+export type CacheSlo = components["schemas"]["CacheSlo"];
 
 export type RunningCount = components["schemas"]["RunningCountResponse"];
 
@@ -448,10 +400,7 @@ export interface WebDavStatus {
   last?: WebDavSyncLast | null;
 }
 
-export interface WebDavPublishResult {
-  ok: boolean;
-  task_id: string | null;
-}
+export type WebDavPublishResult = components["schemas"]["WebDavPublishResponse"];
 
 export interface WebDavRemoteStatusResult {
   ok: boolean;

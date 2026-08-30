@@ -3,7 +3,9 @@
 The Python sidecar packaging pipeline under `scripts/cpython/`,
 `scripts/prepare-resources*`, and `scripts/ci/` was originally lifted
 verbatim from [AstrBotDevs/AstrBot-desktop](https://github.com/AstrBotDevs/AstrBot-desktop)
-(AGPL-3.0, the same license Library uses).
+(AGPL-3.0). Library itself is MIT (`LICENSE`, `pyproject.toml`). Those
+packaging scripts were removed with the desktop/Tauri shell; this file
+is retained for provenance.
 
 Source revision:
 - repo: https://github.com/AstrBotDevs/AstrBot-desktop

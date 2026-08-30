@@ -1215,6 +1215,18 @@ export interface components {
             /** Tag Id */
             tag_id?: string | null;
         };
+        /** CacheSlo */
+        CacheSlo: {
+            /** Minimum Eligible Requests */
+            minimum_eligible_requests: number;
+            /** Minimum Hit Ratio */
+            minimum_hit_ratio: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "met" | "breached" | "insufficient_data";
+        };
         /** ChatBody */
         ChatBody: {
             /**
@@ -1262,6 +1274,106 @@ export interface components {
             detail: unknown;
         } & {
             [key: string]: unknown;
+        };
+        /** FileEntrySummary */
+        FileEntrySummary: {
+            /** Created At */
+            created_at?: string | null;
+            /** Display Name */
+            display_name: string;
+            /** File Id */
+            file_id: string;
+            /** Folder Id */
+            folder_id: string | null;
+            /** Id */
+            id: string;
+            /** Ingest Error */
+            ingest_error?: string | null;
+            /** Ingest Status */
+            ingest_status?: string | null;
+            /** Lifecycle */
+            lifecycle: string;
+        };
+        /** FolderDeletedResponse */
+        FolderDeletedResponse: {
+            /** Deleted At */
+            deleted_at: string | null;
+            /** Folder Id */
+            folder_id: string;
+        };
+        /** FolderDetailResponse */
+        FolderDetailResponse: {
+            /** Children */
+            children: components["schemas"]["FolderResponse"][];
+            /** Created At */
+            created_at: string | null;
+            /** Entries */
+            entries: components["schemas"]["FileEntrySummary"][];
+            /** Id */
+            id: string;
+            ingest_summary?: components["schemas"]["FolderIngestSummary"] | null;
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id: string | null;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /** FolderIngestSummary */
+        FolderIngestSummary: {
+            /** Done */
+            done: number;
+            /** Failed */
+            failed: number;
+            /** Incomplete */
+            incomplete: number;
+            /** Pending */
+            pending: number;
+            /** Processing */
+            processing: number;
+            /** Status */
+            status: string | null;
+            /** Total */
+            total: number;
+        };
+        /** FolderListingResponse */
+        FolderListingResponse: {
+            /** Entries */
+            entries: components["schemas"]["FileEntrySummary"][];
+            /** Folders */
+            folders: components["schemas"]["FolderResponse"][];
+        };
+        /** FolderPatchResponse */
+        FolderPatchResponse: {
+            /** Created At */
+            created_at?: string | null;
+            /** Folder Id */
+            folder_id?: string | null;
+            /** Id */
+            id?: string | null;
+            ingest_summary?: components["schemas"]["FolderIngestSummary"] | null;
+            /** Name */
+            name?: string | null;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** FolderResponse */
+        FolderResponse: {
+            /** Created At */
+            created_at: string | null;
+            /** Id */
+            id: string;
+            ingest_summary?: components["schemas"]["FolderIngestSummary"] | null;
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id: string | null;
+            /** Updated At */
+            updated_at: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1555,6 +1667,57 @@ export interface components {
             display_name: string;
             /** On Conflict */
             on_conflict?: ("rename" | "error" | "skip") | null;
+        };
+        /** ReplayedToolCall */
+        ReplayedToolCall: {
+            /** Arguments */
+            arguments: {
+                [key: string]: unknown;
+            };
+            /** Display */
+            display?: string | null;
+            /** Duration Ms */
+            duration_ms?: unknown | null;
+            /** Error */
+            error?: unknown | null;
+            /** Name */
+            name: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Preview */
+            preview?: string | null;
+            /** Tool Call Id */
+            tool_call_id?: unknown | null;
+            /** Tool Index */
+            tool_index?: unknown | null;
+            /** Turn */
+            turn?: unknown | null;
+        };
+        /** ReplayedTurn */
+        ReplayedTurn: {
+            /** Agent Response */
+            agent_response: string | null;
+            /** Attachments */
+            attachments: components["schemas"]["TurnAttachment"][];
+            /** Conversation Id */
+            conversation_id: string;
+            /** Ended At */
+            ended_at: string | null;
+            /** Error */
+            error: string | null;
+            metrics: components["schemas"]["TurnMetrics"];
+            /** Mode */
+            mode: string;
+            /** Plan Text */
+            plan_text: string | null;
+            /** Started At */
+            started_at: string | null;
+            /** Tool Calls */
+            tool_calls: components["schemas"]["ReplayedToolCall"][];
+            /** Turn Index */
+            turn_index: number;
+            /** User Message */
+            user_message: string | null;
         };
         /** RunningCountResponse */
         RunningCountResponse: {
@@ -1857,6 +2020,109 @@ export interface components {
             /** Worker Scheduler Enabled */
             worker_scheduler_enabled: boolean;
         };
+        /** SessionCloseResponse */
+        SessionCloseResponse: {
+            /** End Reason */
+            end_reason: string | null;
+            /** Ended At */
+            ended_at: string | null;
+            /** Session Id */
+            session_id: string;
+            totals: components["schemas"]["SessionTotalsBody"];
+        };
+        /** SessionCreateResponse */
+        SessionCreateResponse: {
+            /** Session Id */
+            session_id: string;
+            /** Started At */
+            started_at: string | null;
+        };
+        /** SessionListEntry */
+        SessionListEntry: {
+            /** End Reason */
+            end_reason: string | null;
+            /** Ended At */
+            ended_at: string | null;
+            /** Mode */
+            mode: string;
+            /** Preview */
+            preview: string;
+            /** Session Id */
+            session_id: string;
+            /** Started At */
+            started_at: string | null;
+            /** Total Input Tokens */
+            total_input_tokens: number;
+            /** Total Output Tokens */
+            total_output_tokens: number;
+            /** Total Tool Calls */
+            total_tool_calls: number;
+            /** Turn Count */
+            turn_count: number;
+        };
+        /** SessionListResponse */
+        SessionListResponse: {
+            /** Limit */
+            limit: number;
+            /** Next Cursor */
+            next_cursor: string | null;
+            /** Offset */
+            offset: number;
+            /** Sessions */
+            sessions: components["schemas"]["SessionListEntry"][];
+        };
+        /** SessionTotalsBody */
+        SessionTotalsBody: {
+            /** Cache Creation */
+            cache_creation: number;
+            /** Cache Eligible Estimated Tokens */
+            cache_eligible_estimated_tokens: number;
+            /** Cache Eligible Hit Ratio */
+            cache_eligible_hit_ratio: number | null;
+            /** Cache Eligible Prompt Tokens */
+            cache_eligible_prompt_tokens: number;
+            /** Cache Eligible Read Tokens */
+            cache_eligible_read_tokens: number;
+            /** Cache Eligible Requests */
+            cache_eligible_requests: number;
+            /** Cache Eligible Reuse Ratio */
+            cache_eligible_reuse_ratio: number | null;
+            /** Cache Prompt Coverage Ratio */
+            cache_prompt_coverage_ratio: number | null;
+            /** Cache Read */
+            cache_read: number;
+            cache_slo: components["schemas"]["CacheSlo"];
+            /** Input Tokens */
+            input_tokens: number;
+            /** Llm Calls */
+            llm_calls: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Prompt Prefix Breaks */
+            prompt_prefix_breaks: number;
+            /** Prompt Tokens */
+            prompt_tokens: number;
+            /** Tool Calls */
+            tool_calls: number;
+            /** Turn Count */
+            turn_count: number;
+        };
+        /** SessionTranscriptResponse */
+        SessionTranscriptResponse: {
+            /** End Reason */
+            end_reason: string | null;
+            /** Ended At */
+            ended_at: string | null;
+            metrics: components["schemas"]["TurnMetrics"];
+            /** Mode */
+            mode: string;
+            /** Session Id */
+            session_id: string;
+            /** Started At */
+            started_at: string | null;
+            /** Turns */
+            turns: components["schemas"]["ReplayedTurn"][];
+        };
         /** StatsOverviewResponse */
         StatsOverviewResponse: {
             /** Recent */
@@ -1959,6 +2225,49 @@ export interface components {
             /** Window Minutes */
             window_minutes: number;
         };
+        /** TurnAttachment */
+        TurnAttachment: {
+            /** Media Type */
+            media_type: string;
+            /** Name */
+            name: string;
+        };
+        /** TurnMetrics */
+        TurnMetrics: {
+            /** Cache Creation */
+            cache_creation: number;
+            /** Cache Eligible Estimated Tokens */
+            cache_eligible_estimated_tokens: number;
+            /** Cache Eligible Hit Ratio */
+            cache_eligible_hit_ratio: number | null;
+            /** Cache Eligible Prompt Tokens */
+            cache_eligible_prompt_tokens: number;
+            /** Cache Eligible Read Tokens */
+            cache_eligible_read_tokens: number;
+            /** Cache Eligible Requests */
+            cache_eligible_requests: number;
+            /** Cache Eligible Reuse Ratio */
+            cache_eligible_reuse_ratio: number | null;
+            /** Cache Prompt Coverage Ratio */
+            cache_prompt_coverage_ratio: number | null;
+            /** Cache Read */
+            cache_read: number;
+            cache_slo: components["schemas"]["CacheSlo"];
+            /** Duration Ms */
+            duration_ms: number;
+            /** Llm Calls */
+            llm_calls: number;
+            /** Prompt Prefix Breaks */
+            prompt_prefix_breaks: number;
+            /** Prompt Tokens */
+            prompt_tokens: number;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+            /** Tool Calls */
+            tool_calls: number;
+        };
         /** UploadResponse */
         UploadResponse: {
             /** Auto Renamed */
@@ -1996,6 +2305,165 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** WebDavHydrateResponse */
+        WebDavHydrateResponse: {
+            /** Already Local */
+            already_local?: boolean | null;
+            /** Entry Id */
+            entry_id?: string | null;
+            /** File Id */
+            file_id?: string | null;
+            /** Hydrated */
+            hydrated?: boolean | null;
+            /** Ok */
+            ok: boolean;
+            /** Storage Key */
+            storage_key?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** WebDavPlanItem */
+        WebDavPlanItem: {
+            /** Display Name */
+            display_name: string;
+            /** Entry Id */
+            entry_id: string;
+            /** Folder Id */
+            folder_id?: string | null;
+            /** Folder Path */
+            folder_path?: string | null;
+            /** Reason */
+            reason: string;
+            /** Sha256 */
+            sha256?: string | null;
+            /** Size Bytes */
+            size_bytes?: number | null;
+            /** Updated At */
+            updated_at?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** WebDavPlanResponse */
+        WebDavPlanResponse: {
+            /** App Version */
+            app_version?: string | null;
+            /** Count */
+            count?: number | null;
+            /** Items */
+            items?: components["schemas"]["WebDavPlanItem"][] | null;
+            /** Ok */
+            ok: boolean;
+            /** Remote Path */
+            remote_path?: string | null;
+            /** Remote Updated At */
+            remote_updated_at?: string | null;
+            /** Snapshot Id */
+            snapshot_id?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** WebDavPublishResponse */
+        WebDavPublishResponse: {
+            /** Ok */
+            ok: boolean;
+            /** Task Id */
+            task_id: string | null;
+        };
+        /** WebDavPublishSelectedResponse */
+        WebDavPublishSelectedResponse: {
+            /** Blob Bytes */
+            blob_bytes?: number | null;
+            /** Blob Count */
+            blob_count?: number | null;
+            /** Entry Count */
+            entry_count?: number | null;
+            /** Error */
+            error?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /** Latest Snapshot */
+            latest_snapshot?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Processed Blobs */
+            processed_blobs?: number | null;
+            /** Remote Path */
+            remote_path?: string | null;
+            /** Selected Entries */
+            selected_entries?: number | null;
+            /** Selected Files */
+            selected_files?: number | null;
+            /** Skipped Blobs */
+            skipped_blobs?: number | null;
+            /** Snapshot Id */
+            snapshot_id?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Total Blobs */
+            total_blobs?: number | null;
+            /** Total Metadata Files */
+            total_metadata_files?: number | null;
+            /** Uploaded Blobs */
+            uploaded_blobs?: number | null;
+            /** Uploaded Metadata Files */
+            uploaded_metadata_files?: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** WebDavPullResponse */
+        WebDavPullResponse: {
+            /** Catalogs */
+            catalogs?: number | null;
+            /** Downloaded Files */
+            downloaded_files?: number | null;
+            /** Entries */
+            entries?: number | null;
+            /** Entry Tags */
+            entry_tags?: number | null;
+            /** Errors */
+            errors?: unknown[] | null;
+            /** Failed Files */
+            failed_files?: number | null;
+            /** Folders */
+            folders?: number | null;
+            /** Ok */
+            ok: boolean;
+            /** Relations */
+            relations?: number | null;
+            /** Remote Files */
+            remote_files?: number | null;
+            /** Remote Path */
+            remote_path?: string | null;
+            /** Snapshot Id */
+            snapshot_id?: string | null;
+            /** Tag Aliases */
+            tag_aliases?: number | null;
+            /** Tags */
+            tags?: number | null;
+            /** Views */
+            views?: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** WebDavRemoteStatusResponse */
+        WebDavRemoteStatusResponse: {
+            /** Checked At */
+            checked_at?: string | null;
+            /** Latest */
+            latest?: unknown;
+            /** Manifest */
+            manifest?: unknown;
+            /** Ok */
+            ok: boolean;
+            /** Remote Path */
+            remote_path?: string | null;
+            /** Status */
+            status?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** WebDavSelectedEntriesBody */
         WebDavSelectedEntriesBody: {
             /** Entry Ids */
@@ -2021,6 +2489,17 @@ export interface components {
             url: string | null;
             /** Username */
             username: string | null;
+        };
+        /** WebDavTestResponse */
+        WebDavTestResponse: {
+            /** Latest */
+            latest?: unknown;
+            /** Ok */
+            ok: boolean;
+            /** Remote Path */
+            remote_path?: string | null;
+        } & {
+            [key: string]: unknown;
         };
     };
     responses: never;
@@ -2808,9 +3287,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FolderListingResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
                 };
             };
             /** @description Validation Error */
@@ -2843,19 +3330,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FolderResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Invalid folder name or move */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Folder not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Folder name conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2876,19 +3396,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FolderDetailResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Invalid folder name or move */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Folder not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Folder name conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2911,19 +3464,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FolderDeletedResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Invalid folder name or move */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Folder not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Folder name conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2948,19 +3534,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FolderPatchResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Invalid folder name or move */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Folder not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Folder name conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3172,9 +3791,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionListResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
                 };
             };
             /** @description Validation Error */
@@ -3207,9 +3834,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionCreateResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
                 };
             };
             /** @description Validation Error */
@@ -3241,14 +3876,31 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Session not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3269,19 +3921,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionCloseResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Session not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3302,19 +3969,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionTranscriptResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Session not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3554,18 +4236,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavStatus"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description WebDAV not configured or invalid request */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };
@@ -3585,9 +4300,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavPullResponse"];
+                };
+            };
+            /** @description WebDAV not configured or invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };
@@ -3607,9 +4364,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavPlanResponse"];
+                };
+            };
+            /** @description WebDAV not configured or invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };
@@ -3633,18 +4432,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavPullResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description WebDAV not configured or invalid request */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };
@@ -3666,18 +4498,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavHydrateResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description WebDAV not configured or invalid request */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };
@@ -3697,9 +4562,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavPublishResponse"];
+                };
+            };
+            /** @description WebDAV not configured or invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };
@@ -3723,18 +4630,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavPublishSelectedResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description WebDAV not configured or invalid request */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };
@@ -3754,9 +4694,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavPullResponse"];
+                };
+            };
+            /** @description WebDAV not configured or invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };
@@ -3776,9 +4758,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavRemoteStatusResponse"];
+                };
+            };
+            /** @description WebDAV not configured or invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };
@@ -3798,9 +4822,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavStatus"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
                 };
             };
         };
@@ -3820,9 +4852,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavTestResponse"];
+                };
+            };
+            /** @description WebDAV not configured or invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };
@@ -3842,9 +4916,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebDavPlanResponse"];
+                };
+            };
+            /** @description WebDAV not configured or invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Missing or invalid bearer token. Only raised when LIBRARY_API_TOKEN is configured. Tokenless loopback is the default. */
+            401: {
+                headers: {
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BearerAuthError"];
+                };
+            };
+            /** @description Remote entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description WebDAV request failed; see server logs */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FastAPIDetail"];
                 };
             };
         };

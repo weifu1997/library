@@ -12,6 +12,14 @@ from library.db.session import get_session
 from library.repositories import audit_events as audit_events_repo
 from library.repositories import entries as entries_repo
 from library.repositories import tasks as tasks_repo
+from library.schemas.errors import FOLDER_ERROR_RESPONSES, OPTIONAL_AUTH_RESPONSES
+from library.schemas.folders import (
+    FolderDeletedResponse,
+    FolderDetailResponse,
+    FolderListingResponse,
+    FolderPatchResponse,
+    FolderResponse,
+)
 from library.services import folders as folder_service
 
 router = APIRouter(prefix="/folders", tags=["folders"])
@@ -112,7 +120,11 @@ async def _serialize_entries_with_errors(
     ]
 
 
-@router.get("")
+@router.get(
+    "",
+    response_model=FolderListingResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def list_folder(
     parent_id: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
@@ -132,7 +144,12 @@ async def list_folder(
     }
 
 
-@router.post("", status_code=201)
+@router.post(
+    "",
+    status_code=201,
+    response_model=FolderResponse,
+    responses=FOLDER_ERROR_RESPONSES,
+)
 async def create_folder(
     body: CreateFolderBody,
     session: AsyncSession = Depends(get_session),
@@ -162,7 +179,11 @@ async def create_folder(
     return _serialize_folder(f)
 
 
-@router.get("/{folder_id}")
+@router.get(
+    "/{folder_id}",
+    response_model=FolderDetailResponse,
+    responses=FOLDER_ERROR_RESPONSES,
+)
 async def get_folder(
     folder_id: str,
     session: AsyncSession = Depends(get_session),
@@ -182,7 +203,11 @@ async def get_folder(
     }
 
 
-@router.patch("/{folder_id}")
+@router.patch(
+    "/{folder_id}",
+    response_model=FolderPatchResponse,
+    responses=FOLDER_ERROR_RESPONSES,
+)
 async def patch_folder(
     folder_id: str,
     body: PatchFolderBody,
@@ -218,7 +243,12 @@ async def patch_folder(
     return _serialize_folder(f) if f is not None else {"folder_id": folder_id}
 
 
-@router.delete("/{folder_id}", status_code=200)
+@router.delete(
+    "/{folder_id}",
+    status_code=200,
+    response_model=FolderDeletedResponse,
+    responses=FOLDER_ERROR_RESPONSES,
+)
 async def delete_folder(
     folder_id: str,
     purge_after_seconds: int = Query(default=7 * 86400, ge=0, le=365 * 86400),

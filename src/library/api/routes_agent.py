@@ -36,6 +36,13 @@ from library.repositories import entries as entries_repo
 from library.repositories import folders as folders_repo
 from library.repositories import sessions as session_service
 from library.repositories import tags as tags_repo
+from library.schemas.errors import OPTIONAL_AUTH_RESPONSES, SESSION_ERROR_RESPONSES
+from library.schemas.sessions import (
+    SessionCloseResponse,
+    SessionCreateResponse,
+    SessionListResponse,
+    SessionTranscriptResponse,
+)
 from library.services.attachments import (
     list_turn_attachments,
     read_attachment,
@@ -93,7 +100,12 @@ def _session_totals_payload(session: Any, conversations: list[Any]) -> dict[str,
     }
 
 
-@router.post("/sessions", status_code=201)
+@router.post(
+    "/sessions",
+    status_code=201,
+    response_model=SessionCreateResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def create_session(
     body: CreateSessionBody | None = None,
     db: AsyncSession = Depends(get_session),
@@ -107,7 +119,12 @@ async def create_session(
     }
 
 
-@router.post("/sessions/{session_id}/close", status_code=200)
+@router.post(
+    "/sessions/{session_id}/close",
+    status_code=200,
+    response_model=SessionCloseResponse,
+    responses=SESSION_ERROR_RESPONSES,
+)
 async def close_session(
     session_id: str,
     db: AsyncSession = Depends(get_session),
@@ -136,7 +153,12 @@ async def close_session(
     }
 
 
-@router.delete("/sessions/{session_id}", status_code=204)
+@router.delete(
+    "/sessions/{session_id}",
+    status_code=204,
+    response_model=None,
+    responses=SESSION_ERROR_RESPONSES,
+)
 async def delete_session(
     session_id: str,
     db: AsyncSession = Depends(get_session),
@@ -165,7 +187,11 @@ async def delete_session(
     await db.commit()
 
 
-@router.get("/sessions")
+@router.get(
+    "/sessions",
+    response_model=SessionListResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def list_sessions(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -250,7 +276,11 @@ async def get_conversation_attachment(
     return Response(content=data, media_type=media_type)
 
 
-@router.get("/sessions/{session_id}/messages")
+@router.get(
+    "/sessions/{session_id}/messages",
+    response_model=SessionTranscriptResponse,
+    responses=SESSION_ERROR_RESPONSES,
+)
 async def session_messages(
     session_id: str,
     db: AsyncSession = Depends(get_session),

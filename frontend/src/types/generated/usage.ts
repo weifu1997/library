@@ -23,6 +23,12 @@ export type MvpChatStream =
   paths["/v1/chat/{session_id}"]["post"]["responses"][200]["content"]["text/event-stream"];
 export type MvpChatResume =
   paths["/v1/conversations/{conversation_id}/events"]["get"]["responses"][200]["content"]["text/event-stream"];
+export type ContractSessions =
+  paths["/v1/sessions"]["get"]["responses"][200]["content"]["application/json"];
+export type ContractFolders =
+  paths["/v1/folders"]["get"]["responses"][200]["content"]["application/json"];
+export type ContractWebDav =
+  paths["/v1/sync/webdav/status"]["get"]["responses"][200]["content"]["application/json"];
 
 type _Schemas = components["schemas"]["ServerSettingsResponse"]
   | components["schemas"]["LlmSettingsResponse"]

@@ -103,6 +103,28 @@ SETTINGS_WRITE_RESPONSES: dict[int | str, dict[str, Any]] = {
     422: {"description": "Overlay or body validation error", "model": FastAPIDetail},
 }
 
+FOLDER_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    **OPTIONAL_AUTH_RESPONSES,
+    400: {"description": "Invalid folder name or move", "model": FastAPIDetail},
+    404: {"description": "Folder not found", "model": FastAPIDetail},
+    409: {"description": "Folder name conflict", "model": FastAPIDetail},
+    422: {"description": "Validation error"},
+}
+
+SESSION_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    **OPTIONAL_AUTH_RESPONSES,
+    404: {"description": "Session not found", "model": FastAPIDetail},
+    422: {"description": "Validation error"},
+}
+
+WEBDAV_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    **OPTIONAL_AUTH_RESPONSES,
+    400: {"description": "WebDAV not configured or invalid request", "model": FastAPIDetail},
+    404: {"description": "Remote entry not found", "model": FastAPIDetail},
+    422: {"description": "Validation error"},
+    502: {"description": "WebDAV request failed; see server logs", "model": FastAPIDetail},
+}
+
 __all__ = (
     "AmbiguousRemotePathError",
     "BearerAuthError",
@@ -112,8 +134,11 @@ __all__ = (
     "DisplayNameConflictError",
     "FastAPIDetail",
     "InvalidDestinationError",
+    "FOLDER_ERROR_RESPONSES",
     "OPTIONAL_AUTH_RESPONSES",
+    "SESSION_ERROR_RESPONSES",
     "SETTINGS_WRITE_RESPONSES",
     "UPLOAD_ERROR_RESPONSES",
+    "WEBDAV_ERROR_RESPONSES",
     "UploadTooLargeError",
 )

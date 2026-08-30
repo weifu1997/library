@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/08-30-license-and-contract-allowlist/prd.md", "reason": "Acceptance: MIT docs + named schemas for sessions/folders/webdav."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "No silent field drop; binary routes stay untyped."}

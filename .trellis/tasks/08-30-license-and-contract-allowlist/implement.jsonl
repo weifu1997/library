@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "JSON ↔ Pydantic ↔ OpenAPI ↔ TS contract extension."}
+{"file": ".trellis/tasks/archive/2026-08/08-30-api-contract-openapi-ts/design.md", "reason": "Reuse existing response-model, omit-unset, and CI contract patterns."}

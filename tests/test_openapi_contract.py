@@ -42,7 +42,39 @@ MVP_OPERATIONS: tuple[tuple[str, str], ...] = (
     ("/v1/tasks/throughput", "get"),
     ("/v1/chat/{session_id}", "post"),
     ("/v1/conversations/{conversation_id}/events", "get"),
+    ("/v1/sessions", "post"),
+    ("/v1/sessions", "get"),
+    ("/v1/sessions/{session_id}/close", "post"),
+    ("/v1/sessions/{session_id}", "delete"),
+    ("/v1/sessions/{session_id}/messages", "get"),
+    ("/v1/folders", "get"),
+    ("/v1/folders", "post"),
+    ("/v1/folders/{folder_id}", "get"),
+    ("/v1/folders/{folder_id}", "patch"),
+    ("/v1/folders/{folder_id}", "delete"),
+    ("/v1/sync/webdav/status", "get"),
+    ("/v1/sync/webdav/config", "put"),
+    ("/v1/sync/webdav/test", "post"),
+    ("/v1/sync/webdav/remote-status", "post"),
+    ("/v1/sync/webdav/publish", "post"),
+    ("/v1/sync/webdav/upload-plan", "get"),
+    ("/v1/sync/webdav/publish-selected", "post"),
+    ("/v1/sync/webdav/pull", "post"),
+    ("/v1/sync/webdav/download-plan", "get"),
+    ("/v1/sync/webdav/download", "post"),
+    ("/v1/sync/webdav/download-selected", "post"),
+    ("/v1/sync/webdav/hydrate/{entry_id}", "post"),
 )
+
+NO_JSON_BODY = {
+    ("/v1/sessions/{session_id}", "delete"),
+}
+
+CREATED_OPERATIONS = {
+    ("/v1/upload", "post"),
+    ("/v1/sessions", "post"),
+    ("/v1/folders", "post"),
+}
 
 SSE_PATHS = {
     "/v1/chat/{session_id}",
@@ -72,29 +104,12 @@ UNTYPED_SUCCESS_PATHS = {
     "/v1/file-entries/{entry_id}/preview-text",
     "/v1/files/reprocess",
     "/v1/files/{file_id}/reprocess",
-    "/v1/folders",
-    "/v1/folders/{folder_id}",
     "/v1/folders/{folder_id}/download",
     "/v1/mcp/tools",
     "/v1/mcp/tools/{name}/call",
     "/v1/semantic-index/rebuild",
     "/v1/semantic-index/status",
-    "/v1/sessions",
-    "/v1/sessions/{session_id}",
-    "/v1/sessions/{session_id}/close",
-    "/v1/sessions/{session_id}/messages",
-    "/v1/sync/webdav/config",
-    "/v1/sync/webdav/download",
-    "/v1/sync/webdav/download-plan",
-    "/v1/sync/webdav/download-selected",
-    "/v1/sync/webdav/hydrate/{entry_id}",
-    "/v1/sync/webdav/publish",
-    "/v1/sync/webdav/publish-selected",
-    "/v1/sync/webdav/pull",
-    "/v1/sync/webdav/remote-status",
-    "/v1/sync/webdav/status",
-    "/v1/sync/webdav/test",
-    "/v1/sync/webdav/upload-plan",
+
     "/v1/tend",
     "/v1/tend/{run_id}",
 }
@@ -106,7 +121,9 @@ def _spec() -> dict:
 
 def _success_schema(spec: dict, path: str, method: str) -> dict:
     op = spec["paths"][path][method]
-    status = "201" if path == "/v1/upload" and method == "post" else "200"
+    if (path, method) in NO_JSON_BODY:
+        return {}
+    status = "201" if (path, method) in CREATED_OPERATIONS else "200"
     content = op["responses"][status]["content"]
     return content
 
@@ -127,7 +144,7 @@ def test_mvp_operations_exist() -> None:
 def test_mvp_json_success_schemas_are_named() -> None:
     spec = _spec()
     for path, method in MVP_OPERATIONS:
-        if path in SSE_PATHS:
+        if path in SSE_PATHS or (path, method) in NO_JSON_BODY:
             continue
         content = _success_schema(spec, path, method)
         schema = content["application/json"]["schema"]
@@ -351,9 +368,31 @@ def test_mvp_error_status_codes_are_documented() -> None:
         ("/v1/tasks/throughput", "get"): {"401"},
         ("/v1/chat/{session_id}", "post"): {"400", "401", "404", "413", "422", "429"},
         ("/v1/conversations/{conversation_id}/events", "get"): {"401", "404", "422"},
+        ("/v1/sessions", "post"): {"401"},
+        ("/v1/sessions", "get"): {"401", "422"},
+        ("/v1/sessions/{session_id}/close", "post"): {"401", "404"},
+        ("/v1/sessions/{session_id}", "delete"): {"401", "404"},
+        ("/v1/sessions/{session_id}/messages", "get"): {"401", "404"},
+        ("/v1/folders", "get"): {"401"},
+        ("/v1/folders", "post"): {"400", "401", "404", "409"},
+        ("/v1/folders/{folder_id}", "get"): {"401", "404"},
+        ("/v1/folders/{folder_id}", "patch"): {"400", "401", "404", "409"},
+        ("/v1/folders/{folder_id}", "delete"): {"401", "404", "422"},
+        ("/v1/sync/webdav/status", "get"): {"401"},
+        ("/v1/sync/webdav/config", "put"): {"401", "422"},
+        ("/v1/sync/webdav/test", "post"): {"400", "401", "502"},
+        ("/v1/sync/webdav/remote-status", "post"): {"400", "401", "502"},
+        ("/v1/sync/webdav/publish", "post"): {"400", "401"},
+        ("/v1/sync/webdav/upload-plan", "get"): {"400", "401", "502"},
+        ("/v1/sync/webdav/publish-selected", "post"): {"400", "401", "502"},
+        ("/v1/sync/webdav/pull", "post"): {"400", "401", "502"},
+        ("/v1/sync/webdav/download-plan", "get"): {"400", "401", "502"},
+        ("/v1/sync/webdav/download", "post"): {"400", "401", "502"},
+        ("/v1/sync/webdav/download-selected", "post"): {"400", "401", "502"},
+        ("/v1/sync/webdav/hydrate/{entry_id}", "post"): {"400", "401", "404", "502"},
     }
     for path, method in MVP_OPERATIONS:
-        documented = set(spec["paths"][path][method]["responses"]) - {"200", "201"}
+        documented = set(spec["paths"][path][method]["responses"]) - {"200", "201", "204"}
         missing = expected[(path, method)] - documented
         assert not missing, (path, method, missing, documented)
         assert "416" not in documented, (path, method)

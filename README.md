@@ -581,4 +581,4 @@ Thanks to [Headroom](https://github.com/chopratejas/headroom) for the compressio
 
 ## License
 
-AGPL-3.0-or-later. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
