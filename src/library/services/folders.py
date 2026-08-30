@@ -220,25 +220,6 @@ class FolderNameConflictError(Exception):
         self.name = name
         self.existing_id = existing_id
 
-async def _would_cycle(
-    db: AsyncSession, *, child_id: str, new_parent_id: str | None
-) -> bool:
-    if new_parent_id is None:
-        return False
-    if new_parent_id == child_id:
-        return True
-    cur: str | None = new_parent_id
-    seen: set[str] = {child_id}
-    while cur is not None:
-        if cur in seen:
-            return True
-        seen.add(cur)
-        f = await db.get(Folder, cur)
-        if f is None:
-            return False
-        cur = f.parent_id
-    return False
-
 async def _mirror_sync_folder_subtree(
     db: AsyncSession, folder_id: str,
 ) -> None:
@@ -348,7 +329,9 @@ async def move_folder(
         target = await folders_repo.get_live(db, new_parent_id)
         if target is None:
             raise FolderNotFoundError(new_parent_id)
-    if await _would_cycle(db, child_id=f.id, new_parent_id=new_parent_id):
+    if await folders_repo.would_create_cycle(
+        db, child_id=f.id, new_parent_id=new_parent_id,
+    ):
         raise ValueError(f"move would create folder cycle: {f.id} -> {new_parent_id}")
     clash = await folders_repo.find_sibling_id_by_name(
         db, parent_id=new_parent_id, name=f.name, exclude_id=f.id,

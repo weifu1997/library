@@ -1,8 +1,10 @@
 """folders repository — pure SA queries against the Folder table.
 
-The service layer (services/folders.py) handles business rules
-(cycle detection, name-conflict policy, audit events). This module
-exposes the lookup primitives those rules build on.
+The service layer (services/folders.py) handles business policy
+(name-conflict rules, audit events). This module exposes the lookup
+primitives those rules build on, including the parent-chain walks
+(`would_create_cycle`, `list_live_descendant_ids`) that every caller
+touching `parent_id` must go through.
 
 Caller owns the transaction.
 """
@@ -32,6 +34,39 @@ async def get_live(db: AsyncSession, folder_id: str) -> Folder | None:
             )
         )
     ).scalar_one_or_none()
+
+
+async def would_create_cycle(
+    db: AsyncSession, *, child_id: str, new_parent_id: str | None
+) -> bool:
+    """True when re-parenting `child_id` under `new_parent_id` would close a
+    loop in the folder tree.
+
+    Every write path that sets `Folder.parent_id` must call this first.
+    `move_folder` does; the WebDAV metadata import used to skip it, which let
+    a snapshot with mutually-parented folders create a real cycle on re-import
+    and hang every later parent-chain walk.
+
+    Walks up from the prospective parent. The `seen` set makes the walk
+    terminate even when the table *already* contains a cycle, so this is safe
+    to call for repair on corrupt data. A parent that no longer exists is not
+    a cycle — the caller's own existence checks own that case.
+    """
+    if new_parent_id is None:
+        return False
+    if new_parent_id == child_id:
+        return True
+    cur: str | None = new_parent_id
+    seen: set[str] = {child_id}
+    while cur is not None:
+        if cur in seen:
+            return True
+        seen.add(cur)
+        folder = await db.get(Folder, cur)
+        if folder is None:
+            return False
+        cur = folder.parent_id
+    return False
 
 
 async def expand_subtree(db: AsyncSession, root_id: str) -> list[str]:

@@ -17,6 +17,7 @@ Run:
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -60,6 +61,7 @@ from library.services.user_files import get_user_metadata  # noqa: E402
 from library.services.webdav_sync import (  # noqa: E402
     WebDavConfigError,
     _adopt_library_id,
+    _folder_path,
     _parse_jsonl,
     download_selected,
     hydrate_entry,
@@ -797,3 +799,151 @@ async def test_publish_refuses_foreign_library_then_merges_after_pull(
         entry_b["entry_id"],
         remote_only_entry,
     } <= published_ids
+
+
+async def _assert_no_folder_cycle(session, folder_id: str, limit: int = 32) -> None:
+    """Walk to the root, failing loudly on a repeat instead of hanging."""
+    seen: set[str] = set()
+    cur: str | None = folder_id
+    for _ in range(limit):
+        if cur is None:
+            return
+        assert cur not in seen, f"folder cycle through {cur}"
+        seen.add(cur)
+        row = await session.get(Folder, cur)
+        assert row is not None, f"dangling parent {cur}"
+        cur = row.parent_id
+    raise AssertionError(f"parent chain from {folder_id} did not terminate")
+
+
+async def test_webdav_import_rejects_folder_cycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A snapshot whose folders are mutually parented must not close a loop.
+
+    The dangerous shape is a *re-import*: both folders already exist locally,
+    so `_nearest_live_folder_id` resolves each remote parent to a live row and
+    the writes go through in sequence — A under B, then B under A. Before the
+    fix that produced a real cycle, and the next publish spun forever in
+    `_folder_path`.
+    """
+    home = _TEST_ROOT / "foldercycle"
+    _use_memory_client(monkeypatch)
+    await _activate_home(home)
+
+    folder_a = new_id()
+    folder_b = new_id()
+    old = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    async with get_session_factory()() as session:
+        session.add(Folder(
+            id=folder_a, parent_id=None, name="alpha",
+            created_at=old, updated_at=old,
+        ))
+        session.add(Folder(
+            id=folder_b, parent_id=None, name="beta",
+            created_at=old, updated_at=old,
+        ))
+        await session.commit()
+
+    snapshot_id = "cyc10ecyc10ecyc1"
+    snap_root = _snapshot_root(snapshot_id)
+    # Newer than the local rows so the remote side wins the conflict guard.
+    now_iso = datetime(2026, 6, 1, tzinfo=timezone.utc).isoformat()
+    folders = [
+        {
+            "folder_id": folder_a, "parent_id": folder_b, "name": "alpha",
+            "created_at": now_iso, "updated_at": now_iso,
+        },
+        {
+            "folder_id": folder_b, "parent_id": folder_a, "name": "beta",
+            "created_at": now_iso, "updated_at": now_iso,
+        },
+    ]
+    jsonl_names = (
+        "folders.jsonl", "catalogs.jsonl", "views.jsonl", "tags.jsonl",
+        "tag_aliases.jsonl", "entries.jsonl", "relations.jsonl",
+    )
+    manifest = {
+        "format": "library-knowledge-pack",
+        "schema_version": 1,
+        "snapshot_id": snapshot_id,
+        "created_at": now_iso,
+        "library_id": "cycle-library",
+        "app_version": "0.0.0",
+        "counts": {},
+        "metadata_files": ["manifest.json", *jsonl_names],
+    }
+    latest = {
+        "format": "library-webdav-latest",
+        "schema_version": 1,
+        "library_id": "cycle-library",
+        "snapshot_id": snapshot_id,
+        "latest_snapshot": f"snapshots/{snapshot_id}/manifest.json",
+        "updated_at": now_iso,
+    }
+    remote: dict[str, bytes] = {
+        f"{_REMOTE_ROOT}/latest.json": (json.dumps(latest) + "\n").encode("utf-8"),
+        f"{snap_root}/manifest.json": (json.dumps(manifest) + "\n").encode("utf-8"),
+        f"{snap_root}/folders.jsonl": _jsonl_test_bytes(folders),
+    }
+    for name in jsonl_names:
+        remote.setdefault(f"{snap_root}/{name}", b"")
+    _MemoryWebDavClient.remote = remote
+
+    pulled = await pull_latest_metadata()
+
+    async with get_session_factory()() as session:
+        await _assert_no_folder_cycle(session, folder_a)
+        await _assert_no_folder_cycle(session, folder_b)
+        # At least one of the two had to be re-homed to root to break the loop.
+        rows = [
+            await session.get(Folder, folder_a),
+            await session.get(Folder, folder_b),
+        ]
+        assert any(row is not None and row.parent_id is None for row in rows)
+    assert pulled["conflicts"] >= 1
+
+
+async def test_folder_path_survives_existing_cycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`_folder_path` must terminate on already-corrupt data.
+
+    The import guard stops new cycles, but a library poisoned before the fix
+    still has one on disk. This is the containment half: bounded walk, partial
+    path, no exception — the publish path keeps working.
+    """
+    home = _TEST_ROOT / "folderpathcycle"
+    _use_memory_client(monkeypatch)
+    await _activate_home(home)
+
+    folder_a = new_id()
+    folder_b = new_id()
+    now = datetime.now(timezone.utc)
+    async with get_session_factory()() as session:
+        session.add(Folder(
+            id=folder_a, parent_id=None, name="alpha",
+            created_at=now, updated_at=now,
+        ))
+        session.add(Folder(
+            id=folder_b, parent_id=folder_a, name="beta",
+            created_at=now, updated_at=now,
+        ))
+        await session.flush()
+        # Close the loop directly — no public API allows this.
+        row_a = await session.get(Folder, folder_a)
+        assert row_a is not None
+        row_a.parent_id = folder_b
+        await session.commit()
+
+    async with get_session_factory()() as session:
+        path = await asyncio.wait_for(
+            _folder_path(session, folder_a), timeout=10,
+        )
+
+    # Partial path, each segment seen once, no exception raised.
+    assert path is not None
+    segments = [seg for seg in path.split("/") if seg]
+    assert segments, "expected a partial path rather than an empty result"
+    assert len(segments) == len(set(segments)), f"segment repeated: {path}"
+    assert set(segments) <= {"alpha", "beta"}

@@ -20,6 +20,59 @@ Questions to answer:
 
 ---
 
+## Self-Referencing Tables (`parent_id`)
+
+`folders` and `catalogs` are trees stored as adjacency lists. SQLite enforces
+no cycle constraint on a self-FK, so **the application is the only thing
+standing between a snapshot and an unwalkable tree**.
+
+### Contract
+
+1. **Every write path that sets `parent_id` must call
+   `repositories.folders.would_create_cycle()` first.** Not just the obvious
+   ones. `move_folder` always did; the WebDAV metadata import did not, and a
+   re-import of a snapshot with mutually-parented folders closed a real loop
+   in the live database.
+
+2. **Every read path that walks up a parent chain must carry a `seen` set.**
+   Guarding the writes is not enough: a database poisoned before the guard
+   existed still has the cycle, and the walk must terminate on that data.
+
+3. Validate the value you are about to **write**, not the one you read. Re-homing
+   logic (e.g. `_nearest_live_folder_id`, which climbs to the nearest live
+   ancestor) can hand you a parent that is itself below the row being written.
+
+### Why this keeps happening
+
+The failure is asymptomatic until it isn't. A cycle costs nothing to create and
+nothing to store; the damage surfaces later, in an unrelated code path, as a
+coroutine that never returns and a list that grows until the process dies — no
+exception, no log line, the task simply stays `running` forever.
+
+Grep before adding a parent walk: `list_live_descendant_ids`,
+`would_create_cycle`, `_nearest_live_folder_id`, `_order_by_parent_chain` and
+`_folder_path_from_export` are all already guarded and show the shape.
+
+### Forbidden
+
+```python
+# NO — unbounded parent walk
+while cur:
+    row = await db.get(Folder, cur)
+    cur = row.parent_id
+```
+
+```python
+# NO — `while/else` does not distinguish "reached the root" from "hit a cycle";
+# both make the loop condition false.
+while cur and cur not in seen:
+    ...
+else:
+    log.warning("cycle")
+```
+
+---
+
 ## Query Patterns
 
 <!-- How should queries be written? Batch operations? -->

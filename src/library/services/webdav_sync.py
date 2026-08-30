@@ -41,6 +41,7 @@ from library.db.models import (
     View,
 )
 from library.db.session import session_scope
+from library.repositories import folders as folders_repo
 from library.services.knowledge_pack import (
     build_knowledge_pack,
     new_snapshot_id,
@@ -1624,6 +1625,21 @@ async def _import_metadata(
         # would FK-fail, and a soft-deleted parent would make this live child
         # unreachable through the folder tree.
         parent_id = await _nearest_live_folder_id(session, parent_id)
+        # Validate the value we are about to write, not the one we read: the
+        # re-homing above can land on a live ancestor that is itself below
+        # this folder. A snapshot with mutually-parented folders (a peer that
+        # reparented both) would otherwise close a real loop here, and every
+        # later parent-chain walk on the publish path would spin forever.
+        if parent_id is not None and await folders_repo.would_create_cycle(
+            session, child_id=folder_id, new_parent_id=parent_id,
+        ):
+            log.warning(
+                "webdav import: folder %s under %s would create a cycle; "
+                "re-homing to root",
+                folder_id, parent_id,
+            )
+            parent_id = None
+            imported["conflicts"] += 1
         row = await session.get(Folder, folder_id)
         key_row = folders_by_key.get((parent_id, name))
         if key_row is not None and (row is None or key_row.id != row.id):
@@ -2429,11 +2445,27 @@ def _placeholder_storage_key(
 
 
 async def _folder_path(session, folder_id: str | None) -> str | None:
+    """Absolute '/a/b' path for a folder, walking up the parent chain.
+
+    Cycle-guarded: a corrupt or imported `parent_id` loop would otherwise spin
+    forever here and grow `parts` until the worker OOMs, with the sync task
+    stuck in `running`. On a cycle we log and return the partial path built so
+    far rather than raising — this runs on the publish path, and a folder loop
+    is a data defect, not a reason to fail the whole sync.
+    """
     if folder_id is None:
         return None
     parts: list[str] = []
+    seen: set[str] = set()
     cur = folder_id
     while cur:
+        if cur in seen:
+            log.warning(
+                "folder parent cycle detected at %s; truncating path for %s",
+                cur, folder_id,
+            )
+            break
+        seen.add(cur)
         folder = await session.get(Folder, cur)
         if folder is None or folder.deleted_at is not None:
             break
