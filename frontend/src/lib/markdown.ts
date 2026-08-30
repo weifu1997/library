@@ -71,7 +71,7 @@ export function processLatexBrackets(text: string): string {
   if (!CONTAINS_LATEX.test(text)) return text;
 
   const protectedItems: string[] = [];
-  let processed = text
+  const processed = text
     .replace(/(```[\s\S]*?```|`[^`]*`)/g, (m) => {
       const i = protectedItems.length;
       protectedItems.push(m);
