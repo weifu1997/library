@@ -223,25 +223,19 @@ class StorageBackendMismatchError(RuntimeError):
 
 app = FastAPI(title="Library", version=__version__, lifespan=lifespan)
 
-# Browser-based GUI (frontend/) runs on the Vite dev server (5173), which
-# differs in origin from the API host and needs CORS to read responses.
-# The CLI client (httpx ASGITransport or remote-mode httpx) bypasses the
-# browser stack and is unaffected.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=[
-        "X-File-Id", "X-Size-Bytes", "X-Conversation-Id",
-        "X-Citation-Count", "X-Missing-Count", "X-Folder-Id",
-        "X-Member-Count",
-    ],
-)
+
+def _cors_origins(settings) -> list[str]:  # noqa: ANN001
+    """Allowed browser origins.
+
+    Defaults to the Vite dev server, which is the zero-config case. A packaged
+    frontend served from any other host/port needs its origin listed here, so
+    this is configurable rather than hard-coded — otherwise the only way to
+    deploy `frontend/dist` behind a different port is to edit and rebuild.
+    """
+    raw = (getattr(settings, "library_cors_origins", "") or "").strip()
+    if not raw:
+        return ["http://localhost:5173", "http://127.0.0.1:5173"]
+    return [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
 
 
 app.add_middleware(UploadSizeLimitMiddleware)
@@ -308,6 +302,35 @@ async def request_diagnostics(request: Request, call_next):
             duration_ms,
         )
     return response
+
+
+# CORS is registered LAST, which makes it the OUTERMOST middleware.
+#
+# Starlette's add_middleware does `insert(0, ...)`, so registration order is
+# the reverse of execution order. Registered first — as this used to be — CORS
+# ends up innermost, and every response produced by a middleware that
+# short-circuits ahead of it goes out with no Access-Control-Allow-Origin.
+# The browser then reports an opaque CORS failure instead of the real status:
+# an expired token's 401 and an oversized upload's 413 both became "fetch
+# failed" in the GUI, with nothing to tell the user what actually happened.
+#
+# Anything added after this line will sit outside CORS and reintroduce that
+# bug. test_cors_middleware_order_unit.py locks the position.
+#
+# The CLI client (httpx ASGITransport, or remote-mode httpx) bypasses the
+# browser stack entirely and is unaffected either way.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins(get_settings()),
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=[
+        "X-File-Id", "X-Size-Bytes", "X-Conversation-Id",
+        "X-Citation-Count", "X-Missing-Count", "X-Folder-Id",
+        "X-Member-Count",
+    ],
+)
 
 
 def _client_host(request: Request) -> str:

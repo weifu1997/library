@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     library_api_token: str | None = None
     library_api_host: str = "127.0.0.1"
     library_api_port: int = 8000
+    # Comma-separated browser origins allowed to read API responses. Empty
+    # means the built-in default (the Vite dev server on 5173). Needed when
+    # the packaged frontend is served from any other host or port.
+    library_cors_origins: str = ""
     readiness_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
 
     # Single root for all on-disk state (db, library, caches). Default
