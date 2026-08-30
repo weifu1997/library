@@ -22,6 +22,7 @@ def test_ocr_ingest_default_is_uncapped() -> None:
             text_truncated=False,
             ocr_used=True,
             ocr_pages_done=1000,
+            ocr_failed_pages=0,
             partial_reasons=[],
             max_index_pages=pdf_module._ocr_configured_page_cap(),
         )
@@ -128,6 +129,7 @@ def test_ocr_ingest_explicit_cap_still_marks_partial() -> None:
             text_truncated=False,
             ocr_used=True,
             ocr_pages_done=5,
+            ocr_failed_pages=0,
             partial_reasons=["ocr_page_cap"],
             max_index_pages=pdf_module._ocr_configured_page_cap(),
         )
@@ -136,3 +138,158 @@ def test_ocr_ingest_explicit_cap_still_marks_partial() -> None:
         assert coverage["max_index_pages"] == 5
     finally:
         pdf_module.OCR_MAX_PAGES = original
+
+
+class _FlakyVision:
+    """Vision client whose failures are scripted per page (1-indexed).
+
+    `fail_pages` maps page number -> how many attempts should still fail
+    before the page starts succeeding. `float("inf")` means it never
+    recovers.
+    """
+
+    provider = "openai-compatible"
+
+    def __init__(self, fail_pages: dict[int, float]) -> None:
+        self.fail_pages = dict(fail_pages)
+        self.attempts: list[int] = []
+
+    async def complete(self, request):
+        # The page number lives in the leading TextBlock: "Page N of M."
+        text = request.messages[0].content[0].text
+        page_no = int(text.split()[1])
+        self.attempts.append(page_no)
+        remaining = self.fail_pages.get(page_no, 0)
+        if remaining > 0:
+            self.fail_pages[page_no] = remaining - 1
+            raise RuntimeError(f"429 rate limited (page {page_no})")
+        return SimpleNamespace(text=f"page {page_no} text")
+
+
+def _patch_ocr_render(monkeypatch, vision) -> None:
+    monkeypatch.setattr(
+        pdf_module, "_render_pdf_pages_to_jpeg",
+        lambda pdf_bytes, page_count, *, start_page=0: [b"jpeg"] * page_count,
+    )
+    monkeypatch.setattr(
+        pdf_module, "downscale_for_vlm",
+        lambda jpeg_bytes, *, max_long_edge: (b"scaled", "image/jpeg"),
+    )
+    monkeypatch.setattr(pdf_module, "get_chat_client", lambda profile: vision)
+    # Keep the tests fast: the backoff itself is not what we are asserting.
+    monkeypatch.setattr(pdf_module, "OCR_RETRY_BASE_SECONDS", 0.0)
+
+
+def test_ocr_failed_page_is_none_not_blank(monkeypatch) -> None:
+    """A page whose OCR never succeeds must be distinguishable from a page
+    the model read and found empty."""
+    vision = _FlakyVision({3: float("inf")})
+    _patch_ocr_render(monkeypatch, vision)
+    original = pdf_module.OCR_MAX_PAGES
+    try:
+        pdf_module.OCR_MAX_PAGES = None
+        out = asyncio.run(pdf_module._ocr_pdf_pages(b"pdf", 5))
+    finally:
+        pdf_module.OCR_MAX_PAGES = original
+
+    assert out[2] is None, "failed page must be None, not ''"
+    assert [text for i, text in enumerate(out) if i != 2] == [
+        "page 1 text", "page 2 text", "page 4 text", "page 5 text",
+    ]
+
+
+def test_ocr_retries_transient_failure(monkeypatch) -> None:
+    """Two transient failures on one page must still yield its text."""
+    vision = _FlakyVision({2: 2})
+    _patch_ocr_render(monkeypatch, vision)
+    original = pdf_module.OCR_MAX_PAGES
+    try:
+        pdf_module.OCR_MAX_PAGES = None
+        out = asyncio.run(pdf_module._ocr_pdf_pages(b"pdf", 3))
+    finally:
+        pdf_module.OCR_MAX_PAGES = original
+
+    assert out == ["page 1 text", "page 2 text", "page 3 text"]
+    # 1 + 3 + 1: page 2 was attempted three times.
+    assert vision.attempts.count(2) == 3
+
+
+def test_ocr_gives_up_after_retry_budget(monkeypatch) -> None:
+    vision = _FlakyVision({1: float("inf")})
+    _patch_ocr_render(monkeypatch, vision)
+    original = pdf_module.OCR_MAX_PAGES
+    try:
+        pdf_module.OCR_MAX_PAGES = None
+        out = asyncio.run(pdf_module._ocr_pdf_pages(b"pdf", 1))
+    finally:
+        pdf_module.OCR_MAX_PAGES = original
+
+    assert out == [None]
+    assert vision.attempts.count(1) == pdf_module.OCR_PAGE_RETRIES + 1
+
+
+def test_ocr_pages_past_cap_are_blank_not_failed(monkeypatch) -> None:
+    """Pages beyond OCR_MAX_PAGES were never attempted — that is '' (not
+    processed), not None (attempted and failed)."""
+    vision = _FlakyVision({})
+    _patch_ocr_render(monkeypatch, vision)
+    original = pdf_module.OCR_MAX_PAGES
+    try:
+        pdf_module.OCR_MAX_PAGES = 2
+        out = asyncio.run(pdf_module._ocr_pdf_pages(b"pdf", 4))
+    finally:
+        pdf_module.OCR_MAX_PAGES = original
+
+    assert out == ["page 1 text", "page 2 text", "", ""]
+    assert None not in out
+
+
+def test_coverage_marks_partial_on_ocr_failures() -> None:
+    """Failed pages make the index partial even when the page count looks
+    whole — indexed_pages is the target, not the achieved count."""
+    coverage = PdfPipeline._coverage(
+        total_pages=20,
+        indexed_pages=20,
+        chunk_count=1,
+        text_truncated=False,
+        ocr_used=True,
+        ocr_pages_done=6,
+        ocr_failed_pages=14,
+        partial_reasons=["ocr_page_failures"],
+        max_index_pages=None,
+    )
+
+    assert coverage["indexed_partial"] is True
+    assert "ocr_page_failures" in coverage["partial_reasons"]
+    assert coverage["ocr_failed_pages"] == 14
+    assert coverage["ocr_pages_done"] == 6
+
+
+def test_coverage_unchanged_when_all_ocr_pages_succeed() -> None:
+    """Regression guard: the clean path must keep its exact previous shape,
+    apart from the additive ocr_failed_pages field."""
+    coverage = PdfPipeline._coverage(
+        total_pages=3,
+        indexed_pages=3,
+        chunk_count=1,
+        text_truncated=False,
+        ocr_used=True,
+        ocr_pages_done=3,
+        ocr_failed_pages=0,
+        partial_reasons=[],
+        max_index_pages=None,
+    )
+
+    assert coverage == {
+        "unit": "pages",
+        "total_pages": 3,
+        "indexed_pages": 3,
+        "indexed_partial": False,
+        "partial_reasons": [],
+        "chunked": False,
+        "chunk_count": 1,
+        "text_truncated": False,
+        "ocr_used": True,
+        "ocr_pages_done": 3,
+        "ocr_failed_pages": 0,
+    }

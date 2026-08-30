@@ -21,7 +21,8 @@
   "children": [
     "08-31-audit-agent-runtime",
     "08-31-fix-folder-cycle-guard",
-    "08-31-fix-ocr-partial-failure"
+    "08-31-fix-ocr-partial-failure",
+    "08-31-frontend-coverage-surface"
   ],
   "parent": null,
   "relatedFiles": [],

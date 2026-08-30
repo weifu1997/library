@@ -23,6 +23,7 @@ import io
 import json
 import logging
 import math
+import random
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -93,6 +94,11 @@ PDF_PATTERN_UNSCOPED_MAX_PAGES = 200
 PDF_DEFAULT_READ_PAGES = 20
 OCR_BLOCK_MAX_CHARS = 8_000
 OCR_RENDER_BATCH_PAGES = 20
+# Per-page OCR is idempotent and the failures we see are overwhelmingly
+# transient (rate limits, gateway timeouts), so a couple of retries recovers
+# pages that would otherwise be filed as blank.
+OCR_PAGE_RETRIES = 2
+OCR_RETRY_BASE_SECONDS = 0.5
 OCR_RENDER_DPI = 200              # JPEG render DPI before VLM (sweet spot)
 OCR_VLM_MAX_LONG_EDGE = 2048      # OCR is glyph-sensitive — keep more
                                   # detail than the caption path's 1568
@@ -237,6 +243,7 @@ class PdfPipeline(Pipeline):
         total_chars = sum(len(t) for t in text_per_page)
         ocr_used = False
         ocr_pages_done = 0
+        ocr_failed_pages = 0
         ocr_document_type: str | None = None
         ocr_pages_for_storage: list[str] | None = None
         indexed_pages = len(text_per_page)
@@ -259,11 +266,30 @@ class PdfPipeline(Pipeline):
             )
             ocr_used = True
             with measure_stage("vision"):
-                ocr_text_per_page = await _ocr_pdf_pages(body, total_pages)
+                ocr_raw_pages = await _ocr_pdf_pages(body, total_pages)
+            # `None` = the page's OCR failed and its content is unknown; ''
+            # = genuinely blank. Collapse to text for indexing, but keep the
+            # failure count so it reaches coverage instead of vanishing.
+            failed_ocr_pages = [
+                i for i, text in enumerate(ocr_raw_pages) if text is None
+            ]
+            ocr_failed_pages = len(failed_ocr_pages)
+            ocr_text_per_page = [
+                "" if text is None else text for text in ocr_raw_pages
+            ]
             ocr_pages_done = sum(1 for t in ocr_text_per_page if t.strip())
             if ocr_pages_done == 0:
                 raise PdfNeedsOcrError(
                     total_pages=total_pages, total_chars=total_chars,
+                )
+            if ocr_failed_pages:
+                log.warning(
+                    "pdf %s OCR incomplete: %d/%d page(s) failed (pages %s)",
+                    ctx.storage_key,
+                    ocr_failed_pages,
+                    len(ocr_raw_pages),
+                    ", ".join(str(i + 1) for i in failed_ocr_pages[:10])
+                    + ("…" if ocr_failed_pages > 10 else ""),
                 )
             text_per_page = ocr_text_per_page
             total_chars = sum(len(t) for t in text_per_page)
@@ -275,6 +301,8 @@ class PdfPipeline(Pipeline):
             partial_reasons = []
             if indexed_pages < total_pages:
                 partial_reasons.append("ocr_page_cap")
+            if ocr_failed_pages:
+                partial_reasons.append("ocr_page_failures")
 
         # Extract embedded figures and describe them via vision profile.
         # Single-image failures degrade to placeholder text; the ingest
@@ -302,6 +330,7 @@ class PdfPipeline(Pipeline):
                     indexed_pages=indexed_pages,
                     ocr_used=ocr_used,
                     ocr_pages_done=ocr_pages_done,
+                    ocr_failed_pages=ocr_failed_pages,
                     partial_reasons=partial_reasons,
                     ocr_pages=ocr_pages_for_storage,
                     ocr_document_type=ocr_document_type,
@@ -315,6 +344,7 @@ class PdfPipeline(Pipeline):
                 indexed_pages=indexed_pages,
                 ocr_used=ocr_used,
                 ocr_pages_done=ocr_pages_done,
+                ocr_failed_pages=ocr_failed_pages,
                 partial_reasons=partial_reasons,
                 ocr_pages=ocr_pages_for_storage,
                 ocr_document_type=ocr_document_type,
@@ -353,6 +383,7 @@ class PdfPipeline(Pipeline):
         indexed_pages: int,
         ocr_used: bool,
         ocr_pages_done: int,
+        ocr_failed_pages: int,
         partial_reasons: list[str],
         ocr_pages: list[str] | None = None,
         ocr_document_type: str | None = None,
@@ -367,6 +398,7 @@ class PdfPipeline(Pipeline):
             text_truncated=text_truncated,
             ocr_used=ocr_used,
             ocr_pages_done=ocr_pages_done,
+            ocr_failed_pages=ocr_failed_pages,
             partial_reasons=partial_reasons,
             max_index_pages=(
                 _ocr_configured_page_cap()
@@ -451,6 +483,7 @@ class PdfPipeline(Pipeline):
         indexed_pages: int,
         ocr_used: bool,
         ocr_pages_done: int,
+        ocr_failed_pages: int,
         partial_reasons: list[str],
         ocr_pages: list[str] | None = None,
         ocr_document_type: str | None = None,
@@ -545,6 +578,7 @@ class PdfPipeline(Pipeline):
             text_truncated=truncated_chunks > 0,
             ocr_used=ocr_used,
             ocr_pages_done=ocr_pages_done,
+            ocr_failed_pages=ocr_failed_pages,
             partial_reasons=partial_reasons,
             max_index_pages=(
                 _ocr_configured_page_cap()
@@ -699,13 +733,19 @@ class PdfPipeline(Pipeline):
         text_truncated: bool,
         ocr_used: bool,
         ocr_pages_done: int,
+        ocr_failed_pages: int,
         partial_reasons: list[str],
         max_index_pages: int | None,
     ) -> dict[str, Any]:
         reasons = list(dict.fromkeys(partial_reasons))
         if text_truncated and "prompt_text_cap" not in reasons:
             reasons.append("prompt_text_cap")
-        indexed_partial = indexed_pages < total_pages or text_truncated
+        # Failed OCR pages make the index incomplete even when the page *count*
+        # looks whole: `indexed_pages` is the cap we aimed at, not the number
+        # of pages we actually got text out of.
+        indexed_partial = (
+            indexed_pages < total_pages or text_truncated or ocr_failed_pages > 0
+        )
         coverage: dict[str, Any] = {
             "unit": "pages",
             "total_pages": total_pages,
@@ -721,6 +761,7 @@ class PdfPipeline(Pipeline):
         if ocr_used:
             coverage["ocr_used"] = True
             coverage["ocr_pages_done"] = ocr_pages_done
+            coverage["ocr_failed_pages"] = ocr_failed_pages
         return coverage
 
     # ---- read_segment -----------------------------------------------------
@@ -1752,54 +1793,81 @@ def _pdf_vision_page_batches(
     return batches
 
 
-async def _ocr_pdf_pages(pdf_bytes: bytes, total_pages: int) -> list[str]:
-    """Render OCR pages to JPEG via pypdfium2,
-    down-scale each via downscale_for_vlm, and ask the vision profile
-    to extract text in markdown. Returns one entry per rendered page;
-    if an explicit OCR_MAX_PAGES cap is configured, pages beyond the cap
-    are returned as empty strings.
+async def _ocr_pdf_pages(pdf_bytes: bytes, total_pages: int) -> list[str | None]:
+    """Render OCR pages to JPEG via pypdfium2, down-scale each via
+    downscale_for_vlm, and ask the vision profile to extract text in markdown.
 
-    Empty / "No text content" responses are normalised to '' so the
-    caller can detect the all-empty-page case and raise PdfNeedsOcrError.
+    Returns one entry per page of the document, with three distinct states —
+    the distinction is the whole point, so do not collapse it at the call site
+    without recording the failures somewhere:
+
+      - ``str`` (possibly ``""``) — the page was OCR'd. ``""`` means the model
+        saw the page and found no text.
+      - ``None``                  — every attempt for that page failed. The
+        page's content is *unknown*, not empty.
+      - ``""`` past OCR_MAX_PAGES  — the page was never attempted (cap).
+
+    Conflating the first two is how a rate-limited ingest used to be filed as
+    a complete one: 14 failed pages looked exactly like 14 blank pages, and
+    the document was indexed and marked done with a hole in the middle.
+
+    Empty / "No text content" responses are normalised to ''.
     """
     pages_to_ocr = _ocr_pages_to_process(total_pages)
     client = get_chat_client("vision")
-    out: list[str] = [""] * pages_to_ocr
+    out: list[str | None] = [None] * pages_to_ocr
     sem = asyncio.Semaphore(llm_ingest_concurrency())
 
     async def _ocr_one(i: int, jpeg_bytes: bytes) -> None:
-        try:
-            async with sem:
-                # OCR is more sensitive to fine glyph detail than image
-                # caption, so use a higher long-edge cap than the caption
-                # path. 200-DPI A4 renders to ~2200px and only loses ~7%
-                # at 2048; 8pt footnotes in dense layouts stay readable.
-                scaled, media_type = downscale_for_vlm(
-                    jpeg_bytes, max_long_edge=OCR_VLM_MAX_LONG_EDGE,
+        for attempt in range(OCR_PAGE_RETRIES + 1):
+            try:
+                async with sem:
+                    # OCR is more sensitive to fine glyph detail than image
+                    # caption, so use a higher long-edge cap than the caption
+                    # path. 200-DPI A4 renders to ~2200px and only loses ~7%
+                    # at 2048; 8pt footnotes in dense layouts stay readable.
+                    scaled, media_type = downscale_for_vlm(
+                        jpeg_bytes, max_long_edge=OCR_VLM_MAX_LONG_EDGE,
+                    )
+                    b64 = base64.b64encode(scaled).decode("ascii")
+                    extra_body = (
+                        DISABLE_THINKING_EXTRA_BODY
+                        if getattr(client, "provider", None) == "openai-compatible"
+                        else None
+                    )
+                    resp = await client.complete(ChatRequest(
+                        system=PDF_OCR_PROMPT,
+                        messages=[ChatMessage(role="user", content=[
+                            TextBlock(text=f"Page {i + 1} of {pages_to_ocr}."),
+                            ImageBlock(media_type=media_type, data_b64=b64),
+                        ])],
+                        max_tokens=4096,
+                        temperature=0.0,
+                        extra_body=extra_body,
+                    ))
+            except asyncio.CancelledError:
+                # Shutdown, not a page failure — never retry, never swallow.
+                raise
+            except Exception as exc:  # noqa: BLE001
+                if attempt >= OCR_PAGE_RETRIES:
+                    log.warning(
+                        "OCR failed for page %d after %d attempt(s): %s",
+                        i + 1, attempt + 1, exc,
+                    )
+                    return  # out[i] stays None — failure, not a blank page
+                log.info(
+                    "OCR page %d attempt %d failed (%s); retrying",
+                    i + 1, attempt + 1, exc,
                 )
-                b64 = base64.b64encode(scaled).decode("ascii")
-                extra_body = (
-                    DISABLE_THINKING_EXTRA_BODY
-                    if getattr(client, "provider", None) == "openai-compatible"
-                    else None
-                )
-                resp = await client.complete(ChatRequest(
-                    system=PDF_OCR_PROMPT,
-                    messages=[ChatMessage(role="user", content=[
-                        TextBlock(text=f"Page {i + 1} of {pages_to_ocr}."),
-                        ImageBlock(media_type=media_type, data_b64=b64),
-                    ])],
-                    max_tokens=4096,
-                    temperature=0.0,
-                    extra_body=extra_body,
-                ))
-        except Exception as exc:  # noqa: BLE001
-            log.warning("OCR call failed for page %d: %s", i + 1, exc)
+                # Sleep *outside* the semaphore: holding a concurrency slot
+                # while backing off would starve the pages still waiting.
+                await asyncio.sleep(_ocr_retry_backoff(attempt))
+                continue
+            text = _clean_ocr_response_text(resp.text)
+            if text.lower() in ("no text content", "no text content."):
+                text = ""
+            out[i] = text
             return
-        text = _clean_ocr_response_text(resp.text)
-        if text.lower() in ("no text content", "no text content."):
-            text = ""
-        out[i] = text
 
     for start in range(0, pages_to_ocr, OCR_RENDER_BATCH_PAGES):
         batch_count = min(OCR_RENDER_BATCH_PAGES, pages_to_ocr - start)
@@ -1813,11 +1881,18 @@ async def _ocr_pdf_pages(pdf_bytes: bytes, total_pages: int) -> list[str]:
             _ocr_one(start + i, jpeg_bytes)
             for i, jpeg_bytes in enumerate(page_jpegs)
         ))
-    # Pad with empties for pages we skipped past the cap, so caller's
-    # page indexing stays aligned with total_pages.
+    # Pad pages past the cap with '' — those were deliberately not attempted,
+    # which is a different thing from a failed attempt (None).
     while len(out) < total_pages:
         out.append("")
     return out
+
+
+def _ocr_retry_backoff(attempt: int) -> float:
+    """Exponential backoff with jitter, so a batch that trips a rate limit
+    together does not retry in lockstep and trip it again."""
+    base = OCR_RETRY_BASE_SECONDS * (2 ** attempt)
+    return base * random.uniform(0.8, 1.2)
 
 
 def _render_pdf_pages_to_jpeg(
