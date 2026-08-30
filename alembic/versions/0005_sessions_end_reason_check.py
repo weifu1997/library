@@ -26,4 +26,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pass
+    """Irreversible: this migration relaxes the sessions.end_reason CHECK constraint.
+
+    Restoring the narrower constraint fails if any session has since been written with one of the newly-allowed values.
+
+    Raising is deliberate. A silent no-op here returns success while
+    leaving the schema at the newer shape, so alembic_version and the
+    actual database disagree with nothing to signal it — and the next
+    upgrade then re-runs this migration against a database that already
+    has its changes.
+    """
+    raise NotImplementedError(
+        "0005_sessions_end_reason_check cannot be downgraded automatically. "
+        "To roll back: reconcile the offending end_reason values, restore the old CHECK, then stamp the target revision."
+    )

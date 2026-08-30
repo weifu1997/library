@@ -27,7 +27,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # SQLite has no DROP COLUMN, and Postgres rolling-back these would
-    # take live data with it. Leave as a no-op — operators who really
-    # need to undo should drop the columns by hand.
-    pass
+    """Irreversible: this migration adds columns to existing tables.
+
+    Reverting means dropping those columns, which discards whatever has been written to them since. SQLite has no DROP COLUMN either, so the table would have to be rebuilt.
+
+    Raising is deliberate. A silent no-op here returns success while
+    leaving the schema at the newer shape, so alembic_version and the
+    actual database disagree with nothing to signal it — and the next
+    upgrade then re-runs this migration against a database that already
+    has its changes.
+    """
+    raise NotImplementedError(
+        "0002_additive_columns cannot be downgraded automatically. "
+        "To roll back: drop the columns by hand, then stamp the target revision."
+    )

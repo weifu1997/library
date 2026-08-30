@@ -25,4 +25,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pass
+    """Intentional no-op — nothing to undo.
+
+    One-shot data repair with no schema change: it rewrites FK text that
+    still pointed at _file_entries_old. There is nothing to revert —
+    re-breaking those references would only reintroduce the corruption.
+
+    This is NOT the silent-pass pattern that the other migrations were
+    corrected away from: those changed the schema, so a no-op there
+    left the database drifted from alembic_version. This one touches
+    no schema at all.
+    """
+    return None

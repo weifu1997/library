@@ -24,7 +24,8 @@
     "08-31-fix-ocr-partial-failure",
     "08-31-frontend-coverage-surface",
     "08-31-fix-cors-middleware-order",
-    "08-31-add-host-allowlist"
+    "08-31-add-host-allowlist",
+    "08-31-harden-migration-downgrades"
   ],
   "parent": null,
   "relatedFiles": [],

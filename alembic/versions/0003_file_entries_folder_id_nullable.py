@@ -27,4 +27,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pass
+    """Irreversible: this migration relaxes file_entries.folder_id to nullable.
+
+    Re-tightening it to NOT NULL fails outright if any row has since taken a NULL, and there is no correct automatic value to backfill.
+
+    Raising is deliberate. A silent no-op here returns success while
+    leaving the schema at the newer shape, so alembic_version and the
+    actual database disagree with nothing to signal it — and the next
+    upgrade then re-runs this migration against a database that already
+    has its changes.
+    """
+    raise NotImplementedError(
+        "0003_file_entries_folder_id_nullable cannot be downgraded automatically. "
+        "To roll back: decide what NULL folder_id should become, backfill it, re-add the NOT NULL constraint, then stamp the target revision."
+    )

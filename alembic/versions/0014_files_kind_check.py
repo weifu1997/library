@@ -25,4 +25,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pass
+    """Irreversible: this migration relaxes the files.kind CHECK constraint.
+
+    Restoring the narrower constraint fails if any file row has since been written with one of the newly-allowed kinds.
+
+    Raising is deliberate. A silent no-op here returns success while
+    leaving the schema at the newer shape, so alembic_version and the
+    actual database disagree with nothing to signal it — and the next
+    upgrade then re-runs this migration against a database that already
+    has its changes.
+    """
+    raise NotImplementedError(
+        "0014_files_kind_check cannot be downgraded automatically. "
+        "To roll back: reconcile the offending kind values, restore the old CHECK, then stamp the target revision."
+    )

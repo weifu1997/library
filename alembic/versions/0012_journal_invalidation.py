@@ -26,6 +26,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Keep audit history by default; dropping these columns would discard
-    # why older notes were hidden from active recall.
-    pass
+    """Irreversible: this migration adds the journal invalidation columns.
+
+    Dropping them discards the record of why older notes were hidden from active recall — audit history that cannot be reconstructed.
+
+    Raising is deliberate. A silent no-op here returns success while
+    leaving the schema at the newer shape, so alembic_version and the
+    actual database disagree with nothing to signal it — and the next
+    upgrade then re-runs this migration against a database that already
+    has its changes.
+    """
+    raise NotImplementedError(
+        "0012_journal_invalidation cannot be downgraded automatically. "
+        "To roll back: drop the columns by hand if you accept losing that history, then stamp the target revision."
+    )

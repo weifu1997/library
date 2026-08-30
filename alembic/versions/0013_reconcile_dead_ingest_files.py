@@ -26,4 +26,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pass
+    """Intentional no-op — nothing to undo.
+
+    Idempotent data repair with no schema change: it mirrors a terminal
+    task state onto files.ingest_status. There is nothing to revert —
+    the previous state was simply wrong.
+
+    This is NOT the silent-pass pattern that the other migrations were
+    corrected away from: those changed the schema, so a no-op there
+    left the database drifted from alembic_version. This one touches
+    no schema at all.
+    """
+    return None
