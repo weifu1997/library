@@ -23,7 +23,8 @@
     "08-31-fix-folder-cycle-guard",
     "08-31-fix-ocr-partial-failure",
     "08-31-frontend-coverage-surface",
-    "08-31-fix-cors-middleware-order"
+    "08-31-fix-cors-middleware-order",
+    "08-31-add-host-allowlist"
   ],
   "parent": null,
   "relatedFiles": [],

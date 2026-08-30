@@ -304,6 +304,89 @@ async def request_diagnostics(request: Request, call_next):
     return response
 
 
+LOCAL_HOST_NAMES = frozenset({"localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"})
+# The in-process clients (CLI repl/oneshot, MCP server) drive the ASGI app
+# through httpx's ASGITransport, which still requires a base URL; they use
+# `http://embedded`. Those requests never touch a socket, so no rebinding
+# attacker can reach them — but they do carry `Host: embedded` and would
+# otherwise be rejected by the allowlist below.
+EMBEDDED_HOST_NAME = "embedded"
+
+
+def _trusted_hosts(settings) -> set[str] | None:  # noqa: ANN001
+    """Accepted `Host` header values, or None when the check is disabled.
+
+    Loopback names are always accepted, plus whatever LIBRARY_API_HOST binds
+    to, plus anything the operator lists in LIBRARY_TRUSTED_HOSTS. Setting
+    that to "*" turns the check off for deployments that terminate elsewhere.
+    """
+    raw = (getattr(settings, "library_trusted_hosts", "") or "").strip()
+    if raw == "*":
+        return None
+    hosts = set(LOCAL_HOST_NAMES)
+    hosts.add(EMBEDDED_HOST_NAME)
+    api_host = (
+        os.environ.get("LIBRARY_API_HOST")
+        or getattr(settings, "library_api_host", "")
+        or ""
+    ).strip().lower()
+    if api_host:
+        hosts.add(api_host)
+    for entry in raw.split(","):
+        entry = entry.strip().lower()
+        if entry:
+            hosts.add(entry)
+    return hosts
+
+
+def _host_without_port(host_header: str) -> str:
+    """Strip the port, handling the bracketed IPv6 form."""
+    host = host_header.strip().lower()
+    if host.startswith("["):                      # [::1]:8000
+        closing = host.find("]")
+        return host[: closing + 1] if closing != -1 else host
+    if host.count(":") == 1:                      # name:port / 127.0.0.1:8000
+        return host.rsplit(":", 1)[0]
+    return host                                   # bare name, or raw IPv6
+
+
+@app.middleware("http")
+async def host_allowlist(request: Request, call_next):
+    """Reject requests whose `Host` header is not one we expect.
+
+    This is the DNS-rebinding guard. With no LIBRARY_API_TOKEN set — the
+    default — every endpoint is open to whoever can reach the port, and
+    "whoever" includes any web page the user visits: the attacker's domain
+    resolves to their own server first, then rebinds to 127.0.0.1, at which
+    point the browser treats http://evil.example:8000 as same-origin and CORS
+    never participates. The script can then read every ingested document, or
+    point /v1/settings/llm at an endpoint that collects the prompts and the
+    stored API keys.
+
+    _warn_if_unauthenticated_bind does not cover this case: the bind address
+    really is loopback, which is precisely why the attack works.
+
+    Probe paths are exempt, matching optional_bearer_auth — orchestrators
+    health-check via a container IP or service name, and failing those closed
+    would take the service down to withhold a version string.
+    """
+    trusted = _trusted_hosts(get_settings())
+    if trusted is None or request.url.path in PUBLIC_PROBE_PATHS:
+        return await call_next(request)
+    host = _host_without_port(request.headers.get("host", ""))
+    if host and host not in trusted:
+        log.warning(
+            "rejected request with untrusted Host %r (path=%s client=%s); "
+            "set LIBRARY_TRUSTED_HOSTS to allow it",
+            host, request.url.path, _client_host(request),
+        )
+        return JSONResponse(
+            {"detail": f"untrusted Host header: {host}"},
+            status_code=421,
+        )
+    return await call_next(request)
+
+
 # CORS is registered LAST, which makes it the OUTERMOST middleware.
 #
 # Starlette's add_middleware does `insert(0, ...)`, so registration order is

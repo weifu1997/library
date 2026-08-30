@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # means the built-in default (the Vite dev server on 5173). Needed when
     # the packaged frontend is served from any other host or port.
     library_cors_origins: str = ""
+    # Comma-separated extra Host header values accepted by the API, on top of
+    # the loopback names and LIBRARY_API_HOST. Set "*" to disable the check.
+    # Guards against DNS rebinding: without it, a page the user visits can
+    # rebind its own hostname to 127.0.0.1 and drive this API same-origin.
+    library_trusted_hosts: str = ""
     readiness_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
 
     # Single root for all on-disk state (db, library, caches). Default

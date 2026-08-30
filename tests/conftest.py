@@ -47,6 +47,13 @@ _ENV_PREFIXES = (
     "WORKER_",
 )
 
+# The API enforces a Host allowlist (DNS-rebinding guard, see
+# library.main.host_allowlist). In-process tests drive the app through
+# httpx ASGITransport with base_url="http://t" / "http://test", so those
+# synthetic hosts are declared here rather than weakening the check or
+# rewriting every e2e module's base_url.
+os.environ.setdefault("LIBRARY_TRUSTED_HOSTS", "t,test,testserver")
+
 _MISSING = object()
 _PATCH_TARGETS: dict[str, tuple[str, ...]] = {
     "library.agent.runtime": ("all_tool_defs", "get_chat_client", "get_tool"),
