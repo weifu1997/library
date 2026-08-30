@@ -561,6 +561,15 @@ uv run ruff check src tests
 .\.venv\Scripts\python -B -m pytest tests -q
 ```
 
+API contract (OpenAPI + generated TypeScript):
+
+```bash
+uv run python -m library.openapi_export
+npm --prefix frontend run gen:api
+```
+
+Commit both `openapi/openapi.json` and `frontend/src/types/generated/openapi.d.ts`. CI regenerates them and fails on drift. Do not call unpinned `npx openapi-typescript`.
+
 Current tests cover upload, ingest, agent runtime, tool execution, export, task scheduling, PDF/DOCX/image/table/archive pipelines, relation discovery, lifecycle behavior, semantic index fallback, recall/rerank scoring, evaluation commands, and CLI flows.
 
 ## Community links

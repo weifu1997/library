@@ -58,6 +58,8 @@ from library.db.session import get_session, session_scope
 from library.repositories import sessions as session_service
 from library.repositories import agent_events as agent_events_repo
 from library.repositories.task_outcomes import record_outcome
+from library.schemas.chat import SSE_200_RESPONSE, SSE_OPENAPI_EXTRA
+from library.schemas.errors import CHAT_ERROR_RESPONSES, CHAT_RESUME_RESPONSES
 
 router = APIRouter(tags=["chat"])
 log = logging.getLogger(__name__)
@@ -211,7 +213,12 @@ async def _finish_interrupted_turn(
         await db.commit()
 
 
-@router.post("/chat/{session_id}")
+@router.post(
+    "/chat/{session_id}",
+    response_class=EventSourceResponse,
+    responses={200: SSE_200_RESPONSE, **CHAT_ERROR_RESPONSES},
+    openapi_extra=SSE_OPENAPI_EXTRA,
+)
 async def post_chat(
     session_id: str,
     body: ChatBody,
@@ -465,7 +472,12 @@ async def _replay_frames(
         await asyncio.sleep(0.1)
 
 
-@router.get("/conversations/{conversation_id}/events")
+@router.get(
+    "/conversations/{conversation_id}/events",
+    response_class=EventSourceResponse,
+    responses={200: SSE_200_RESPONSE, **CHAT_RESUME_RESPONSES},
+    openapi_extra=SSE_OPENAPI_EXTRA,
+)
 async def resume_chat_events(
     conversation_id: str,
     after_cursor: int = Query(default=0, ge=0),

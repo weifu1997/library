@@ -70,12 +70,22 @@ async def _consume_sse(client, path: str, *, json_body: dict) -> list[dict]:
     return events
 
 
-async def _consume_resume(client, conversation_id: str, after: int) -> list[dict]:
+async def _consume_resume(
+    client,
+    conversation_id: str,
+    after: int,
+    *,
+    last_event_id: str | None = None,
+) -> list[dict]:
     events: list[dict] = []
+    headers = {}
+    if last_event_id is not None:
+        headers["Last-Event-ID"] = last_event_id
     async with client.stream(
         "GET",
         f"/v1/conversations/{conversation_id}/events",
         params={"after_cursor": after},
+        headers=headers,
     ) as resp:
         assert resp.status_code == 200, await resp.aread()
         event_type = "message"
@@ -216,6 +226,7 @@ async def test_quick_mode_forces_third_execute_round_to_answer() -> None:
     list_body = None
     messages_body = None
     resumed_events = None
+    header_events = None
     async with app.router.lifespan_context(app):
         async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
             created = await c.post(
@@ -240,6 +251,9 @@ async def test_quick_mode_forces_third_execute_round_to_answer() -> None:
                 event["data"] for event in events if event["event"] == "conversation"
             )
             resumed_events = await _consume_resume(c, conversation_id, after=3)
+            header_events = await _consume_resume(
+                c, conversation_id, after=0, last_event_id="3",
+            )
 
     seq = [event["event"] for event in events]
     assert seq.count("thinking") == 4, seq
@@ -251,6 +265,7 @@ async def test_quick_mode_forces_third_execute_round_to_answer() -> None:
     assert cursors == list(range(1, len(events) + 1))
     assert resumed_events
     assert [event["id"] for event in resumed_events] == cursors[3:]
+    assert [event["id"] for event in header_events] == cursors[3:]
     assert [event["data"] for event in resumed_events] == [
         event["data"] for event in events[3:]
     ]

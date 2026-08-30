@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend guideline index; schema and API work must follow project backend conventions."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "This task is a cross-layer contract (JSON ↔ Pydantic ↔ OpenAPI ↔ TS ↔ client)."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality/forbidden-pattern checks before adding new modules and CI jobs."}
+{"file": ".trellis/tasks/08-30-api-contract-openapi-ts/research/phase1-evidence.md", "reason": "Re-verified path, field, OpenAPI, auth, SSE, CI, and compatibility evidence for implementation agents."}
+{"file": ".trellis/tasks/08-30-api-contract-openapi-ts/design.md", "reason": "Approved-or-pending technical design: models, SSE, export, typegen, CI, file freeze."}

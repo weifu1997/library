@@ -31,6 +31,8 @@ from library.services.user_files import (
     open_for_download,
     search_entries,
 )
+from library.schemas.errors import OPTIONAL_AUTH_RESPONSES
+from library.schemas.user_files import SearchResponse
 from library.storage import get_storage
 
 router = APIRouter(tags=["user_files"])
@@ -38,7 +40,11 @@ router = APIRouter(tags=["user_files"])
 _RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$")
 
 
-@router.get("/search")
+@router.get(
+    "/search",
+    response_model=SearchResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def search(
     q: str = Query(..., min_length=1),
     limit: int = Query(default=25, ge=1, le=100),

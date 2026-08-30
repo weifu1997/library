@@ -47,7 +47,7 @@ import { settings as settingsApi } from "@/api/client";
 import type { LlmTestResult } from "@/api/client";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
-import type { LlmModelInfo, LlmProfileName, LlmSettings } from "@/types/api";
+import type { LlmModelInfo, LlmProfileName, LlmSettings, LlmVisibleProfileName } from "@/types/api";
 
 const ADVANCED_PROFILES: LlmProfileName[] = ["chat", "reflect", "ingest", "vision"];
 const EDITABLE_FIELDS = [
@@ -334,7 +334,7 @@ function getProfileIcon(name: LlmProfileName) {
 function ProfileRow({ name, data, preset, isOpen, onToggle, onChange }: RowProps) {
   const { t } = useI18n();
   const isDefault = name === "default";
-  const profile = isDefault ? null : data.profiles[name];
+  const profile = isDefault ? null : data.profiles[name as LlmVisibleProfileName];
   const overlay = data.overlay;
   // Must be stable across renders: `initialForm`'s useMemo and the form-sync
   // effect depend on it, and a fresh function every render would re-run the

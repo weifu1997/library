@@ -1,7 +1,11 @@
-/** Shared types mirroring the /v1/ JSON shapes. Keep in lockstep with
- *  src/library/api/routes_*.py. When the backend changes a payload,
- *  update both — the typed client is the only thing keeping them honest.
+/** Shared types mirroring the /v1/ JSON shapes.
+ *
+ *  MVP response types are aliases of `openapi-typescript` output from
+ *  `openapi/openapi.json`. Non-MVP types stay handwritten. Do not replace
+ *  this file wholesale.
  */
+import type { components } from "./generated/openapi";
+import type {} from "./generated/usage";
 
 export type IngestStatus = "pending" | "processing" | "done" | "failed";
 
@@ -50,30 +54,11 @@ export interface FileEntrySummary {
   created_at?: string | null;
 }
 
-export interface UploadResult {
-  file_id: string;
-  entry_id: string;
-  folder_id: string;
-  display_name: string;
-  deduped: boolean;
-  auto_renamed: boolean;
-  skipped: boolean;
-}
+export type UploadResult = components["schemas"]["UploadResponse"];
 
-export interface SearchResult {
-  q: string;
-  count: number;
-  entries: SearchEntry[];
-}
+export type SearchResult = components["schemas"]["SearchResponse"];
 
-export interface SearchEntry {
-  entry_id: string;
-  display_name: string;
-  folder_path?: string;
-  summary?: string | null;
-  score?: number;
-  related_entries?: RelatedEntry[];
-}
+export type SearchEntry = components["schemas"]["SearchEntry"];
 
 export interface RelatedEntry {
   entry_id: string;
@@ -248,49 +233,34 @@ export interface CacheSlo {
   minimum_eligible_requests: number;
 }
 
-export interface RunningCount {
-  running: number;
-  pending: number;
-}
+export type RunningCount = components["schemas"]["RunningCountResponse"];
 
-export interface ActiveTask {
-  id: string;
-  kind: string;
-  label: string;
+export type ActiveTask = Omit<
+  components["schemas"]["ActiveTaskItem"],
+  "file_id" | "entry_id"
+> & {
   file_id?: string | null;
   entry_id?: string | null;
-  attempts: number;
-  age_s: number;
-}
+};
 
-export interface ActiveTasks {
+export type ActiveTasks = {
   running: ActiveTask[];
   pending: ActiveTask[];
-}
+};
 
-export interface RecentTask {
-  id: string;
-  kind: string;
-  status: "done" | "dead";
-  label: string;
+export type RecentTask = Omit<
+  components["schemas"]["RecentTaskItem"],
+  "file_id" | "entry_id" | "status"
+> & {
   file_id?: string | null;
   entry_id?: string | null;
-  started_at: string | null;
-  finished_at: string | null;
-  last_error: string | null;
-  duration_ms: number | null;
-  tokens_in: number | null;
-  prompt_tokens: number | null;
-  tokens_out: number | null;
-  cache_read: number | null;
-  cache_creation: number | null;
-  llm_calls: number | null;
-}
+  status: "done" | "dead" | string;
+};
 
-export interface RecentTasks {
+export type RecentTasks = {
   items: RecentTask[];
   next_cursor?: string | null;
-}
+};
 
 export type OnConflict = "rename" | "error" | "skip";
 export type ChatMode = "auto" | "deep" | "quick";
@@ -315,9 +285,11 @@ export type ChatEventType =
   | "thinking"
   | "tool_call"
   | "tool_result"
+  | "user_artifact"
   | "answer"
   | "error"
-  | "done";
+  | "done"
+  | "message";
 
 export interface ChatEvent<T = unknown> {
   type: ChatEventType;
@@ -397,122 +369,28 @@ export interface ApiErrorBody {
 // ---- stats / overview -----------------------------------------------------
 
 /** One row of the Overview page's "recently ingested" list, mirroring
- *  GET /v1/stats/overview `recent[].` */
-export interface StatsRecentEntry {
-  entry_id: string;
-  display_name: string;
-  folder_path: string | null;
-  created_at: string | null;
+ *  GET /v1/stats/overview `recent[]`. */
+export type StatsRecentEntry = Omit<
+  components["schemas"]["StatsRecentEntry"],
+  "ingest_status"
+> & {
   ingest_status: IngestStatus | null;
-}
+};
 
 /** Aggregated read-only snapshot served by GET /v1/stats/overview. */
-export interface StatsOverview {
-  totals: {
-    entries: number;
-    folders: number;
-    tags: number;
-  };
-  tasks: {
-    running: number;
-    pending: number;
-  };
+export type StatsOverview = Omit<
+  components["schemas"]["StatsOverviewResponse"],
+  "recent"
+> & {
   recent: StatsRecentEntry[];
-  storage_backend: string;
-  semantic: {
-    enabled: boolean;
-    configured: boolean;
-    index_ready: boolean;
-  };
-}
+};
 
 // ---- settings -------------------------------------------------------------
 
-export interface ServerSettings {
-  app_env: string;
-  library_home: string;
-  db_backend: string;
-  postgres_pool_size: number;
-  postgres_max_overflow: number;
-  postgres_pool_timeout_seconds: number;
-  postgres_prepared_statement_cache_size: number;
-  runtime_schema_bootstrap_enabled: boolean;
-  readiness_timeout_seconds: number;
-  storage_backend: string;
-  worker_enabled: boolean;
-  worker_running?: boolean;
-  worker_scheduler_enabled: boolean;
-  worker_batch_size: number;
-  bulk_reprocess_page_size: number;
-  audit_retention_days: number;
-  task_retention_days: number;
-  task_outcome_retention_days: number;
-  agent_event_retention_days: number;
-  prune_batch_size: number;
-  prune_max_batches: number;
-  relation_mining_entry_page_size: number;
-  relation_mining_activity_limit: number;
-  relation_mining_eligible_tag_limit: number;
-  relation_mining_candidate_limit: number;
-  library_document_limit: number;
-  library_storage_bytes_limit: number;
-  ingest_backlog_limit: number;
-  chat_concurrency_limit: number;
-  auto_lifecycle_enabled: boolean;
-  default_on_conflict: string;
-  agent_plan_max_tokens: number;
-  agent_execute_max_tokens: number;
-  agent_execute_max_turns: number;
-  agent_max_parallel_tool_calls: number;
-  agent_final_answer_continue_turns: number;
-  agent_final_answer_max_chars: number;
-  agent_turn_timeout_seconds: number;
-  compression_enabled: boolean;
-  compression_min_chars: number;
-  compression_target_chars: number;
-  compression_context_chars: number;
-  compression_max_ratio: number;
-  llm_ingest_max_tokens: number;
-  llm_ingest_concurrency: number;
-  llm_default_tps: number;
-  llm_chat_tps: number;
-  llm_reflect_tps: number;
-  llm_ingest_tps: number;
-  llm_vision_tps: number;
-  llm_vision_supports_vision: boolean;
-  embedding_provider: "dashscope" | "openai-compatible";
-  embedding_api_key_set: boolean;
-  embedding_base_url: string;
-  embedding_model: string;
-  embedding_dimensions: number;
-  embedding_tps: number;
-  embedding_batch_size: number;
-  semantic_index_backend: "auto" | "file" | "sqlite-vec";
-  semantic_recall_enabled: boolean;
-  semantic_recall_limit: number;
-  semantic_rebuild_page_size: number;
-  section_backfill_min_score: number;
-  section_embedding_max_sections: number;
-  semantic_recall_configured: boolean;
-  semantic_index: SemanticIndexStatus;
-  rerank_enabled: boolean;
-  rerank_api_key_set: boolean;
-  rerank_base_url: string;
-  rerank_model: string;
-  rerank_tps: number;
-  rerank_batch_size: number;
-  rerank_top_n: number;
-  rerank_max_doc_chars: number;
-  rerank_concurrency: number;
-  rerank_configured: boolean;
-  evidence_selection: "quota" | "rerank";
-  vision_profile_configured: boolean;
-  document_vision_enabled: boolean;
-  document_vision_max_images: number;
-  document_vision_question_max_images: number;
-  document_vision_min_image_bytes: number;
-  document_vision_min_image_dimension: number;
-  document_vision_min_image_area: number;
+export type ServerSettings = Omit<
+  components["schemas"]["ServerSettingsResponse"],
+  "webdav"
+> & {
   webdav?: WebDavStatus;
 }
 
@@ -659,21 +537,7 @@ export interface WebDavHydrateResult {
   storage_key?: string;
 }
 
-export interface SemanticIndexStatus {
-  index_name: string;
-  index_dir: string;
-  exists: boolean;
-  provider: string | null;
-  model: string | null;
-  dimensions: number | null;
-  entries: number;
-  configured_provider: string;
-  configured_model: string;
-  configured_dimensions: number;
-  rebuild_page_size: number;
-  compatible: boolean;
-  needs_rebuild: boolean;
-}
+export type SemanticIndexStatus = components["schemas"]["SemanticIndexStatus"];
 
 export interface SemanticIndexRebuildResult {
   task_id: string | null;
@@ -681,73 +545,28 @@ export interface SemanticIndexRebuildResult {
   status: SemanticIndexStatus;
 }
 
-export type LlmProfileName =
-  | "default" | "chat" | "reflect" | "ingest" | "vision";
+export type LlmVisibleProfileName = "chat" | "reflect" | "ingest" | "vision";
+export type LlmProfileName = "default" | LlmVisibleProfileName;
 
 /** Failover target for a profile. Only the four fields that reach a
  *  different endpoint; capabilities inherit the primary. `api_key` is
  *  always masked by the server (never the raw secret). */
-export interface LlmBackupProfile {
-  provider: string | null;
-  api_key: string | null;
-  api_key_set: boolean;
-  base_url: string | null;
-  model: string | null;
-}
+export type LlmBackupProfile = components["schemas"]["LlmBackup"];
 
-export interface LlmProfileResolved {
-  provider: string | null;
-  api_key: string | null;
-  api_key_set: boolean;
-  base_url: string | null;
-  model: string | null;
-  tps: number;
-  capabilities: LlmModelCapabilities;
-  backup: LlmBackupProfile | null;
-}
+export type LlmProfileResolved = components["schemas"]["LlmProfileResolved"];
 
-export interface LlmModelCapabilities {
-  dialect: string;
-  context_window: number;
-  tokenizer: string;
-  supports_vision: boolean;
-  supports_tools: boolean;
-  supports_temperature: boolean;
-  token_limit_param: "max_tokens" | "max_completion_tokens";
-}
+export type LlmModelCapabilities = components["schemas"]["LlmCapabilities"];
 
-export interface LlmSettings {
-  profiles: Record<LlmProfileName, LlmProfileResolved>;
-  overlay: Record<string, string | number | boolean | null>;
-  defaults: {
-    provider: string;
-    model: string;
-    base_url: string | null;
-    api_key: string | null;
-    api_key_set: boolean;
-    tps: number;
-    capabilities: LlmModelCapabilities;
-    backup: LlmBackupProfile | null;
-  };
-}
+export type LlmSettings = components["schemas"]["LlmSettingsResponse"];
+export type LlmSettingsPut = components["schemas"]["LlmSettingsPutResponse"];
 
 /** One model served by a provider's model-listing endpoint. `display_name`
  *  is only populated by Anthropic; OpenAI returns ids only. */
-export interface LlmModelInfo {
-  id: string;
-  display_name: string | null;
-}
+export type LlmModelInfo = components["schemas"]["LlmModelInfo"];
 
 /** Result of POST /v1/settings/llm/models — always 200 with a per-call `ok`
  *  verdict, mirroring the test endpoint. */
-export interface LlmModelsResult {
-  ok: boolean;
-  models?: LlmModelInfo[];
-  provider?: string | null;
-  base_url?: string | null;
-  error?: string;
-  duration_ms?: number;
-}
+export type LlmModelsResult = components["schemas"]["LlmModelsResponse"];
 
 export interface FilePreviewText {
   entry_id: string;

@@ -33,6 +33,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from library.schemas.errors import OPTIONAL_AUTH_RESPONSES, SETTINGS_WRITE_RESPONSES
+from library.schemas.settings import (
+    LlmModelsResponse,
+    LlmSettingsPutResponse,
+    LlmSettingsResponse,
+    LlmTestResponse,
+    ServerSettingsResponse,
+)
+
 from library.config import (
     _REQUIRED_PROFILES,
     LLM_PROFILES_VISIBLE,
@@ -133,7 +142,11 @@ def _backup_payload(
     }
 
 
-@router.get("/server")
+@router.get(
+    "/server",
+    response_model=ServerSettingsResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 def server_settings() -> dict[str, Any]:
     """Read-only snapshot. GUI renders this in a "Server status" card.
 
@@ -246,7 +259,11 @@ def server_settings() -> dict[str, Any]:
     }
 
 
-@router.get("/llm")
+@router.get(
+    "/llm",
+    response_model=LlmSettingsResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 def llm_settings() -> dict[str, Any]:
     """Per-profile resolution + the raw overlay so the GUI can show
     which fields are explicitly overridden vs inherited from defaults.
@@ -546,7 +563,12 @@ async def _probe_rerank() -> dict[str, Any]:
         }
 
 
-@router.post("/llm/test")
+@router.post(
+    "/llm/test",
+    response_model=LlmTestResponse,
+    response_model_exclude_unset=True,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def test_llm_profiles(
     profile: str | None = None,
 ) -> dict[str, Any]:
@@ -629,7 +651,12 @@ class LlmModelsRequest(BaseModel):
     api_key: str | None = None
 
 
-@router.post("/llm/models")
+@router.post(
+    "/llm/models",
+    response_model=LlmModelsResponse,
+    response_model_exclude_unset=True,
+    responses=SETTINGS_WRITE_RESPONSES,
+)
 async def list_llm_models(
     body: LlmModelsRequest | None = None,
 ) -> dict[str, Any]:
@@ -720,7 +747,12 @@ class LlmPatchBody(BaseModel):
     replace: bool = False
 
 
-@router.put("/llm")
+@router.put(
+    "/llm",
+    response_model=LlmSettingsPutResponse,
+    response_model_exclude_unset=True,
+    responses=SETTINGS_WRITE_RESPONSES,
+)
 async def update_llm_settings(
     body: LlmPatchBody,
     session: AsyncSession = Depends(get_session),

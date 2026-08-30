@@ -157,6 +157,7 @@ const KNOWN_EVENTS: ReadonlySet<ChatEventType> = new Set([
   "thinking",
   "tool_call",
   "tool_result",
+  "user_artifact",
   "answer",
   "error",
   "done",

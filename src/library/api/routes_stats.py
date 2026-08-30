@@ -17,6 +17,8 @@ from library.config import get_settings
 from library.db.models import File, FileEntry, Folder, Tag
 from library.db.session import get_session
 from library.repositories import tasks as tasks_repo
+from library.schemas.errors import OPTIONAL_AUTH_RESPONSES
+from library.schemas.stats import StatsOverviewResponse
 from library.semantic.index import semantic_index_status
 from library.services.entries import _build_folder_display_path
 
@@ -80,7 +82,11 @@ async def _list_recent_entries(
     return out
 
 
-@router.get("/overview")
+@router.get(
+    "/overview",
+    response_model=StatsOverviewResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def stats_overview(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:

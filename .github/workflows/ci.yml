@@ -4,6 +4,7 @@ name: CI
 #   1. lock-check     — fast fail if uv.lock drifts from pyproject.toml
 #   2. backend-tests  — pytest on the full tests/ tree, three OSes
 #   3. frontend-build — frontend/ TypeScript typecheck + Vite build
+#   4. contract       — regenerate OpenAPI + TS types and fail on drift
 #
 # CI only proves the code compiles and tests pass.
 
@@ -84,3 +85,39 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+  contract:
+    name: OpenAPI + TS contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync deps (locked)
+        run: uv sync --locked --extra dev
+
+      - name: Export OpenAPI
+        run: uv run python -m library.openapi_export
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps (locked)
+        run: npm --prefix frontend ci
+
+      - name: Generate TypeScript types
+        run: npm --prefix frontend run gen:api
+
+      - name: Fail on contract drift
+        run: git diff --exit-code -- openapi/openapi.json frontend/src/types/generated/openapi.d.ts src/library/schemas

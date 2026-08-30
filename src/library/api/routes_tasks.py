@@ -24,12 +24,23 @@ from library.db.models import Task
 from library.db.session import get_session
 from library.api.pagination import decode_desc_cursor, encode_desc_cursor
 from library.repositories import tasks as tasks_repo
+from library.schemas.errors import OPTIONAL_AUTH_RESPONSES
+from library.schemas.tasks import (
+    ActiveTasksResponse,
+    RecentTasksResponse,
+    RunningCountResponse,
+    TaskThroughputResponse,
+)
 
 router = APIRouter(tags=["tasks"])
 INGEST_TASK_KINDS: tuple[str, ...] = ("ingest_file", "reprocess_file")
 
 
-@router.get("/tasks/running-count")
+@router.get(
+    "/tasks/running-count",
+    response_model=RunningCountResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def running_count(
     db: AsyncSession = Depends(get_session),
 ) -> dict[str, int]:
@@ -66,7 +77,11 @@ def _payload_label(payload: Any) -> str:
     return ""
 
 
-@router.get("/tasks/active")
+@router.get(
+    "/tasks/active",
+    response_model=ActiveTasksResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def list_active(
     db: AsyncSession = Depends(get_session),
     limit: int = 30,
@@ -99,7 +114,11 @@ async def list_active(
     }
 
 
-@router.get("/tasks/recent")
+@router.get(
+    "/tasks/recent",
+    response_model=RecentTasksResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def list_recent(
     db: AsyncSession = Depends(get_session),
     limit: int = Query(default=30, ge=1, le=200),
@@ -153,7 +172,11 @@ async def list_recent(
     return {"items": [_row(r) for r in rows], "next_cursor": next_cursor}
 
 
-@router.get("/tasks/throughput")
+@router.get(
+    "/tasks/throughput",
+    response_model=TaskThroughputResponse,
+    responses=OPTIONAL_AUTH_RESPONSES,
+)
 async def task_throughput(
     window_minutes: int = 60,
     db: AsyncSession = Depends(get_session),

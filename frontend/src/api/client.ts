@@ -20,6 +20,7 @@ import type {
   IngestStatus,
   LlmModelsResult,
   LlmSettings,
+  LlmSettingsPut,
   OnConflict,
   RecentTasks,
   RunningCount,
@@ -530,7 +531,7 @@ export const settings = {
    *  ingests that failed before the key existed and reports the count via
    *  `reprocessed_failed`. */
   updateLlm: (patch: Record<string, string | number | boolean | null>) =>
-    _request<LlmSettings & { reprocessed_failed?: number }>(`/v1/settings/llm`, {
+    _request<LlmSettingsPut>(`/v1/settings/llm`, {
       method: "PUT",
       body: JSON.stringify({ patch, replace: false }),
     }),

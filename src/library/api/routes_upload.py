@@ -34,6 +34,8 @@ from library.services.upload import (
     UploadResult,
     upload as upload_service,
 )
+from library.schemas.errors import UPLOAD_ERROR_RESPONSES
+from library.schemas.upload import UploadResponse
 from library.storage import get_storage
 from library.storage.base import StorageBackend
 
@@ -175,7 +177,12 @@ async def _commit_upload(
         raise
 
 
-@router.post("/upload", status_code=201)
+@router.post(
+    "/upload",
+    status_code=201,
+    response_model=UploadResponse,
+    responses=UPLOAD_ERROR_RESPONSES,
+)
 async def upload_endpoint(
     request: Request,
     remote_path: str | None = Query(default=None, description=(

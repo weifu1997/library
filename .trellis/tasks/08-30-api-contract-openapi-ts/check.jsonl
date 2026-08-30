@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Verify new schema modules and route annotations against backend guideline index."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify JSON, OpenAPI, and TypeScript stay aligned and no layer silently drops fields."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify no forbidden lifecycle/resource patterns and tests are real, not tautological."}
+{"file": ".trellis/tasks/08-30-api-contract-openapi-ts/prd.md", "reason": "Acceptance criteria AC1–AC13 are the check gate."}
+{"file": ".trellis/tasks/08-30-api-contract-openapi-ts/design.md", "reason": "File allow/deny list and serialization rules must be enforced in review."}

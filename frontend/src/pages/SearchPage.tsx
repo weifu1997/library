@@ -160,12 +160,6 @@ export function SearchPage() {
                       <span className="truncate">{e.folder_path}</span>
                     </div>
                   )}
-
-                  {e.summary && (
-                    <p className="mt-2.5 line-clamp-2 text-xs text-fg-muted leading-relaxed">
-                      {e.summary}
-                    </p>
-                  )}
                 </Link>
               ))}
             </div>

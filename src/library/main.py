@@ -221,7 +221,7 @@ class StorageBackendMismatchError(RuntimeError):
     pass
 
 
-app = FastAPI(title="Library", lifespan=lifespan)
+app = FastAPI(title="Library", version=__version__, lifespan=lifespan)
 
 # Browser-based GUI (frontend/) runs on the Vite dev server (5173), which
 # differs in origin from the API host and needs CORS to read responses.
