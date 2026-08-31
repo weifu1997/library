@@ -51,6 +51,7 @@ from library.config import get_settings  # noqa: E402
 from library.db.engine import dispose_engine, get_engine, get_session_factory  # noqa: E402
 from library.db.models import (  # noqa: E402
     Base,
+    Catalog,
     EntryTag,
     File,
     FileEntry,
@@ -899,6 +900,105 @@ async def test_webdav_import_rejects_folder_cycle(
         rows = [
             await session.get(Folder, folder_a),
             await session.get(Folder, folder_b),
+        ]
+        assert any(row is not None and row.parent_id is None for row in rows)
+    assert pulled["conflicts"] >= 1
+
+
+async def _assert_no_catalog_cycle(session, catalog_id: str, limit: int = 32) -> None:
+    """Walk to the root, failing loudly on a repeat instead of hanging."""
+    seen: set[str] = set()
+    cur: str | None = catalog_id
+    for _ in range(limit):
+        if cur is None:
+            return
+        assert cur not in seen, f"catalog cycle through {cur}"
+        seen.add(cur)
+        row = await session.get(Catalog, cur)
+        assert row is not None, f"dangling parent {cur}"
+        cur = row.parent_id
+    raise AssertionError(f"parent chain from {catalog_id} did not terminate")
+
+
+async def test_webdav_import_rejects_catalog_cycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A snapshot whose catalogs are mutually parented must not close a loop.
+
+    Same re-import shape as the folder guard: both catalogs already exist
+    locally, so the missing-parent re-home does not fire and a write of
+    A under B then B under A would otherwise close a real cycle.
+    """
+    home = _TEST_ROOT / "catalogcycle"
+    _use_memory_client(monkeypatch)
+    await _activate_home(home)
+
+    catalog_a = new_id()
+    catalog_b = new_id()
+    old = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    async with get_session_factory()() as session:
+        session.add(Catalog(
+            id=catalog_a, parent_id=None, name="alpha",
+            created_at=old, updated_at=old,
+        ))
+        session.add(Catalog(
+            id=catalog_b, parent_id=None, name="beta",
+            created_at=old, updated_at=old,
+        ))
+        await session.commit()
+
+    snapshot_id = "catcyc10ecatcyc1"
+    snap_root = _snapshot_root(snapshot_id)
+    now_iso = datetime(2026, 6, 1, tzinfo=timezone.utc).isoformat()
+    catalogs = [
+        {
+            "catalog_id": catalog_a, "parent_id": catalog_b, "name": "alpha",
+            "created_at": now_iso, "updated_at": now_iso,
+        },
+        {
+            "catalog_id": catalog_b, "parent_id": catalog_a, "name": "beta",
+            "created_at": now_iso, "updated_at": now_iso,
+        },
+    ]
+    jsonl_names = (
+        "folders.jsonl", "catalogs.jsonl", "views.jsonl", "tags.jsonl",
+        "tag_aliases.jsonl", "entries.jsonl", "relations.jsonl",
+    )
+    manifest = {
+        "format": "library-knowledge-pack",
+        "schema_version": 1,
+        "snapshot_id": snapshot_id,
+        "created_at": now_iso,
+        "library_id": "catalog-cycle-library",
+        "app_version": "0.0.0",
+        "counts": {},
+        "metadata_files": ["manifest.json", *jsonl_names],
+    }
+    latest = {
+        "format": "library-webdav-latest",
+        "schema_version": 1,
+        "library_id": "catalog-cycle-library",
+        "snapshot_id": snapshot_id,
+        "latest_snapshot": f"snapshots/{snapshot_id}/manifest.json",
+        "updated_at": now_iso,
+    }
+    remote: dict[str, bytes] = {
+        f"{_REMOTE_ROOT}/latest.json": (json.dumps(latest) + "\n").encode("utf-8"),
+        f"{snap_root}/manifest.json": (json.dumps(manifest) + "\n").encode("utf-8"),
+        f"{snap_root}/catalogs.jsonl": _jsonl_test_bytes(catalogs),
+    }
+    for name in jsonl_names:
+        remote.setdefault(f"{snap_root}/{name}", b"")
+    _MemoryWebDavClient.remote = remote
+
+    pulled = await pull_latest_metadata()
+
+    async with get_session_factory()() as session:
+        await _assert_no_catalog_cycle(session, catalog_a)
+        await _assert_no_catalog_cycle(session, catalog_b)
+        rows = [
+            await session.get(Catalog, catalog_a),
+            await session.get(Catalog, catalog_b),
         ]
         assert any(row is not None and row.parent_id is None for row in rows)
     assert pulled["conflicts"] >= 1

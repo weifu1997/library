@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/08-31-feature-code-review/report.md", "reason": "High finding list and suggested slugs"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "API/UI/DB boundaries for each fix"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Folder/catalog parent_id contracts for children 7 and 9"}

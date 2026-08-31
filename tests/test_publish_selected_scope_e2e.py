@@ -12,6 +12,9 @@ private agent state, then publishes just that one entry and asserts the pack
 only carries the reachable taxonomy (folder ancestor chain + attached tags +
 their aliases) and drops views/sessions/conversations/journals entirely.
 
+Also covers WEBDAV-H1 (remote E1–E2 relations survive publish_selected(E3))
+and WEBDAV-H2 (corrupt latest must fail without writing an empty latest).
+
 Run:
     .venv/bin/python -m pytest tests/test_publish_selected_scope_e2e.py -q
 """
@@ -63,6 +66,8 @@ from library.db.models import (  # noqa: E402
 )
 from library.services.webdav_sync import (  # noqa: E402
     WebDavConfigError,
+    _ensure_library_id,
+    _merge_snapshot_rows,
     _parse_jsonl,
     publish_selected,
 )
@@ -347,6 +352,208 @@ async def test_publish_selected_scopes_metadata_to_selected_entry(
     assert rows("sessions.jsonl") == []
     assert rows("conversations.jsonl") == []
     assert rows("journals.jsonl") == []
+
+
+_REQUIRED_JSONL = (
+    "folders.jsonl",
+    "catalogs.jsonl",
+    "views.jsonl",
+    "tags.jsonl",
+    "tag_aliases.jsonl",
+    "entries.jsonl",
+    "relations.jsonl",
+)
+
+
+def _jsonl_test_bytes(rows: list[dict]) -> bytes:
+    if not rows:
+        return b""
+    return (
+        "\n".join(json.dumps(row, ensure_ascii=False, sort_keys=True) for row in rows)
+        + "\n"
+    ).encode("utf-8")
+
+
+def _remote_entry(entry_id: str, display_name: str) -> dict:
+    sha = hashlib.sha256(display_name.encode("utf-8")).hexdigest()
+    return {
+        "entry_id": entry_id,
+        "folder_id": None,
+        "display_name": display_name,
+        "lifecycle": "active",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "updated_at": "2026-01-01T00:00:00+00:00",
+        "tags": [],
+        "file": {
+            "file_id": new_id(),
+            "sha256": sha,
+            "blob_path": f"blobs/sha256/{sha[:2]}/{sha}",
+            "size_bytes": 1,
+        },
+    }
+
+
+def _seed_remote_snapshot(
+    *,
+    library_id: str,
+    snapshot_id: str,
+    entries: list[dict],
+    relations: list[dict],
+) -> dict[str, bytes]:
+    now_iso = datetime.now(timezone.utc).isoformat()
+    snap_root = f"/library-test/snapshots/{snapshot_id}"
+    manifest = {
+        "format": "library-knowledge-pack",
+        "schema_version": 1,
+        "snapshot_id": snapshot_id,
+        "created_at": now_iso,
+        "library_id": library_id,
+        "app_version": "0.0.0",
+        "counts": {"entries": len(entries), "relations": len(relations)},
+        "metadata_files": ["manifest.json", *_REQUIRED_JSONL],
+    }
+    latest = {
+        "format": "library-webdav-latest",
+        "schema_version": 1,
+        "library_id": library_id,
+        "snapshot_id": snapshot_id,
+        "latest_snapshot": f"snapshots/{snapshot_id}/manifest.json",
+        "updated_at": now_iso,
+    }
+    remote: dict[str, bytes] = {
+        "/library-test/latest.json": (json.dumps(latest) + "\n").encode("utf-8"),
+        f"{snap_root}/manifest.json": (json.dumps(manifest) + "\n").encode("utf-8"),
+        f"{snap_root}/entries.jsonl": _jsonl_test_bytes(entries),
+        f"{snap_root}/relations.jsonl": _jsonl_test_bytes(relations),
+    }
+    for name in _REQUIRED_JSONL:
+        remote.setdefault(f"{snap_root}/{name}", b"")
+    return remote
+
+
+def test_merge_snapshot_rows_scoped_keeps_remote_relations() -> None:
+    """Local notes among unselected entries must not ride along; remote R stays."""
+    remote_rows = {
+        "entries.jsonl": [{"entry_id": "e1"}, {"entry_id": "e2"}],
+        "relations.jsonl": [
+            {"relation_id": "r-remote", "entry_a_id": "e1", "entry_b_id": "e2"},
+        ],
+    }
+    local_rows = {
+        "entries.jsonl": [
+            {"entry_id": "e1"},
+            {"entry_id": "e2"},
+            {"entry_id": "e3"},
+            {"entry_id": "e4"},
+        ],
+        "relations.jsonl": [
+            {
+                "relation_id": "r-local",
+                "entry_a_id": "e1",
+                "entry_b_id": "e2",
+                "note": "secret local note",
+            },
+            {"relation_id": "r-selected", "entry_a_id": "e3", "entry_b_id": "e4"},
+        ],
+    }
+    merged = _merge_snapshot_rows(
+        remote_rows=remote_rows,
+        local_rows=local_rows,
+        selected_entry_ids={"e3", "e4"},
+        scoped=True,
+    )
+    entry_ids = {row["entry_id"] for row in merged["entries.jsonl"]}
+    assert entry_ids == {"e1", "e2", "e3", "e4"}
+    rel_ids = {row["relation_id"] for row in merged["relations.jsonl"]}
+    assert rel_ids == {"r-remote", "r-selected"}
+
+
+async def test_publish_selected_keeps_remote_relations_outside_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _activate_home(_TEST_ROOT / "source_keep_remote_relations")
+    seeded = await _seed_scoped_source()
+    library_id = _ensure_library_id(get_settings())
+
+    e1, e2 = new_id(), new_id()
+    if e1 > e2:
+        e1, e2 = e2, e1
+    relation_id = new_id()
+    snapshot_id = "aabbccddeeff0011"
+    remote = _seed_remote_snapshot(
+        library_id=library_id,
+        snapshot_id=snapshot_id,
+        entries=[
+            _remote_entry(e1, "e1.txt"),
+            _remote_entry(e2, "e2.txt"),
+        ],
+        relations=[
+            {
+                "relation_id": relation_id,
+                "entry_a_id": e1,
+                "entry_b_id": e2,
+                "note": "E1 relates to E2",
+                "source_kind": "mine_tag_overlap",
+            },
+        ],
+    )
+    _MemoryWebDavClient.remote = remote
+    monkeypatch.setattr(
+        "library.services.webdav_sync.WebDavClient",
+        _MemoryWebDavClient,
+    )
+
+    published = await publish_selected([seeded["selected_entry_id"]])
+    assert published["selected_entries"] == 1
+
+    latest = json.loads(remote["/library-test/latest.json"].decode("utf-8"))
+    assert latest["snapshot_id"] == published["snapshot_id"]
+    assert latest["snapshot_id"] != snapshot_id
+    snapshot_root = f"/library-test/snapshots/{latest['snapshot_id']}"
+    entry_ids = {
+        row["entry_id"]
+        for row in _parse_jsonl(remote[f"{snapshot_root}/entries.jsonl"], source="entries")
+    }
+    relation_ids = {
+        row["relation_id"]
+        for row in _parse_jsonl(
+            remote[f"{snapshot_root}/relations.jsonl"], source="relations"
+        )
+    }
+    assert {e1, e2, seeded["selected_entry_id"]} <= entry_ids
+    assert seeded["other_entry_id"] not in entry_ids
+    assert relation_id in relation_ids
+
+
+async def test_publish_selected_refuses_corrupt_latest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _activate_home(_TEST_ROOT / "source_corrupt_latest")
+    seeded = await _seed_scoped_source()
+    library_id = _ensure_library_id(get_settings())
+    snapshot_id = "deadbeefdeadbeef"
+    remote = _seed_remote_snapshot(
+        library_id=library_id,
+        snapshot_id=snapshot_id,
+        entries=[_remote_entry(new_id(), "keep-me.txt")],
+        relations=[],
+    )
+    remote[f"/library-test/snapshots/{snapshot_id}/entries.jsonl"] = b"{not-json\n"
+    original_latest = remote["/library-test/latest.json"]
+    original_keys = set(remote)
+
+    _MemoryWebDavClient.remote = remote
+    monkeypatch.setattr(
+        "library.services.webdav_sync.WebDavClient",
+        _MemoryWebDavClient,
+    )
+
+    with pytest.raises(WebDavConfigError):
+        await publish_selected([seeded["selected_entry_id"]])
+
+    assert remote["/library-test/latest.json"] == original_latest
+    assert json.loads(original_latest.decode("utf-8"))["snapshot_id"] == snapshot_id
+    assert set(remote) == original_keys
 
 
 if __name__ == "__main__":

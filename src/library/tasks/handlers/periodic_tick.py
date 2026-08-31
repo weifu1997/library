@@ -125,7 +125,7 @@ async def handle_periodic_tick(payload: Mapping[str, Any]) -> None:
                 skipped_disabled.append(kind)
                 continue
 
-            if await tasks_repo.has_inflight_for_kind(session, kind):
+            if await tasks_repo.has_inflight_for_kind(session, kind, now=now):
                 skipped_inflight.append(kind)
                 continue
 
@@ -170,7 +170,7 @@ async def handle_periodic_tick(payload: Mapping[str, Any]) -> None:
                 minutes=max(5, int(settings.webdav_auto_sync_interval_minutes or 60))
             )
             kind = KIND_WEBDAV_PUBLISH
-            if await tasks_repo.has_inflight_for_kind(session, kind):
+            if await tasks_repo.has_inflight_for_kind(session, kind, now=now):
                 skipped_inflight.append(kind)
             else:
                 last_done_at = _aware(await tasks_repo.last_done_at_for_kind(session, kind))
@@ -361,8 +361,9 @@ async def _dispatch_reprocess_low_quality(session, now: datetime) -> list[str]:
 async def bootstrap_periodic_tick() -> None:
     """Ensure exactly one periodic_tick row exists at runner startup.
 
-    Idempotent: if a pending/running tick already exists, no-op. Otherwise
-    enqueue one due immediately so the dispatcher kicks in on the next claim.
+    Idempotent: if a pending tick or a still-leased running tick already
+    exists, no-op. A running tick whose lease has already expired does not
+    count as inflight, so a successor can be enqueued after a crash.
 
     Skip entirely when no LLM api_key is configured. Every downstream
     fan-out (tag_quality, normalize_tags, summarize_session) hits the LLM
@@ -381,14 +382,17 @@ async def bootstrap_periodic_tick() -> None:
         log.warning("bootstrap_periodic_tick skipped: %s", e)
         return
 
+    now = _utcnow()
     async with session_scope() as session:
-        if await tasks_repo.has_inflight_for_kind(session, KIND_PERIODIC_TICK):
+        if await tasks_repo.has_inflight_for_kind(
+            session, KIND_PERIODIC_TICK, now=now,
+        ):
             await session.commit()
             return
         await enqueue(
             session,
             kind=KIND_PERIODIC_TICK,
             payload={"reason": "bootstrap"},
-            dedup_key=periodic_tick_dedup_key(_utcnow()),
+            dedup_key=periodic_tick_dedup_key(now),
         )
         await session.commit()

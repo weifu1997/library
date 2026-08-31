@@ -201,6 +201,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/conversations/{conversation_id}/exports/{filename}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Conversation Export
+         * @description Serve a CSV written by ``query_sql export_csv`` for UI download.
+         *
+         *     The browser cannot read the server filesystem ``path`` carried on the
+         *     artifact, and export bodies can be large, so bytes stay off the SSE
+         *     stream. 404 unless all of: the conversation exists, ``filename`` is a
+         *     safe ``*.csv`` segment, a persisted tool result for this conversation
+         *     references that filename, and the file lives under the configured
+         *     exports directory.
+         */
+        get: operations["get_conversation_export_v1_conversations__conversation_id__exports__filename__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/discover/{entry_id}": {
         parameters: {
             query?: never;
@@ -1265,6 +1292,27 @@ export interface components {
             /** Initiating User Message */
             initiating_user_message?: string | null;
         };
+        /** DataExportArtifact */
+        DataExportArtifact: {
+            /** Columns */
+            columns?: string[] | null;
+            /** Filename */
+            filename: string;
+            /**
+             * Format
+             * @constant
+             */
+            format: "csv";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "data_export";
+            /** Row Count */
+            row_count: number;
+            /** Truncated */
+            truncated?: boolean | null;
+        };
         /**
          * FastAPIDetail
          * @description FastAPI HTTPException `detail` may be a string or an object.
@@ -1697,6 +1745,8 @@ export interface components {
         ReplayedTurn: {
             /** Agent Response */
             agent_response: string | null;
+            /** Artifacts */
+            artifacts: (components["schemas"]["VegaLiteArtifact"] | components["schemas"]["DataExportArtifact"])[];
             /** Attachments */
             attachments: components["schemas"]["TurnAttachment"][];
             /** Conversation Id */
@@ -2298,6 +2348,24 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** VegaLiteArtifact */
+        VegaLiteArtifact: {
+            /** Caption */
+            caption?: string | null;
+            /** Chart Id */
+            chart_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "vega_lite";
+            /** Spec */
+            spec: {
+                [key: string]: unknown;
+            };
+            /** Title */
+            title?: string | null;
+        };
         /** WebDavConfigBody */
         WebDavConfigBody: {
             /** Patch */
@@ -2829,6 +2897,38 @@ export interface operations {
             header?: never;
             path: {
                 conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_conversation_export_v1_conversations__conversation_id__exports__filename__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+                filename: string;
             };
             cookie?: never;
         };

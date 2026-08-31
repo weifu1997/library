@@ -53,11 +53,13 @@ from library.pipelines.base import (
     SegmentResult,
 )
 from library.pipelines._long_index import (
+    IndexFields,
     build_retrieval_extra,
     fallback_section,
     ingest_output_tokens,
     llm_ingest_concurrency,
     parse_index_response,
+    plain_summary,
     render_sections_digest,
     renumber_sections,
 )
@@ -506,6 +508,7 @@ class PdfPipeline(Pipeline):
             rendered: str,
             text_truncated: bool,
         ) -> dict[str, Any]:
+            index_failed = False
             async with sem:
                 user_payload = {
                     "folder_path": ctx.folder_path,
@@ -532,15 +535,39 @@ class PdfPipeline(Pipeline):
                     f"<context>\n{json.dumps(user_payload, ensure_ascii=False)}\n</context>\n\n"
                     f"<document>\n{rendered}\n</document>"
                 )
-                resp = await client.complete(ChatRequest(
-                    system=PDF_CHUNK_SYSTEM,
-                    messages=cacheable_prompt_messages(stable_prefix, file_content),
-                    max_tokens=ingest_output_tokens(len(rendered)),
-                    temperature=0.2,
-                    cache_breakpoints=[0],
-                ))
-            fields = parse_index_response(resp, anchor_unit="pages")
-            summary = fields.summary or fields.description_text or f"Pages {start}-{end}"
+                try:
+                    resp = await client.complete(ChatRequest(
+                        system=PDF_CHUNK_SYSTEM,
+                        messages=cacheable_prompt_messages(stable_prefix, file_content),
+                        max_tokens=ingest_output_tokens(len(rendered)),
+                        temperature=0.2,
+                        cache_breakpoints=[0],
+                    ))
+                    fields = parse_index_response(resp, anchor_unit="pages")
+                except Exception as exc:  # noqa: BLE001 - one chunk may degrade
+                    log.warning(
+                        "pdf chunk index failed for file %s pages %s-%s: %s",
+                        ctx.file_id,
+                        start,
+                        end,
+                        exc,
+                    )
+                    index_failed = True
+                    fields = IndexFields(
+                        summary="",
+                        description_text=None,
+                        sections=[],
+                        extra=None,
+                        entry_extra=None,
+                        catalog_path=None,
+                        tags=[],
+                    )
+            summary = (
+                fields.summary
+                or fields.description_text
+                or (plain_summary(rendered) if index_failed else "")
+                or f"Pages {start}-{end}"
+            )
             sections = fields.sections or [
                 fallback_section(
                     title=f"Pages {start}-{end}",
@@ -549,7 +576,7 @@ class PdfPipeline(Pipeline):
                     summary=summary,
                 )
             ]
-            return {
+            result = {
                 "sections": sections,
                 "text_truncated": text_truncated,
                 "summary": {
@@ -559,18 +586,27 @@ class PdfPipeline(Pipeline):
                     "description": fields.description_text or "",
                 },
             }
+            if index_failed:
+                result["index_failed"] = True
+            return result
 
         chunk_results = await asyncio.gather(*(
             _index_chunk(chunk_no, start, end, rendered, text_truncated)
             for chunk_no, (start, end, rendered, text_truncated) in chunks
         ))
+        failed_chunks = 0
         for result in chunk_results:
+            if result.get("index_failed"):
+                failed_chunks += 1
             if result["text_truncated"]:
                 truncated_chunks += 1
             all_sections.extend(result["sections"])
             chunk_summaries.append(result["summary"])
 
         sections = renumber_sections(all_sections)
+        coverage_reasons = list(partial_reasons)
+        if failed_chunks:
+            coverage_reasons.append("chunk_index_failures")
         coverage = self._coverage(
             total_pages=total_pages,
             indexed_pages=indexed_pages,
@@ -579,7 +615,7 @@ class PdfPipeline(Pipeline):
             ocr_used=ocr_used,
             ocr_pages_done=ocr_pages_done,
             ocr_failed_pages=ocr_failed_pages,
-            partial_reasons=partial_reasons,
+            partial_reasons=coverage_reasons,
             max_index_pages=(
                 _ocr_configured_page_cap()
                 if ocr_used else PDF_TEXT_MAX_INDEX_PAGES
@@ -587,6 +623,32 @@ class PdfPipeline(Pipeline):
         )
         if truncated_chunks:
             coverage["truncated_chunks"] = truncated_chunks
+
+        first = chunk_summaries[0]["summary"] if chunk_summaries else "PDF"
+        heuristic_summary = (
+            f"Long PDF indexed into {len(chunk_summaries)} page ranges. "
+            f"First range: {first}"
+        )
+        if failed_chunks == len(chunks) and chunks:
+            fields = IndexFields(
+                summary=heuristic_summary,
+                description_text=None,
+                sections=sections,
+                extra=None,
+                entry_extra=None,
+                catalog_path=None,
+                tags=[],
+            )
+            return self._result_from_fields(
+                fields=fields,
+                sections=sections,
+                coverage=coverage,
+                ocr_used=ocr_used,
+                ocr_pages_done=ocr_pages_done,
+                described=described,
+                ocr_pages=ocr_pages,
+                ocr_document_type=ocr_document_type,
+            )
 
         digest = render_sections_digest(
             sections, max_chars=PDF_SECTION_DIGEST_BYTES,
@@ -611,26 +673,38 @@ class PdfPipeline(Pipeline):
         )
         if aggregate_meta is not None:
             coverage["aggregate_compression"] = aggregate_meta
-        resp = await client.complete(ChatRequest(
-            system=PDF_AGGREGATE_SYSTEM,
-            messages=cacheable_prompt_messages(
-                (
-                    "Summarize the indexed PDF coverage from this section map. "
-                    "The caller already has `description.sections`; "
-                    "produce file-level recall fields only."
+        try:
+            resp = await client.complete(ChatRequest(
+                system=PDF_AGGREGATE_SYSTEM,
+                messages=cacheable_prompt_messages(
+                    (
+                        "Summarize the indexed PDF coverage from this section map. "
+                        "The caller already has `description.sections`; "
+                        "produce file-level recall fields only."
+                    ),
+                    aggregate_content,
                 ),
-                aggregate_content,
-            ),
-            max_tokens=ingest_output_tokens(len(aggregate_content)),
-            temperature=0.2,
-            cache_breakpoints=[0],
-        ))
-        fields = parse_index_response(resp, anchor_unit="pages")
-        if not fields.summary:
-            first = chunk_summaries[0]["summary"] if chunk_summaries else "PDF"
-            fields.summary = (
-                f"Long PDF indexed into {len(chunk_summaries)} page ranges. "
-                f"First range: {first}"
+                max_tokens=ingest_output_tokens(len(aggregate_content)),
+                temperature=0.2,
+                cache_breakpoints=[0],
+            ))
+            fields = parse_index_response(resp, anchor_unit="pages")
+            if not fields.summary:
+                fields.summary = heuristic_summary
+        except Exception as exc:  # noqa: BLE001 - preserve the completed map
+            log.warning(
+                "pdf aggregate index failed for file %s: %s",
+                ctx.file_id,
+                exc,
+            )
+            fields = IndexFields(
+                summary=heuristic_summary,
+                description_text=None,
+                sections=sections,
+                extra=None,
+                entry_extra=None,
+                catalog_path=None,
+                tags=[],
             )
         return self._result_from_fields(
             fields=fields,
@@ -740,11 +814,13 @@ class PdfPipeline(Pipeline):
         reasons = list(dict.fromkeys(partial_reasons))
         if text_truncated and "prompt_text_cap" not in reasons:
             reasons.append("prompt_text_cap")
-        # Failed OCR pages make the index incomplete even when the page *count*
-        # looks whole: `indexed_pages` is the cap we aimed at, not the number
-        # of pages we actually got text out of.
+        # Failed OCR pages and failed chunk LLM calls make the index
+        # incomplete even when the page *count* looks whole.
         indexed_partial = (
-            indexed_pages < total_pages or text_truncated or ocr_failed_pages > 0
+            indexed_pages < total_pages
+            or text_truncated
+            or ocr_failed_pages > 0
+            or "chunk_index_failures" in reasons
         )
         coverage: dict[str, Any] = {
             "unit": "pages",

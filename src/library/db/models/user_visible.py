@@ -12,7 +12,7 @@ from sqlalchemy import (
     JSON,
     String,
     Text,
-    UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,7 +34,16 @@ class Folder(Base, IdMixin, TimestampMixin):
 
     __tablename__ = "folders"
     __table_args__ = (
-        UniqueConstraint("parent_id", "name", name="uq_folders_parent_name"),
+        # Live siblings only. Soft-deleted rows must not occupy the name
+        # so a user can recreate `/work/Projects` after deleting it.
+        Index(
+            "uq_folders_live_parent_name",
+            "parent_id",
+            "name",
+            unique=True,
+            sqlite_where=text("deleted_at IS NULL"),
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
         Index("ix_folders_parent_live_name", "parent_id", "deleted_at", "name"),
     )
 

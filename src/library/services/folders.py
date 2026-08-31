@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from library.db.models import File, Folder
@@ -182,7 +183,12 @@ async def create_folder(
         updated_at=now,
     )
     db.add(folder)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        raise FolderNameConflictError(
+            parent_id=parent_id, name=name, existing_id="",
+        ) from exc
     await audit_events_repo.append(
         db, kind="folder_created", payload={
             "folder_id": folder.id, "parent_id": parent_id,

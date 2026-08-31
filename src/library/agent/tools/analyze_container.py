@@ -144,7 +144,13 @@ async def analyze_container(
 
     storage = get_storage()
     body = bytearray()
+    max_compressed = 200 * 1024 * 1024
     async for chunk in storage.get(file_row.storage_key):
+        if len(body) + len(chunk) > max_compressed:
+            return {
+                "error": "archive exceeds 200MB compressed size cap",
+                "entry_id": container_id,
+            }
         body.extend(chunk)
 
     filename = entry.display_name or "archive"

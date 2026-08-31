@@ -18,13 +18,17 @@ import {
   Maximize2,
   X,
   Code2,
+  BarChart3,
+  Download,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import { getBaseUrl, maybeAuthDownload } from "@/api/client";
 import { MarkdownView } from "@/components/MarkdownView";
 import type { EntryLocator } from "@/components/MarkdownView";
 import { useAuthObjectUrl } from "@/components/library/viewers/ViewerShared";
-import type { ChatImage } from "@/types/api";
+import type { ChatImage, UserArtifact } from "@/types/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
@@ -76,6 +80,7 @@ export interface Turn {
   images?: ChatImage[];
   attachmentUrls?: string[];
   steps: Step[];
+  artifacts?: UserArtifact[];
   answer: string | null;
   metrics?: TurnMetrics;
   error: string | null;
@@ -205,6 +210,18 @@ export function TurnView({ turn }: { turn: Turn }) {
             </div>
           )}
 
+          {turn.artifacts && turn.artifacts.length > 0 && (
+            <div className="space-y-3">
+              {turn.artifacts.map((artifact, idx) => (
+                <ArtifactCard
+                  key={artifactKey(artifact, idx)}
+                  artifact={artifact}
+                  conversationId={turn.conversationId}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Answer Markdown Body */}
           {turn.answer && (
             <div className="rounded-2xl border border-border/80 bg-bg-card px-5 py-4 shadow-card selectable">
@@ -248,6 +265,195 @@ export function TurnView({ turn }: { turn: Turn }) {
             </button>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function artifactKey(artifact: UserArtifact, idx: number): string {
+  switch (artifact.kind) {
+    case "vega_lite":
+      return `vega:${artifact.chart_id}:${idx}`;
+    case "data_export":
+      return `csv:${artifact.filename}:${idx}`;
+    default:
+      return `artifact:${idx}`;
+  }
+}
+
+function ArtifactCard({
+  artifact,
+  conversationId,
+}: {
+  artifact: UserArtifact;
+  conversationId?: string;
+}) {
+  const { t } = useI18n();
+  switch (artifact.kind) {
+    case "vega_lite":
+      return <VegaArtifact artifact={artifact} />;
+    case "data_export":
+      return <CsvArtifact artifact={artifact} conversationId={conversationId} />;
+    default:
+      return (
+        <div className="rounded-xl border border-border/80 bg-bg-card px-4 py-3 text-xs text-fg-muted shadow-subtle">
+          {t.chat.unknownArtifact}
+        </div>
+      );
+  }
+}
+
+function VegaArtifact({
+  artifact,
+}: {
+  artifact: Extract<UserArtifact, { kind: "vega_lite" }>;
+}) {
+  const { t } = useI18n();
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!hostRef.current) return;
+    let cancelled = false;
+    let view: { finalize: () => void } | null = null;
+    setFailed(false);
+    setLoading(true);
+    void (async () => {
+      try {
+        const mod = await import("vega-embed");
+        if (cancelled || !hostRef.current) return;
+        const result = await mod.default(
+          hostRef.current,
+          artifact.spec as Parameters<typeof mod.default>[1],
+          { actions: false, renderer: "canvas" },
+        );
+        if (cancelled) {
+          result.finalize();
+          return;
+        }
+        view = result;
+        setLoading(false);
+      } catch {
+        if (!cancelled) {
+          setFailed(true);
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      view?.finalize();
+    };
+  }, [artifact.spec]);
+
+  const onDownloadSpec = () => {
+    const blob = new Blob([JSON.stringify(artifact.spec, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${artifact.chart_id}.vl.json`;
+    document.body.appendChild(a);
+    a.click();
+    window.setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 60_000);
+  };
+
+  return (
+    <div className="rounded-xl border border-border/80 bg-bg-card p-3.5 shadow-subtle">
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex items-start gap-2">
+          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent-subtle text-accent">
+            <BarChart3 size={13} />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-fg-base">
+              {artifact.title || t.chat.chart}
+            </div>
+            {artifact.caption && (
+              <p className="mt-0.5 text-xs text-fg-muted">{artifact.caption}</p>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onDownloadSpec}
+          className="flex shrink-0 items-center gap-1 rounded-lg border border-border/50 px-2 py-1 text-[11px] font-medium text-fg-muted hover:bg-bg-muted hover:text-fg-base"
+        >
+          <Download size={11} />
+          {t.chat.downloadSpec}
+        </button>
+      </div>
+      {failed ? (
+        <div className="rounded-md bg-bg-muted/80 px-3 py-2 text-xs text-fg-muted">
+          {t.chat.chartRenderFailed}
+          {artifact.caption && (
+            <p className="mt-1 text-fg-subtle">{artifact.caption}</p>
+          )}
+        </div>
+      ) : (
+        <div className="relative w-full overflow-x-auto">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-fg-subtle">
+              <Loader2 size={14} className="animate-spin" />
+            </div>
+          )}
+          <div ref={hostRef} className="w-full min-h-[320px]" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CsvArtifact({
+  artifact,
+  conversationId,
+}: {
+  artifact: Extract<UserArtifact, { kind: "data_export" }>;
+  conversationId?: string;
+}) {
+  const { t } = useI18n();
+  const href = conversationId
+    ? `${getBaseUrl()}/v1/conversations/${encodeURIComponent(conversationId)}/exports/${encodeURIComponent(artifact.filename)}`
+    : undefined;
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-bg-card px-3.5 py-3 shadow-subtle">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-bg-muted text-fg-muted">
+          <FileSpreadsheet size={15} />
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-fg-base">
+            {artifact.filename}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-fg-subtle">
+            <span>{t.chat.exportCsv}</span>
+            <span>·</span>
+            <span>{t.chat.exportRows(artifact.row_count)}</span>
+            {artifact.truncated && (
+              <>
+                <span>·</span>
+                <span className="font-medium text-warning">{t.chat.truncated}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      {href && (
+        <a
+          href={href}
+          download={artifact.filename}
+          onClick={(e) => maybeAuthDownload(e, href, artifact.filename)}
+          className="flex shrink-0 items-center gap-1 rounded-lg border border-border/50 bg-bg-muted/60 px-2.5 py-1.5 text-[11px] font-medium text-fg-base hover:bg-bg-muted"
+        >
+          <Download size={12} />
+          {t.chat.downloadCsv}
+        </a>
       )}
     </div>
   );

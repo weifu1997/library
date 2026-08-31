@@ -4,7 +4,7 @@ Caller owns the transaction.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Sequence
 
 from sqlalchemy import and_, delete, func, or_, select, update
@@ -291,14 +291,30 @@ async def mark_running_dead(
     return bool(result.rowcount or 0)
 
 
-async def has_inflight_for_kind(db: AsyncSession, kind: str) -> bool:
-    """True if there is at least one pending/running row for `kind`. Used
-    by periodic_tick to suppress duplicate dispatch."""
+async def has_inflight_for_kind(
+    db: AsyncSession, kind: str, *, now: datetime | None = None,
+) -> bool:
+    """True if `kind` already has a pending row or a still-leased running row.
+
+    A running row whose lease has already expired is not inflight: the owner
+    is presumed dead, so bootstrap/dispatch may enqueue a successor. Running
+    rows with a NULL lease still count — they are not known to be stale.
+    """
+    cutoff = now if now is not None else datetime.now(timezone.utc)
     row = (
         await db.execute(
             select(Task.id).where(
                 Task.kind == kind,
-                Task.status.in_(("pending", "running")),
+                or_(
+                    Task.status == "pending",
+                    and_(
+                        Task.status == "running",
+                        or_(
+                            Task.lease_expires_at.is_(None),
+                            Task.lease_expires_at >= cutoff,
+                        ),
+                    ),
+                ),
             ).limit(1)
         )
     ).scalar_one_or_none()

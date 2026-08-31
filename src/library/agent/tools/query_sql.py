@@ -53,8 +53,10 @@ MAX_EXPORT_ROWS = 100_000
 SHEET_NAME_COLUMN = "__sheet_name"
 
 _FORBIDDEN_SQL = re.compile(
-    r"\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|ATTACH|COPY|PRAGMA|EXPORT|"
-    r"INSTALL|LOAD|SET|TRUNCATE|GRANT|REVOKE|MERGE|REPLACE)\b",
+    r"\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|ATTACH|PRAGMA|EXPORT|"
+    r"INSTALL|LOAD|SET|TRUNCATE|GRANT|REVOKE|MERGE)\b"
+    r"|\bREPLACE\b(?!\s*\()"
+    r"|\bCOPY\b(?!\s+FROM\b)",
     re.IGNORECASE,
 )
 _DANGEROUS_FUNCS = re.compile(
@@ -185,10 +187,51 @@ async def query_sql(
 
 # -- helpers ---------------------------------------------------------------
 
+def _sql_for_keyword_scan(sql: str) -> str:
+    """Strip string literals and comments so identifiers like REPLACE/DROP
+    inside quotes do not trip the read-only keyword denylist."""
+    out: list[str] = []
+    i = 0
+    n = len(sql)
+    while i < n:
+        ch = sql[i]
+        nxt = sql[i + 1] if i + 1 < n else ""
+        if ch == "-" and nxt == "-":
+            i = sql.find("\n", i)
+            if i == -1:
+                break
+            out.append("\n")
+            i += 1
+            continue
+        if ch == "/" and nxt == "*":
+            end = sql.find("*/", i + 2)
+            if end == -1:
+                break
+            i = end + 2
+            continue
+        if ch in {'"', "'"}:
+            quote = ch
+            i += 1
+            while i < n:
+                if sql[i] == quote:
+                    if i + 1 < n and sql[i + 1] == quote:
+                        i += 2
+                        continue
+                    i += 1
+                    break
+                i += 1
+            out.append(" ")
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def _validate_sql(sql: str) -> str | None:
-    if _FORBIDDEN_SQL.search(sql):
+    scanned = _sql_for_keyword_scan(sql)
+    if _FORBIDDEN_SQL.search(scanned):
         return "only read-only SELECT statements are allowed"
-    if _DANGEROUS_FUNCS.search(sql):
+    if _DANGEROUS_FUNCS.search(scanned):
         return "dangerous function call rejected (no read_csv/attach/load/...)"
     if ";" in sql.rstrip(";"):
         return "exactly one statement allowed (no semicolons except at end)"

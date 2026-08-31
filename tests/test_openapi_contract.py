@@ -90,6 +90,7 @@ UNTYPED_SUCCESS_PATHS = {
     "/v1/conversations/latest",
     "/v1/conversations/{conversation_id}/attachments/{name}",
     "/v1/conversations/{conversation_id}/cancel",
+    "/v1/conversations/{conversation_id}/exports/{filename}",
     "/v1/conversations/{conversation_id}/export",
     "/v1/conversations/{conversation_id}/export.md",
     "/v1/discover/{entry_id}",

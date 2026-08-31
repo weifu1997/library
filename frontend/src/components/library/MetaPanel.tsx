@@ -10,12 +10,14 @@ import { useI18n, type I18nStrings } from "@/lib/i18n";
 
 interface Props {
   meta: FileMetadata | null;
+  error?: string | null;
   loading: boolean;
   open: boolean;
   onToggle: () => void;
+  onRetry?: () => void;
 }
 
-export function MetaPanel({ meta, loading, open, onToggle }: Props) {
+export function MetaPanel({ meta, error, loading, open, onToggle, onRetry }: Props) {
   const { t } = useI18n();
   return (
     <aside
@@ -41,7 +43,22 @@ export function MetaPanel({ meta, loading, open, onToggle }: Props) {
               <span>{t.common.loading}</span>
             </div>
           )}
-          {!loading && !meta && (
+          {!loading && error && (
+            <div className="space-y-2 py-6 text-center">
+              <p className="text-danger">{t.library.metadataError}</p>
+              <p className="break-words text-fg-subtle">{error}</p>
+              {onRetry && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="rounded-lg border border-border/80 px-2.5 py-1 text-[11px] font-medium text-fg-base hover:bg-bg-muted"
+                >
+                  {t.library.metadataRetry}
+                </button>
+              )}
+            </div>
+          )}
+          {!loading && !error && !meta && (
             <p className="py-8 text-center text-fg-subtle">{t.library.metadataEmpty}</p>
           )}
           {meta && <MetaBody meta={meta} t={t} />}

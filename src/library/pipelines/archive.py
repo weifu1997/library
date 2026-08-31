@@ -328,7 +328,10 @@ class ArchivePipeline(Pipeline):
 
 async def _read_all(storage: StorageBackend, key: str) -> bytes:
     buf = bytearray()
+    max_compressed = 200 * 1024 * 1024
     async for chunk in storage.get(key):
+        if len(buf) + len(chunk) > max_compressed:
+            raise ValueError("archive exceeds 200MB compressed size cap")
         buf.extend(chunk)
     return bytes(buf)
 

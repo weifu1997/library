@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +27,7 @@ from library.agent.runtime import _public_plan_text, _rewrite_footnotes_for_disp
 from library.agent.runtime import _strip_session_name_line
 from library.agent.runtime import TOOL_RESULT_PREVIEW_LEN
 from library.agent import tool_display
+from library.api.http_headers import content_disposition
 from library.api.pagination import decode_desc_cursor, encode_desc_cursor
 from library.config import get_settings
 from library.db.models import Session as SessionRow, TaskOutcome
@@ -46,6 +48,10 @@ from library.schemas.sessions import (
 from library.services.attachments import (
     list_turn_attachments,
     read_attachment,
+)
+from library.services.chat_artifacts import (
+    artifacts_from_tool_calls,
+    resolve_conversation_export,
 )
 
 router = APIRouter(tags=["sessions"])
@@ -276,6 +282,36 @@ async def get_conversation_attachment(
     return Response(content=data, media_type=media_type)
 
 
+@router.get("/conversations/{conversation_id}/exports/{filename}")
+async def get_conversation_export(
+    conversation_id: str,
+    filename: str,
+    db: AsyncSession = Depends(get_session),
+) -> FileResponse:
+    """Serve a CSV written by ``query_sql export_csv`` for UI download.
+
+    The browser cannot read the server filesystem ``path`` carried on the
+    artifact, and export bodies can be large, so bytes stay off the SSE
+    stream. 404 unless all of: the conversation exists, ``filename`` is a
+    safe ``*.csv`` segment, a persisted tool result for this conversation
+    references that filename, and the file lives under the configured
+    exports directory.
+    """
+    conv = await session_service.get_conversation(db, conversation_id)
+    if conv is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    path = resolve_conversation_export(conv, filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="export not found")
+    return FileResponse(
+        path=path,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": content_disposition("attachment", filename),
+        },
+    )
+
+
 @router.get(
     "/sessions/{session_id}/messages",
     response_model=SessionTranscriptResponse,
@@ -453,6 +489,7 @@ async def session_messages(
             "error": replay_error,
             "plan_text": plan_text,
             "tool_calls": tool_calls,
+            "artifacts": artifacts_from_tool_calls(c.tool_calls),
             "metrics": {
                 "tokens_in": c.total_input_tokens or 0,
                 "tokens_out": c.total_output_tokens or 0,

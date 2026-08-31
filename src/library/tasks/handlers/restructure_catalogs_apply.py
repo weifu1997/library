@@ -100,24 +100,6 @@ async def _load_live(session, catalog_id: str) -> Catalog:
         raise _RejectedOp(f"catalog {catalog_id} not found or soft-deleted")
     return cat
 
-async def _would_cycle(session, *, child_id: str, new_parent_id: str | None) -> bool:
-    """True if setting child.parent_id = new_parent_id would create a cycle."""
-    if new_parent_id is None:
-        return False
-    if new_parent_id == child_id:
-        return True
-    seen: set[str] = {child_id}
-    cur: str | None = new_parent_id
-    while cur is not None:
-        if cur in seen:
-            return True
-        seen.add(cur)
-        row = await session.get(Catalog, cur)
-        if row is None:
-            return False
-        cur = row.parent_id
-    return False
-
 # ----- ops -------------------------------------------------------------------
 
 async def _op_rename(session, op: dict, now: datetime) -> None:
@@ -146,7 +128,9 @@ async def _op_move(session, op: dict, temp_map: dict, now: datetime) -> None:
     new_parent_id = _resolve(op.get("new_parent_id"), temp_map)
     if new_parent_id is not None:
         await _load_live(session, new_parent_id)  # parent must exist + be live
-        if await _would_cycle(session, child_id=cat.id, new_parent_id=new_parent_id):
+        if await catalogs_repo.would_create_cycle(
+            session, child_id=cat.id, new_parent_id=new_parent_id,
+        ):
             raise _RejectedOp(
                 f"move would create cycle (child={cat.id} -> parent={new_parent_id})"
             )
@@ -222,8 +206,18 @@ async def _op_soft_delete(session, op: dict, temp_map: dict, now: datetime) -> N
             raise _RejectedOp("soft_delete: merge_into cannot be self")
         await _load_live(session, merge_into)
 
-    # Reassign children
+    # Reassign children. Check every child first so a cycle on any one
+    # rejects the whole op instead of leaving a half-updated tree.
     children = await catalogs_repo.list_live_children_of(session, cat.id)
+    if merge_into is not None:
+        for child in children:
+            if await catalogs_repo.would_create_cycle(
+                session, child_id=child.id, new_parent_id=merge_into,
+            ):
+                raise _RejectedOp(
+                    f"soft_delete: merge_into would create cycle "
+                    f"(child={child.id} -> parent={merge_into})"
+                )
     for child in children:
         child.parent_id = merge_into
         child.updated_at = now

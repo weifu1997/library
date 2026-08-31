@@ -293,6 +293,62 @@
         "title": "CreateSessionBody",
         "type": "object"
       },
+      "DataExportArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Columns"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "format": {
+            "const": "csv",
+            "title": "Format",
+            "type": "string"
+          },
+          "kind": {
+            "const": "data_export",
+            "title": "Kind",
+            "type": "string"
+          },
+          "row_count": {
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "truncated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Truncated"
+          }
+        },
+        "required": [
+          "kind",
+          "format",
+          "filename",
+          "row_count"
+        ],
+        "title": "DataExportArtifact",
+        "type": "object"
+      },
       "FastAPIDetail": {
         "additionalProperties": true,
         "description": "FastAPI HTTPException `detail` may be a string or an object.",
@@ -1826,6 +1882,27 @@
             ],
             "title": "Agent Response"
           },
+          "artifacts": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "data_export": "#/components/schemas/DataExportArtifact",
+                  "vega_lite": "#/components/schemas/VegaLiteArtifact"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/VegaLiteArtifact"
+                },
+                {
+                  "$ref": "#/components/schemas/DataExportArtifact"
+                }
+              ]
+            },
+            "title": "Artifacts",
+            "type": "array"
+          },
           "attachments": {
             "items": {
               "$ref": "#/components/schemas/TurnAttachment"
@@ -1923,6 +2000,7 @@
           "error",
           "plan_text",
           "tool_calls",
+          "artifacts",
           "metrics"
         ],
         "title": "ReplayedTurn",
@@ -3648,6 +3726,54 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VegaLiteArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "chart_id": {
+            "title": "Chart Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "vega_lite",
+            "title": "Kind",
+            "type": "string"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "title": "Spec",
+            "type": "object"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "kind",
+          "chart_id",
+          "spec"
+        ],
+        "title": "VegaLiteArtifact",
         "type": "object"
       },
       "WebDavConfigBody": {
@@ -6678,6 +6804,56 @@
         "summary": "Export Conversation Markdown",
         "tags": [
           "exports"
+        ]
+      }
+    },
+    "/v1/conversations/{conversation_id}/exports/{filename}": {
+      "get": {
+        "description": "Serve a CSV written by ``query_sql export_csv`` for UI download.\n\nThe browser cannot read the server filesystem ``path`` carried on the\nartifact, and export bodies can be large, so bytes stay off the SSE\nstream. 404 unless all of: the conversation exists, ``filename`` is a\nsafe ``*.csv`` segment, a persisted tool result for this conversation\nreferences that filename, and the file lives under the configured\nexports directory.",
+        "operationId": "get_conversation_export_v1_conversations__conversation_id__exports__filename__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Conversation Export",
+        "tags": [
+          "sessions"
         ]
       }
     },

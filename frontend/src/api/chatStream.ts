@@ -169,7 +169,7 @@ export async function cancelChat(conversationId: string): Promise<void> {
     `${getBaseUrl()}/v1/conversations/${encodeURIComponent(conversationId)}/cancel`,
     { method: "POST", headers: authHeaders() },
   );
-  if (!response.ok && response.status !== 404) {
+  if (!response.ok) {
     throw new Error(`chat cancellation failed: ${response.status}`);
   }
 }

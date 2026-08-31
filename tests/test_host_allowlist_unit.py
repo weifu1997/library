@@ -95,6 +95,38 @@ async def test_probe_paths_are_exempt(monkeypatch: pytest.MonkeyPatch) -> None:
     assert r.status_code == 200
 
 
+async def test_empty_host_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CROSS-M1: missing/empty Host must not skip the allowlist."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "library_trusted_hosts", "")
+    monkeypatch.setattr(settings, "library_api_token", None)
+    monkeypatch.setattr(main_module, "get_settings", lambda: settings)
+
+    async with _client("127.0.0.1") as c:
+        r = await c.get("/v1/folders", headers={"host": ""})
+
+    assert r.status_code == 421
+    assert "untrusted Host" in r.text
+
+
+async def test_non_ascii_token_does_not_500(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CROSS-M2: compare_digest on str used to TypeError → 500."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "library_api_token", "令牌")
+    monkeypatch.setattr(settings, "library_trusted_hosts", "")
+    monkeypatch.setattr(main_module, "get_settings", lambda: settings)
+
+    async with _client("127.0.0.1") as c:
+        r = await c.get("/v1/folders")
+        # Wrong/missing bearer must be 401, never TypeError 500.
+        assert r.status_code == 401, r.text
+        r_ascii = await c.get(
+            "/v1/folders",
+            headers={"Authorization": "Bearer not-the-token"},
+        )
+        assert r_ascii.status_code == 401, r_ascii.text
+
+
 async def test_wildcard_disables_the_check(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = get_settings()
     monkeypatch.setattr(settings, "library_trusted_hosts", "*")

@@ -32,6 +32,7 @@ import { SessionList } from "@/components/SessionList";
 import { TurnView, type Step, type Turn } from "@/components/TurnView";
 import { useChatSession } from "@/lib/chatSession";
 import { useI18n, type I18nStrings } from "@/lib/i18n";
+import { parseUserArtifact, parseUserArtifactEvent } from "@/lib/userArtifact";
 import {
   CHAT_IMAGE_MAX_BYTES,
   CHAT_IMAGE_MAX_COUNT,
@@ -49,6 +50,7 @@ import type {
   PlanBudgetData,
   ReplayedTurn,
   ThinkingEventData,
+  UserArtifact,
 } from "@/types/api";
 
 interface LiveStream {
@@ -57,6 +59,8 @@ interface LiveStream {
   turnIdx: number;
   mode: ChatMode;
   turns: Turn[];
+  conversationId?: string;
+  pendingCancel?: boolean;
 }
 
 const liveStreams = new Map<string, LiveStream>();
@@ -243,12 +247,24 @@ export function ChatPage() {
     const { sessionId } = useChatSession.getState();
     if (!sessionId) return;
     const live = liveStreams.get(sessionId);
-    if (live) {
+    if (!live) {
+      setStreaming(false);
+      return;
+    }
+    const conversationId =
+      live.conversationId ?? live.turns[live.turnIdx]?.conversationId;
+    if (conversationId) {
+      void cancelChat(conversationId).catch((err: unknown) => {
+        console.error(err);
+      });
       live.abort.abort();
       liveStreams.delete(sessionId);
+      setStreaming(false);
+      return;
     }
-    void cancelChat(sessionId);
-    setStreaming(false);
+    // Keep streaming true so Send stays blocked until the conversation
+    // event arrives and cancel actually fires.
+    live.pendingCancel = true;
   }, [setStreaming]);
 
   const send = useCallback(async () => {
@@ -299,10 +315,29 @@ export function ChatPage() {
         onEvent: (ev) => {
           const cur = liveStreams.get(sid);
           if (!cur || cur.generation !== gen) return;
+          let conversationId = ev.conversationId;
+          if (!conversationId && ev.type === "conversation") {
+            conversationId = typeof ev.data === "string"
+              ? ev.data
+              : extractId(ev.data, "conversation_id");
+          }
+          if (conversationId) cur.conversationId = conversationId;
           cur.turns = applyEventToTurnList(cur.turns, cur.turnIdx, ev, i18n);
+          if (cur.pendingCancel && cur.conversationId) {
+            void cancelChat(cur.conversationId).catch((err: unknown) => {
+              console.error(err);
+            });
+            cur.abort.abort();
+            liveStreams.delete(sid);
+            if (useChatSession.getState().sessionId === sid) {
+              setTurns(cur.turns);
+              setStreaming(false);
+            }
+            return;
+          }
           if (useChatSession.getState().sessionId === sid) {
             setTurns(cur.turns);
-            setStreaming(true);
+            if (!cur.pendingCancel) setStreaming(true);
           }
           if (ev.type === "plan" && extractSessionNameFromPlan(ev.data)) {
             setRefreshSignal((n) => n + 1);
@@ -751,6 +786,14 @@ function applyEventToTurnList(
           d.preview,
         );
       }
+      case "user_artifact": {
+        const artifact = parseUserArtifactEvent(ev.data);
+        if (!artifact) return turn;
+        return {
+          ...turn,
+          artifacts: [...(turn.artifacts ?? []), artifact],
+        };
+      }
       case "answer":
         return {
           ...finishActiveThinking(turn),
@@ -999,10 +1042,17 @@ function replayedToTurn(rt: ReplayedTurn, t: I18nStrings): Turn {
     });
   }
 
+  const artifacts: UserArtifact[] = [];
+  for (const raw of rt.artifacts ?? []) {
+    const artifact = parseUserArtifact(raw);
+    if (artifact) artifacts.push(artifact);
+  }
+
   return {
     query: rt.user_message,
     conversationId: rt.conversation_id,
     steps,
+    artifacts: artifacts.length > 0 ? artifacts : undefined,
     answer: rt.error ? null : rt.agent_response,
     metrics: rt.metrics,
     error: rt.error,

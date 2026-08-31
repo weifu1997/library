@@ -41,6 +41,7 @@ from library.db.models import (
     View,
 )
 from library.db.session import session_scope
+from library.repositories import catalogs as catalogs_repo
 from library.repositories import folders as folders_repo
 from library.services.knowledge_pack import (
     build_knowledge_pack,
@@ -622,7 +623,7 @@ async def publish_selected(
     try:
         write_progress("reading_remote")
         remote = await _read_remote_snapshot(
-            client, root, allow_missing=True, recover=True
+            client, root, allow_missing=True, recover=False
         )
         _require_same_library(remote["latest"], library_id)
 
@@ -1241,10 +1242,11 @@ async def _read_remote_snapshot(
             )
         return {"latest": latest, "manifest": manifest, "rows": rows}
     except WebDavConfigError:
-        # Publish is the recovery path: an interrupted PUT (or external
+        # Full publish is the recovery path: an interrupted PUT (or external
         # corruption) can leave latest.json/manifest unreadable. Rather than
-        # bricking publish too, warn loudly and publish a fresh full snapshot.
-        # Pull keeps `recover=False` and still fails loudly.
+        # bricking a full publish too, warn loudly and publish a fresh full
+        # snapshot. Pull and selective publish keep recover=False so a corrupt
+        # latest cannot be replaced with an empty or selected-only snapshot.
         if recover:
             log.warning(
                 "remote snapshot under %s is unreadable/corrupt; publishing a "
@@ -1274,7 +1276,9 @@ def _merge_snapshot_rows(
     and the tags actually attached to those entries (plus their aliases).
     Unrelated folders, unused tags, saved views, and the private agent
     sessions/conversations/journals are dropped from the local side entirely
-    (remote rows for those files are still preserved).
+    (remote rows for those files are still preserved). Local relations are
+    filtered to endpoints in the selected set before merge; already-published
+    remote relations are kept when both ends remain in the merged entries.
     """
     selected_local_entries = [
         row for row in local_rows.get("entries.jsonl", [])
@@ -1286,20 +1290,22 @@ def _merge_snapshot_rows(
         "entry_id",
     )
     entry_ids = {str(row.get("entry_id") or "") for row in entries}
+    local_relations = local_rows.get("relations.jsonl", [])
+    if scoped:
+        local_relations = [
+            row for row in local_relations
+            if str(row.get("entry_a_id") or "") in selected_entry_ids
+            and str(row.get("entry_b_id") or "") in selected_entry_ids
+        ]
     relations = _merge_by_key(
         remote_rows.get("relations.jsonl", []),
-        local_rows.get("relations.jsonl", []),
+        local_relations,
         "relation_id",
     )
-    # A selective publish keeps only relations WHOLLY among the selected
-    # entries — a relation (and its free-text note) between two entries that
-    # merely both happen to exist on the remote must not ride along (二.23).
-    # A full publish keeps relations among any known entry (remote ∪ local).
-    relation_scope = selected_entry_ids if scoped else entry_ids
     relations = [
         row for row in relations
-        if str(row.get("entry_a_id") or "") in relation_scope
-        and str(row.get("entry_b_id") or "") in relation_scope
+        if str(row.get("entry_a_id") or "") in entry_ids
+        and str(row.get("entry_b_id") or "") in entry_ids
     ]
 
     if scoped:
@@ -1678,6 +1684,19 @@ async def _import_metadata(
         parent_id = str(item.get("parent_id") or "") or None
         if parent_id is not None and await session.get(Catalog, parent_id) is None:
             parent_id = None
+        # Validate the value we are about to write: a snapshot with
+        # mutually-parented catalogs would otherwise close a real loop
+        # here (same shape as the folder import guard above).
+        if parent_id is not None and await catalogs_repo.would_create_cycle(
+            session, child_id=catalog_id, new_parent_id=parent_id,
+        ):
+            log.warning(
+                "webdav import: catalog %s under %s would create a cycle; "
+                "re-homing to root",
+                catalog_id, parent_id,
+            )
+            parent_id = None
+            imported["conflicts"] += 1
         row = await session.get(Catalog, catalog_id)
         if row is not None and _local_row_wins(
             row.updated_at,

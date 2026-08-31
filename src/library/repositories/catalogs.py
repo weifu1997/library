@@ -1,6 +1,7 @@
 """catalogs repository — pure SA queries against the Catalog table.
 
-Caller owns the transaction.
+Exposes the parent-chain walk (`would_create_cycle`) that every caller
+touching `parent_id` must go through. Caller owns the transaction.
 """
 from __future__ import annotations
 
@@ -44,6 +45,41 @@ async def get_live(db: AsyncSession, catalog_id: str) -> Catalog | None:
             )
         )
     ).scalar_one_or_none()
+
+
+async def would_create_cycle(
+    db: AsyncSession, *, child_id: str, new_parent_id: str | None
+) -> bool:
+    """True when re-parenting `child_id` under `new_parent_id` would close a
+    loop in the catalog tree.
+
+    Every write path that sets `Catalog.parent_id` must call this first.
+    `restructure_catalogs` move did via a private copy; WebDAV metadata
+    import and `soft_delete` `merge_into` used to skip it, which let a
+    snapshot with mutually-parented catalogs (or merging a parent into a
+    grandchild) create a real cycle.
+
+    Walks up from the prospective parent. The `seen` set makes the walk
+    terminate even when the table *already* contains a cycle, so this is
+    safe to call for repair on corrupt data. A parent that no longer
+    exists is not a cycle — the caller's own existence checks own that
+    case.
+    """
+    if new_parent_id is None:
+        return False
+    if new_parent_id == child_id:
+        return True
+    cur: str | None = new_parent_id
+    seen: set[str] = {child_id}
+    while cur is not None:
+        if cur in seen:
+            return True
+        seen.add(cur)
+        catalog = await db.get(Catalog, cur)
+        if catalog is None:
+            return False
+        cur = catalog.parent_id
+    return False
 
 
 async def name_by_ids(

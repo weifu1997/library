@@ -43,12 +43,14 @@ from library.pipelines.base import (
     SegmentResult,
 )
 from library.pipelines._long_index import (
+    IndexFields,
     build_retrieval_extra,
     fallback_section,
     ingest_output_limit,
     ingest_output_tokens,
     llm_ingest_concurrency,
     parse_index_response,
+    plain_summary,
     render_sections_digest,
     renumber_sections,
 )
@@ -334,6 +336,7 @@ class TextPipeline(Pipeline):
             line_end: int,
             text: str,
         ) -> dict[str, Any]:
+            index_failed = False
             async with sem:
                 payload = {
                     "folder_path": ctx.folder_path,
@@ -366,26 +369,50 @@ class TextPipeline(Pipeline):
                     temperature=0.2,
                     cache_breakpoints=[0],
                 )
-                resp = await client.complete(request)
-                fields = parse_index_response(resp, anchor_unit="lines")
-                if not fields.summary and _should_retry_empty_index(
-                    resp,
-                    request.max_tokens,
-                ):
+                try:
+                    resp = await client.complete(request)
+                    fields = parse_index_response(resp, anchor_unit="lines")
+                    if not fields.summary and _should_retry_empty_index(
+                        resp,
+                        request.max_tokens,
+                    ):
+                        log.warning(
+                            "text chunk pipeline: empty index response for lines "
+                            "%s-%s; retrying with larger output budget (%s)",
+                            line_start,
+                            line_end,
+                            _response_diag(resp),
+                        )
+                        retry_request = replace(
+                            request,
+                            max_tokens=ingest_output_limit(),
+                        )
+                        resp = await client.complete(retry_request)
+                        fields = parse_index_response(resp, anchor_unit="lines")
+                except Exception as exc:  # noqa: BLE001 - one chunk may degrade
                     log.warning(
-                        "text chunk pipeline: empty index response for lines "
-                        "%s-%s; retrying with larger output budget (%s)",
+                        "text chunk index failed for file %s lines %s-%s: %s",
+                        ctx.file_id,
                         line_start,
                         line_end,
-                        _response_diag(resp),
+                        exc,
                     )
-                    retry_request = replace(
-                        request,
-                        max_tokens=ingest_output_limit(),
+                    index_failed = True
+                    fields = IndexFields(
+                        summary="",
+                        description_text=None,
+                        sections=[],
+                        extra=None,
+                        entry_extra=None,
+                        catalog_path=None,
+                        tags=[],
                     )
-                    resp = await client.complete(retry_request)
-                    fields = parse_index_response(resp, anchor_unit="lines")
-            summary = fields.summary or fields.description_text or f"Lines {line_start}-{line_end}"
+            summary = (
+                fields.summary
+                or fields.description_text
+                or (plain_summary(text) if index_failed else "")
+                or f"Lines {line_start}-{line_end}"
+            )
             local_sections = fields.sections or [
                 fallback_section(
                     title=f"Lines {line_start}-{line_end}",
@@ -394,7 +421,7 @@ class TextPipeline(Pipeline):
                     summary=summary,
                 )
             ]
-            return {
+            result = {
                 "sections": local_sections,
                 "summary": {
                     "line_start": line_start,
@@ -403,12 +430,18 @@ class TextPipeline(Pipeline):
                     "description": fields.description_text or "",
                 },
             }
+            if index_failed:
+                result["index_failed"] = True
+            return result
 
         chunk_results = await asyncio.gather(*(
             _index_chunk(chunk_no, line_start, line_end, text)
             for chunk_no, (line_start, line_end, text) in chunks
         ))
+        failed_chunks = 0
         for result in chunk_results:
+            if result.get("index_failed"):
+                failed_chunks += 1
             sections.extend(result["sections"])
             chunk_summaries.append(result["summary"])
 
@@ -418,7 +451,30 @@ class TextPipeline(Pipeline):
             indexed_bytes=indexed_bytes,
             chunk_count=len(chunk_summaries),
             read_truncated=read_truncated,
+            chunk_index_failures=failed_chunks > 0,
         )
+        first = (
+            chunk_summaries[0]["summary"] if chunk_summaries else "text document"
+        )
+        heuristic_summary = (
+            f"Long text indexed into {len(chunk_summaries)} line ranges. "
+            f"First range: {first}"
+        )
+        if failed_chunks == len(chunks) and chunks:
+            fields = IndexFields(
+                summary=heuristic_summary,
+                description_text=None,
+                sections=sections,
+                extra=None,
+                entry_extra=None,
+                catalog_path=None,
+                tags=[],
+            )
+            return self._result_from_fields(
+                fields=fields,
+                sections=sections,
+                coverage=coverage,
+            )
         aggregate_payload = {
             "folder_path": ctx.folder_path,
             "sibling_names": ctx.sibling_names,
@@ -452,25 +508,39 @@ class TextPipeline(Pipeline):
             temperature=0.2,
             cache_breakpoints=[0],
         )
-        resp = await client.complete(request)
-        fields = parse_index_response(resp, anchor_unit="lines")
-        if not fields.summary and _should_retry_empty_index(resp, request.max_tokens):
-            log.warning(
-                "text aggregate pipeline: empty index response; retrying "
-                "with larger output budget (%s)",
-                _response_diag(resp),
-            )
-            retry_request = replace(
-                request,
-                max_tokens=ingest_output_limit(),
-            )
-            resp = await client.complete(retry_request)
+        try:
+            resp = await client.complete(request)
             fields = parse_index_response(resp, anchor_unit="lines")
-        if not fields.summary:
-            first = chunk_summaries[0]["summary"] if chunk_summaries else "text document"
-            fields.summary = (
-                f"Long text indexed into {len(chunk_summaries)} line ranges. "
-                f"First range: {first}"
+            if not fields.summary and _should_retry_empty_index(
+                resp, request.max_tokens,
+            ):
+                log.warning(
+                    "text aggregate pipeline: empty index response; retrying "
+                    "with larger output budget (%s)",
+                    _response_diag(resp),
+                )
+                retry_request = replace(
+                    request,
+                    max_tokens=ingest_output_limit(),
+                )
+                resp = await client.complete(retry_request)
+                fields = parse_index_response(resp, anchor_unit="lines")
+            if not fields.summary:
+                fields.summary = heuristic_summary
+        except Exception as exc:  # noqa: BLE001 - preserve the completed map
+            log.warning(
+                "text aggregate index failed for file %s: %s",
+                ctx.file_id,
+                exc,
+            )
+            fields = IndexFields(
+                summary=heuristic_summary,
+                description_text=None,
+                sections=sections,
+                extra=None,
+                entry_extra=None,
+                catalog_path=None,
+                tags=[],
             )
         return self._result_from_fields(
             fields=fields,
@@ -512,11 +582,15 @@ class TextPipeline(Pipeline):
         indexed_bytes: int,
         chunk_count: int,
         read_truncated: bool,
+        chunk_index_failures: bool = False,
     ) -> dict[str, Any]:
-        indexed_partial = read_truncated or indexed_bytes < total_bytes
+        byte_capped = read_truncated or indexed_bytes < total_bytes
+        indexed_partial = byte_capped or chunk_index_failures
         partial_reasons: list[str] = []
-        if indexed_partial:
+        if byte_capped:
             partial_reasons.append("text_index_byte_cap")
+        if chunk_index_failures:
+            partial_reasons.append("chunk_index_failures")
         return {
             "unit": "bytes",
             "source_mode": "text_extracted_bytes",

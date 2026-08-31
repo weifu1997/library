@@ -45,8 +45,16 @@ os.environ.pop("LLM_DEFAULT_BASE_URL", None)
 # Stop Settings from reading a developer's local `.env` (see the sibling
 # test_settings_routes_e2e module for the same dance).
 from library.config import Settings as _Settings  # noqa: E402
+from library.db.engine import get_engine  # noqa: E402
+from library.db.models import Base  # noqa: E402
 
 _Settings.model_config["env_file"] = None
+
+
+async def _create_schema() -> None:
+    engine = get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 def test_overlay_accepts_worker_enabled() -> None:

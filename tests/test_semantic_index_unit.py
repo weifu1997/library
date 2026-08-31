@@ -17,6 +17,9 @@ from library.semantic.embeddings import EmbeddingConfigError, get_embedding_clie
 from library.semantic.embeddings import EmbeddingResult
 from library.semantic.index import (
     SQLITE_VEC_INDEX_FILENAME,
+    _file_index_payload_matches_manifest,
+    _load_semantic_index_cached,
+    _replace_file_index,
     best_semantic_sections,
     build_semantic_index,
     refresh_semantic_index_for_file,
@@ -684,3 +687,278 @@ def test_parse_rerank_hits_handles_bailian_response() -> None:
         (2, 0.91, 1),
         (0, 0.42, 2),
     ]
+
+
+def _add_done_text_file(
+    session,
+    *,
+    file_id: str,
+    entry_id: str,
+    storage_key: str,
+    sha256: str,
+    summary: str,
+    display_name: str,
+) -> None:
+    now = _now()
+    session.add(File(
+        id=file_id,
+        storage_key=storage_key,
+        sha256=sha256,
+        size_bytes=10,
+        mime_type="text/plain",
+        original_ext=".txt",
+        kind="text",
+        summary=summary,
+        description={"sections": []},
+        extra="",
+        ingest_status="done",
+        ingested_at=now,
+        deleted_at=None,
+        created_at=now,
+        updated_at=now,
+    ))
+    session.add(FileEntry(
+        id=entry_id,
+        folder_id=None,
+        file_id=file_id,
+        display_name=display_name,
+        lifecycle="active",
+        catalog_id=None,
+        extra="",
+        deleted_at=None,
+        purge_after=None,
+        created_at=now,
+        updated_at=now,
+    ))
+
+
+@pytest.mark.asyncio
+async def test_crash_between_index_replaces_does_not_return_wrong_hits(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "true")
+    monkeypatch.setenv("EMBEDDING_API_KEY", "fake-key")
+    monkeypatch.setenv("EMBEDDING_DIMENSIONS", "3")
+    monkeypatch.setenv("SEMANTIC_INDEX_BACKEND", "file")
+    from library.config import get_settings
+
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'crash.db'}")
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    raft_file_id = new_id()
+    raft_entry_id = new_id()
+    cooking_file_id = new_id()
+    cooking_entry_id = new_id()
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(bootstrap_schema_sync)
+        async with factory() as session:
+            _add_done_text_file(
+                session,
+                file_id=raft_file_id,
+                entry_id=raft_entry_id,
+                storage_key="00/aa/raft",
+                sha256="a" * 64,
+                summary="Raft consensus uses leader election.",
+                display_name="doc-a.txt",
+            )
+            _add_done_text_file(
+                session,
+                file_id=cooking_file_id,
+                entry_id=cooking_entry_id,
+                storage_key="00/aa/cooking",
+                sha256="b" * 64,
+                summary="Cooking notes for sourdough bread.",
+                display_name="doc-b.txt",
+            )
+            await session.commit()
+        async with factory() as session:
+            await build_semantic_index(
+                session,
+                client=_FakeEmbeddingClient(),
+                progress_every=0,
+            )
+
+        before = await search_semantic_index(
+            "leader election",
+            limit=1,
+            client=_FakeEmbeddingClient(),
+        )
+        assert [hit.entry_id for hit in before] == [raft_entry_id]
+
+        idx = semantic_index_dir()
+        entries_path = idx / "entries.jsonl"
+        vectors_path = idx / "vectors.f32"
+        manifest_path = idx / "manifest.json"
+        old_entries = entries_path.read_text(encoding="utf-8")
+        old_vectors = vectors_path.read_bytes()
+        old_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert old_manifest.get("entries_sha256")
+        assert old_manifest.get("vectors_sha256")
+        rows = [json.loads(line) for line in old_entries.splitlines() if line.strip()]
+        assert len(rows) == 2
+        swapped = list(reversed(rows))
+
+        original_replace = Path.replace
+
+        def crash_after_entries(self: Path, target: Path | str) -> Path:
+            result = original_replace(self, target)
+            if Path(target).name == "entries.jsonl":
+                raise KeyboardInterrupt("simulated crash after entries replace")
+            return result
+
+        monkeypatch.setattr(Path, "replace", crash_after_entries)
+        try:
+            with pytest.raises(KeyboardInterrupt):
+                _replace_file_index(
+                    idx,
+                    manifest={**old_manifest, "entries": 2},
+                    metadata=swapped,
+                    vectors=old_vectors,
+                )
+        finally:
+            monkeypatch.setattr(Path, "replace", original_replace)
+        _load_semantic_index_cached.cache_clear()
+
+        # New metadata, old vectors, old manifest — the SEARCH-1 crash window.
+        assert entries_path.read_text(encoding="utf-8") != old_entries
+        assert vectors_path.read_bytes() == old_vectors
+        assert json.loads(manifest_path.read_text(encoding="utf-8"))[
+            "entries_sha256"
+        ] == old_manifest["entries_sha256"]
+
+        hits = await search_semantic_index(
+            "leader election",
+            limit=2,
+            client=_FakeEmbeddingClient(),
+        )
+        hit_ids = [hit.entry_id for hit in hits]
+        # Empty/degraded is OK; pairing cooking's metadata with raft's vector is not.
+        assert cooking_entry_id not in hit_ids
+        if hits:
+            assert hit_ids == [raft_entry_id]
+
+        async with factory() as session:
+            recovered = await refresh_semantic_index_for_file(
+                session,
+                raft_file_id,
+                client=_FakeEmbeddingClient(),
+            )
+        assert recovered.skipped_reason is None
+        after = await search_semantic_index(
+            "leader election",
+            limit=1,
+            client=_FakeEmbeddingClient(),
+        )
+        assert [hit.entry_id for hit in after] == [raft_entry_id]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_semantic_search_refuses_length_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "true")
+    monkeypatch.setenv("EMBEDDING_API_KEY", "fake-key")
+    monkeypatch.setenv("EMBEDDING_DIMENSIONS", "3")
+    monkeypatch.setenv("SEMANTIC_INDEX_BACKEND", "file")
+    from library.config import get_settings
+
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'mismatch-len.db'}")
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    raft_file_id = new_id()
+    raft_entry_id = new_id()
+    cooking_file_id = new_id()
+    cooking_entry_id = new_id()
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(bootstrap_schema_sync)
+        async with factory() as session:
+            _add_done_text_file(
+                session,
+                file_id=raft_file_id,
+                entry_id=raft_entry_id,
+                storage_key="00/aa/raft",
+                sha256="a" * 64,
+                summary="Raft consensus uses leader election.",
+                display_name="doc-a.txt",
+            )
+            _add_done_text_file(
+                session,
+                file_id=cooking_file_id,
+                entry_id=cooking_entry_id,
+                storage_key="00/aa/cooking",
+                sha256="b" * 64,
+                summary="Cooking notes for sourdough bread.",
+                display_name="doc-b.txt",
+            )
+            await session.commit()
+        async with factory() as session:
+            await build_semantic_index(
+                session,
+                client=_FakeEmbeddingClient(),
+                progress_every=0,
+            )
+
+        idx = semantic_index_dir()
+        entries_path = idx / "entries.jsonl"
+        extra = entries_path.read_text(encoding="utf-8").splitlines()[0]
+        entries_path.write_text(
+            entries_path.read_text(encoding="utf-8") + extra + "\n",
+            encoding="utf-8",
+        )
+        _load_semantic_index_cached.cache_clear()
+
+        hits = await search_semantic_index(
+            "leader election",
+            limit=2,
+            client=_FakeEmbeddingClient(),
+        )
+        assert hits == []
+    finally:
+        await engine.dispose()
+
+
+def test_file_index_payload_matches_manifest_legacy_and_checksums() -> None:
+    legacy = {"dimensions": 3, "entries": 2}
+    assert _file_index_payload_matches_manifest(
+        legacy,
+        metadata_count=2,
+        vectors_nbytes=24,
+        entries_sha256="aaa",
+        vectors_sha256="bbb",
+    )
+    assert not _file_index_payload_matches_manifest(
+        legacy,
+        metadata_count=3,
+        vectors_nbytes=24,
+        entries_sha256="aaa",
+        vectors_sha256="bbb",
+    )
+
+    stamped = {
+        **legacy,
+        "entries_sha256": "aaa",
+        "vectors_sha256": "bbb",
+        "vector_bytes": 24,
+    }
+    assert _file_index_payload_matches_manifest(
+        stamped,
+        metadata_count=2,
+        vectors_nbytes=24,
+        entries_sha256="aaa",
+        vectors_sha256="bbb",
+    )
+    assert not _file_index_payload_matches_manifest(
+        stamped,
+        metadata_count=2,
+        vectors_nbytes=24,
+        entries_sha256="ccc",
+        vectors_sha256="bbb",
+    )

@@ -487,10 +487,13 @@ async def test_scheduler_disabled_skips_bootstrap_but_starts_worker(
     from library.tasks.handlers import periodic_tick
     from library.tasks.runner import TaskRunner
 
-    calls = {"bootstrap": 0, "run": 0}
+    calls = {"bootstrap": 0, "run": 0, "recover": 0}
 
     async def fake_bootstrap() -> None:
         calls["bootstrap"] += 1
+
+    async def fake_recover(_payload: object = None) -> None:
+        calls["recover"] += 1
 
     async def fake_sweep(self) -> None:  # noqa: ANN001
         return None
@@ -499,13 +502,55 @@ async def test_scheduler_disabled_skips_bootstrap_but_starts_worker(
         calls["run"] += 1
 
     monkeypatch.setattr(periodic_tick, "bootstrap_periodic_tick", fake_bootstrap)
+    monkeypatch.setattr(
+        "library.tasks.handlers.recover_stuck_tasks.handle_recover_stuck_tasks",
+        fake_recover,
+    )
     monkeypatch.setattr(TaskRunner, "_sweep_llm_dependent_if_no_key", fake_sweep)
     monkeypatch.setattr(TaskRunner, "_run", fake_run)
     runner = TaskRunner(Settings(worker_scheduler_enabled=False))
     await runner.start()
     assert runner._loop_task is not None  # noqa: SLF001
     await runner._loop_task  # noqa: SLF001
-    assert calls == {"bootstrap": 0, "run": 1}
+    assert calls == {"bootstrap": 0, "run": 1, "recover": 1}
+
+
+@pytest.mark.asyncio
+async def test_start_recovers_before_bootstrap_even_without_llm_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from library.tasks.handlers import periodic_tick
+    from library.tasks.runner import TaskRunner
+
+    order: list[str] = []
+
+    async def fake_bootstrap() -> None:
+        order.append("bootstrap")
+
+    async def fake_recover(_payload: object = None) -> None:
+        order.append("recover")
+
+    async def fake_sweep(self) -> None:  # noqa: ANN001
+        order.append("sweep")
+
+    async def fake_run(self) -> None:  # noqa: ANN001
+        order.append("run")
+
+    monkeypatch.setattr(periodic_tick, "bootstrap_periodic_tick", fake_bootstrap)
+    monkeypatch.setattr(
+        "library.tasks.handlers.recover_stuck_tasks.handle_recover_stuck_tasks",
+        fake_recover,
+    )
+    monkeypatch.setattr(TaskRunner, "_sweep_llm_dependent_if_no_key", fake_sweep)
+    monkeypatch.setattr(TaskRunner, "_run", fake_run)
+    runner = TaskRunner(Settings(
+        llm_default_api_key="",
+        worker_scheduler_enabled=True,
+    ))
+    await runner.start()
+    assert runner._loop_task is not None  # noqa: SLF001
+    await runner._loop_task  # noqa: SLF001
+    assert order == ["recover", "sweep", "bootstrap", "run"]
 
 
 def test_public_tool_call_id_is_stable_and_provider_independent() -> None:
@@ -589,7 +634,7 @@ async def test_prune_batch_loop_honors_max_batches() -> None:
 def test_migration_head_contains_durable_event_ledger() -> None:
     from library.db.bootstrap import ALEMBIC_HEAD_REVISION, SCALE_SAFETY_INDEXES
 
-    assert ALEMBIC_HEAD_REVISION == "0016_scale_safety_indexes"
+    assert ALEMBIC_HEAD_REVISION == "0017_folders_live_parent_name_unique"
     assert {name for name, _table, _columns in SCALE_SAFETY_INDEXES} == {
         "ix_files_capacity_active",
         "ix_conversations_active_started",

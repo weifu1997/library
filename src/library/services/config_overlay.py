@@ -156,21 +156,47 @@ def overlay_path(home: str | os.PathLike[str]) -> Path:
     return Path(home) / "config_overlay.json"
 
 
-def read_overlay(home: str | os.PathLike[str]) -> dict[str, Any]:
-    """Return the on-disk overlay, filtered to the allowed fields.
+class OverlayUnreadableError(ValueError):
+    """The overlay file exists but is not a JSON object.
 
-    Missing file → empty dict. Malformed JSON → empty dict (we don't
-    want a typo in the overlay to brick the whole app)."""
+    GET still degrades to `.env` defaults. Merge PUT must refuse so a
+    truncated file cannot be replaced by a one-key patch.
+    """
+
+
+class OverlayValidationError(ValueError):
+    """One or more fields in a PUT body failed validation."""
+
+
+def read_overlay_strict(home: str | os.PathLike[str]) -> dict[str, Any]:
+    """Return the on-disk overlay, or raise if the file is unreadable.
+
+    Missing file → empty dict (no overlay yet). Truncated JSON, a
+    non-object, or a read error → ``OverlayUnreadableError``.
+    """
     p = overlay_path(home)
     if not p.exists():
         return {}
     try:
         raw = json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+    except (OSError, json.JSONDecodeError) as exc:
+        raise OverlayUnreadableError("overlay unreadable") from exc
     if not isinstance(raw, dict):
-        return {}
+        raise OverlayUnreadableError("overlay unreadable")
     return _canonical_overlay(raw)
+
+
+def read_overlay(home: str | os.PathLike[str]) -> dict[str, Any]:
+    """Return the on-disk overlay, filtered to the allowed fields.
+
+    Missing file → empty dict. Malformed JSON → empty dict so a typo
+    cannot brick GET / process start. Callers that will *write* a merge
+    must use ``read_overlay_strict`` instead.
+    """
+    try:
+        return read_overlay_strict(home)
+    except OverlayUnreadableError:
+        return {}
 
 
 def _canonical_overlay(raw: dict[str, Any]) -> dict[str, Any]:
@@ -220,10 +246,6 @@ def write_overlay(home: str | os.PathLike[str], values: dict[str, Any]) -> None:
         raise
 
 
-class OverlayValidationError(ValueError):
-    """One or more fields in a PUT body failed validation."""
-
-
 def validate_and_normalize(patch: dict[str, Any]) -> dict[str, Any]:
     """Reject unknown fields and bad enum values; coerce ints; turn
     blank strings into ``None`` (so a profile override truly clears).
@@ -244,6 +266,13 @@ def validate_and_normalize(patch: dict[str, Any]) -> dict[str, Any]:
             # otherwise 422 (int(None)/float(None)) or store an explicit
             # False (bool(None)) instead of falling back to .env.
             out[k] = None
+            continue
+        if (
+            (k.endswith("_api_key") or k.endswith("_password"))
+            and isinstance(v, str)
+            and "***" in v
+        ):
+            bad.append(f"{k}: masked placeholder is not a credential")
             continue
         if k.endswith("_provider") and v is not None:
             valid = (

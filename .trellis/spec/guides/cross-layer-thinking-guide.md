@@ -100,6 +100,14 @@ create one owner for:
 
 Rendering code may format fields, but it must not redefine the payload contract.
 
+### Mistake 5: Event is on the wire but only one consumer handles it
+
+**Bad**: Add `user_artifact` to OpenAPI / `KNOWN_EVENTS` / the runtime emitter, but skip the Chat reducer, TurnView, and `GET /sessions/{id}/messages` projection. CLI spinner shows the chart; the GUI only shows a tool_call row.
+
+**Good**: One decoder (`parseUserArtifact` / `public_artifact`) owned at the boundary; live SSE, transcript replay, and the renderer all consume that projection. `__user_only__` stays stripped from the model tool result.
+
+**Rule**: A new SSE event kind is not done until live reduce + visible render + replay recovery all exist.
+
 ---
 
 ## Checklist for Cross-Layer Features

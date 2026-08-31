@@ -36,6 +36,8 @@ These guides help you **ask the right questions before coding**.
 - [ ] You're not sure where to put some logic
 - [ ] You are adding an event kind, JSONL record, RPC payload, or config field
 - [ ] UI / command code starts casting raw payload fields directly
+- [ ] Chat Stop / cancel uses Conversation.id from the SSE `conversation` event, not the session id (see `.trellis/spec/backend/error-handling.md`)
+- [ ] A new SSE event kind needs a live reducer, a visible renderer, and transcript replay — OpenAPI/`KNOWN_EVENTS` alone is not enough (`user_artifact` was on the wire and still invisible in Chat)
 
 → Read [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md)
 

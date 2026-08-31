@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/08-31-feature-code-review/research/review-protocol.md", "reason": "Shared report-only review protocol and severity/overlap rules"}
+{"file": ".trellis/tasks/08-31-feature-code-review/research/prior-findings.md", "reason": "Fixed items for regression-only checks; still-open prior findings"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer data-flow questions for API/service/db/UI surfaces"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "CLI/MCP/export error surfaces and auth bypass risk"}

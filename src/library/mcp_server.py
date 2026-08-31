@@ -366,7 +366,15 @@ def _optional_int(args: Mapping[str, Any], key: str, default: int) -> int:
 
 
 def _destination_path(value: str) -> Path:
-    path = Path(value).expanduser()
+    path = Path(value).expanduser().resolve()
+    home = Path.home().resolve()
+    try:
+        path.relative_to(home)
+    except ValueError as exc:
+        raise JsonRpcError(
+            INVALID_PARAMS,
+            "destination_path must be under the current user's home directory",
+        ) from exc
     if path.exists() and path.is_dir():
         raise JsonRpcError(INVALID_PARAMS, "destination_path must include a file name")
     path.parent.mkdir(parents=True, exist_ok=True)

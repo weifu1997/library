@@ -62,6 +62,17 @@ test entry extra
 </tags>"""
 
 
+def _request_blob(request: ChatRequest) -> str:
+    parts = [request.system or ""]
+    for message in request.messages:
+        content = message.content
+        if isinstance(content, str):
+            parts.append(content)
+        else:
+            parts.append(str(content))
+    return "\n".join(parts)
+
+
 def _build_text_pdf(page_count: int) -> bytes:
     from fpdf import FPDF
 
@@ -228,6 +239,7 @@ async def test_pdf_long_ingest_chunks_then_aggregates(
     assert coverage["total_pages"] == 65
     assert coverage["indexed_pages"] == 65
     assert coverage["indexed_partial"] is False
+    assert coverage.get("partial_reasons") == []
     assert coverage["aggregate_compression"]["kind"] == "pdf_aggregate"
     assert aggregate_calls == ["pdf_aggregate"]
     assert len(result.description["sections"]) == 2
@@ -302,12 +314,189 @@ async def test_text_long_ingest_chunks_then_aggregates(
     coverage = result.description["coverage"]
     assert coverage["chunked"] is True
     assert coverage["indexed_partial"] is False
+    assert coverage.get("partial_reasons") == []
     assert coverage["aggregate_compression"]["kind"] == "text_aggregate"
     assert aggregate_calls == ["text_aggregate"]
     assert len(result.description["sections"]) >= 2
     assert result.description["sections"][0]["anchor"]["unit"] == "lines"
     assert "keyword-8999" in (result.extra or "")
     assert fake.calls >= 3
+
+
+def _chunk_tagged(*, start: int, end: int, unit: str) -> str:
+    label = "Pages" if unit == "pages" else "Lines"
+    return _tagged(
+        summary=f"{label} {start}-{end} indexed.",
+        sections=(
+            f"s1 | {start}-{end} | {label} {start}-{end} | "
+            f"Covers {unit} {start}-{end}. | topic {start}"
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_pdf_chunked_index_degrades_failed_middle_chunk(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import library.pipelines.pdf as pdf_mod
+
+    monkeypatch.setattr(pdf_mod, "has_vision_profile", lambda: False)
+    monkeypatch.setattr(pdf_mod, "PDF_CHUNK_PAGES", 20)
+
+    class FakeClient:
+        async def complete(self, request: ChatRequest) -> ChatResponse:
+            blob = _request_blob(request)
+            if "aggregate" in (request.system or "").lower():
+                return ChatResponse(
+                    text=_tagged(
+                        summary="A long PDF covering all indexed page ranges.",
+                        description="Aggregate description from section summaries.",
+                    ),
+                    tool_calls=[],
+                    stop_reason="end_turn",
+                    usage=TokenUsage(),
+                )
+            if '"chunk_no": 2,' in blob:
+                raise RuntimeError("429 rate limited")
+            start = 1
+            end = 20
+            if '"chunk_no": 3,' in blob:
+                start, end = 41, 60
+            elif '"chunk_no": 4,' in blob:
+                start, end = 61, 65
+            return ChatResponse(
+                text=_chunk_tagged(start=start, end=end, unit="pages"),
+                tool_calls=[],
+                stop_reason="end_turn",
+                usage=TokenUsage(),
+            )
+
+    monkeypatch.setattr(pdf_mod, "get_chat_client", lambda profile="ingest": FakeClient())
+
+    result = await PdfPipeline().run(
+        ctx=_ctx(),
+        storage=_BytesStorage(_build_text_pdf(65)),
+    )
+
+    coverage = result.description["coverage"]
+    sections = result.description["sections"]
+    assert result.summary == "A long PDF covering all indexed page ranges."
+    assert coverage["indexed_partial"] is True
+    assert "chunk_index_failures" in coverage["partial_reasons"]
+    heuristic = [section for section in sections if section["anchor"]["value"] == "21-40"]
+    assert heuristic, sections
+    assert heuristic[0]["title"] == "Pages 21-40"
+    assert heuristic[0]["summary"]
+    assert any(section["anchor"]["value"] == "1-20" for section in sections)
+
+
+@pytest.mark.asyncio
+async def test_pdf_all_chunk_index_failures_use_heuristic_not_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import library.pipelines.pdf as pdf_mod
+
+    monkeypatch.setattr(pdf_mod, "has_vision_profile", lambda: False)
+
+    class BoomClient:
+        async def complete(self, request: ChatRequest) -> ChatResponse:
+            raise RuntimeError("ingest model unavailable")
+
+    monkeypatch.setattr(pdf_mod, "get_chat_client", lambda profile="ingest": BoomClient())
+
+    result = await PdfPipeline().run(
+        ctx=_ctx(),
+        storage=_BytesStorage(_build_text_pdf(65)),
+    )
+
+    coverage = result.description["coverage"]
+    sections = result.description["sections"]
+    assert coverage["indexed_partial"] is True
+    assert "chunk_index_failures" in coverage["partial_reasons"]
+    assert len(sections) >= 2
+    assert all(section["anchor"]["unit"] == "pages" for section in sections)
+    assert sections[0]["title"].startswith("Pages ")
+    assert result.summary.startswith("Long PDF indexed into")
+
+
+@pytest.mark.asyncio
+async def test_text_chunked_index_degrades_failed_middle_chunk(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body = "\n".join(f"line {i} keyword-{i}" for i in range(1, 9000)).encode()
+
+    class FakeClient:
+        async def complete(self, request: ChatRequest) -> ChatResponse:
+            blob = _request_blob(request)
+            if "aggregate" in (request.system or "").lower():
+                return ChatResponse(
+                    text=_tagged(
+                        summary="A long text file indexed from line-range sections.",
+                        description="Aggregate description from line-range summaries.",
+                        tags="topic: long-text\nform: markdown\nlanguage: en",
+                    ),
+                    tool_calls=[],
+                    stop_reason="end_turn",
+                    usage=TokenUsage(),
+                )
+            if '"chunk_no": 2,' in blob:
+                raise RuntimeError("429 rate limited")
+            return ChatResponse(
+                text=_tagged(
+                    summary="Line range indexed.",
+                    sections="s1 | 1-2500 | Lines 1-2500 | Covers range 1. | keyword-1",
+                    tags="topic: long-text\nform: markdown\nlanguage: en",
+                ),
+                tool_calls=[],
+                stop_reason="end_turn",
+                usage=TokenUsage(),
+            )
+
+    monkeypatch.setattr(text_mod, "get_chat_client", lambda profile="ingest": FakeClient())
+
+    ctx = _ctx(size=len(body))
+    ctx.mime_type = "text/markdown"
+    ctx.original_ext = ".md"
+    ctx.display_name = "long.md"
+    result = await TextPipeline().run(ctx=ctx, storage=_BytesStorage(body))
+
+    coverage = result.description["coverage"]
+    sections = result.description["sections"]
+    assert result.summary == "A long text file indexed from line-range sections."
+    assert coverage["indexed_partial"] is True
+    assert "chunk_index_failures" in coverage["partial_reasons"]
+    heuristic = [section for section in sections if "line " in (section.get("summary") or "")]
+    assert heuristic, sections
+    assert heuristic[0]["title"].startswith("Lines ")
+    assert heuristic[0]["anchor"]["unit"] == "lines"
+
+
+@pytest.mark.asyncio
+async def test_text_all_chunk_index_failures_use_heuristic_not_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body = "\n".join(f"line {i} keyword-{i}" for i in range(1, 9000)).encode()
+
+    class BoomClient:
+        async def complete(self, request: ChatRequest) -> ChatResponse:
+            raise RuntimeError("ingest model unavailable")
+
+    monkeypatch.setattr(text_mod, "get_chat_client", lambda profile="ingest": BoomClient())
+
+    ctx = _ctx(size=len(body))
+    ctx.mime_type = "text/markdown"
+    ctx.original_ext = ".md"
+    ctx.display_name = "long.md"
+    result = await TextPipeline().run(ctx=ctx, storage=_BytesStorage(body))
+
+    coverage = result.description["coverage"]
+    sections = result.description["sections"]
+    assert coverage["indexed_partial"] is True
+    assert "chunk_index_failures" in coverage["partial_reasons"]
+    assert len(sections) >= 2
+    assert all(section["anchor"]["unit"] == "lines" for section in sections)
+    assert sections[0]["title"].startswith("Lines ")
+    assert result.summary.startswith("Long text indexed into")
 
 
 def test_text_read_segment_cap_expands_for_late_offsets_and_deep_reads() -> None:

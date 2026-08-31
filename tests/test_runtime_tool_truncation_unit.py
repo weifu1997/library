@@ -143,3 +143,39 @@ def test_read_overlay_drops_invalid_persisted_values(tmp_path) -> None:
 
     assert "embedding_batch_size" not in overlay
     assert overlay["semantic_recall_limit"] == 42
+
+
+def test_read_overlay_strict_raises_on_truncated_json(tmp_path) -> None:
+    from library.services.config_overlay import (
+        OverlayUnreadableError, read_overlay, read_overlay_strict,
+    )
+
+    (tmp_path / "config_overlay.json").write_text(
+        '{"llm_chat_tps": 7, "llm_chat_model":',
+        encoding="utf-8",
+    )
+    assert read_overlay(tmp_path) == {}
+    try:
+        read_overlay_strict(tmp_path)
+    except OverlayUnreadableError:
+        return
+    raise AssertionError("expected OverlayUnreadableError")
+
+
+def test_validate_and_normalize_rejects_masked_secrets() -> None:
+    from library.services.config_overlay import (
+        OverlayValidationError, validate_and_normalize,
+    )
+
+    try:
+        validate_and_normalize({"llm_default_api_key": "sk-***ab"})
+    except OverlayValidationError:
+        pass
+    else:
+        raise AssertionError("expected OverlayValidationError for masked api_key")
+
+    try:
+        validate_and_normalize({"webdav_password": "pw***xx"})
+    except OverlayValidationError:
+        return
+    raise AssertionError("expected OverlayValidationError for masked password")

@@ -20,6 +20,34 @@ Questions to answer:
 
 ---
 
+## Folder live unique names
+
+`folders` uniqueness is **live-only**: partial unique index
+`uq_folders_live_parent_name` on `(parent_id, name) WHERE deleted_at IS NULL`.
+Soft-deleted rows must not occupy the name. Recreating a nested folder after
+DELETE is 201, not IntegrityError 500. Two live siblings still 409.
+
+SQLite treats two `parent_id IS NULL` as distinct in UNIQUE; root clashes are
+still enforced in `create_folder` via `find_child_by_name`. Map remaining
+`IntegrityError` on create to 409.
+
+Regression: `tests/test_folder_live_unique_e2e.py`. Alembic
+`0017_folders_live_parent_name_unique`.
+
+## Semantic file index publish
+
+The file-index backend is three files: `entries.jsonl`, `vectors.f32`,
+`manifest.json`. Readers do not take the write lock.
+
+- Stamp `entries_sha256` / `vectors_sha256` / `vector_bytes` on the manifest
+  and replace **manifest last**.
+- On load, if counts or checksums disagree, refuse the index (`None`). Never
+  `min()`-truncate mismatched rows into search hits.
+- Legacy manifests without checksums may load when counts agree.
+
+Regression: `tests/test_semantic_index_unit.py`
+(`test_crash_between_index_replaces_does_not_return_wrong_hits`).
+
 ## Self-Referencing Tables (`parent_id`)
 
 `folders` and `catalogs` are trees stored as adjacency lists. SQLite enforces
@@ -28,11 +56,13 @@ standing between a snapshot and an unwalkable tree**.
 
 ### Contract
 
-1. **Every write path that sets `parent_id` must call
-   `repositories.folders.would_create_cycle()` first.** Not just the obvious
-   ones. `move_folder` always did; the WebDAV metadata import did not, and a
-   re-import of a snapshot with mutually-parented folders closed a real loop
-   in the live database.
+1. **Every write path that sets `parent_id` must call that table's
+   `would_create_cycle()` first** (`repositories.folders` or
+   `repositories.catalogs`). Not just the obvious ones. `move_folder` and
+   `restructure_catalogs` move always did; the WebDAV metadata import did not,
+   and a re-import of a snapshot with mutually-parented folders or catalogs
+   closed a real loop in the live database. Catalog `soft_delete` `merge_into`
+   also skipped it.
 
 2. **Every read path that walks up a parent chain must carry a `seen` set.**
    Guarding the writes is not enough: a database poisoned before the guard

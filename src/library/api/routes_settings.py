@@ -63,8 +63,8 @@ from library.semantic.index import semantic_index_status
 from library.semantic.embeddings import get_embedding_client
 from library.semantic.rerank import get_rerank_client, rerank_configured
 from library.services.config_overlay import (
-    OverlayValidationError, _VALID_PROVIDERS,
-    read_overlay, validate_and_normalize, write_overlay,
+    OverlayUnreadableError, OverlayValidationError, _VALID_PROVIDERS,
+    read_overlay, read_overlay_strict, validate_and_normalize, write_overlay,
 )
 from library.services import worker_lifecycle
 from library.services.reprocess import reprocess_file
@@ -769,7 +769,13 @@ async def update_llm_settings(
     if body.replace:
         merged = clean
     else:
-        merged = read_overlay(s.library_home)
+        try:
+            merged = read_overlay_strict(s.library_home)
+        except OverlayUnreadableError:
+            raise HTTPException(
+                status_code=422,
+                detail="overlay unreadable; refuse merge so other keys are not wiped",
+            )
         # Drop keys explicitly set to None — that means "clear this
         # override" so the field falls back to .env / default.
         for k, v in clean.items():

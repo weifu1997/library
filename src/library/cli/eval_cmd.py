@@ -66,6 +66,15 @@ def cmd_eval_main(argv: list[str]) -> int:
         action="store_true",
         help="Continue a partial import in an existing eval dataset directory.",
     )
+    p_import.add_argument(
+        "--write-library",
+        action="store_true",
+        help=(
+            "Allow ingesting eval documents into the current LIBRARY_HOME. "
+            "Without this flag, import is refused unless the home directory "
+            "name contains 'eval'."
+        ),
+    )
 
     p_semantic = sub.add_parser(
         "build-semantic-index",
@@ -391,6 +400,7 @@ async def _run_import(args: argparse.Namespace) -> int:
             progress_every=args.progress_every,
             concurrency=args.concurrency,
             resume=args.resume,
+            write_library=args.write_library,
         )
     except Exception as exc:  # noqa: BLE001
         print(f"eval import failed: {exc}")

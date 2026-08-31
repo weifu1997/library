@@ -30,6 +30,27 @@ Questions to answer:
 
 ## Required Patterns
 
+### Ingest persist is write-once on `ingested_at`
+
+`ingest_file._persist` only writes `summary` / `description` / `kind` / `extra`
+when `File.ingested_at is None`. Any path that must re-index an existing file
+(Finder in-place edit, user reprocess) has to clear `ingested_at` and enqueue
+with `dedup_key=f"ingest_file:{file_id}"`. Reuse `reprocess_file` — do not add
+a third half-reset. `apply_modified` is a caller of `reprocess_file` after it
+updates sha256/size.
+
+Regression: `tests/test_sync_modified_reingest_e2e.py`.
+
+### TaskRunner.start recovers expired leases before bootstrap
+
+`TaskRunner.start` must call `handle_recover_stuck_tasks` unconditionally
+(not gated on LLM key or scheduler) **before** `bootstrap_periodic_tick`.
+`has_inflight_for_kind` treats only `pending` and still-leased `running` as
+inflight; an expired-lease `running` row must not block a successor tick.
+Do not recover still-heartbeating leases (existing CAS + grace window).
+
+Regression: `tests/test_runner_recover_on_start_e2e.py`.
+
 ### Process-wide owned resources live in a lifecycle singleton
 
 Any resource that is process-scoped and must be startable/stoppable at runtime

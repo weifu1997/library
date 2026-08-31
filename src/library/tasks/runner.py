@@ -60,6 +60,12 @@ class TaskRunner:
     async def start(self) -> None:
         if self._loop_task is not None:
             return
+        # Unconditional: not gated on LLM key or scheduler. Must run before
+        # bootstrap so a crashed periodic_tick cannot block a successor.
+        from library.tasks.handlers.recover_stuck_tasks import (
+            handle_recover_stuck_tasks,
+        )
+        await handle_recover_stuck_tasks({})
         await self._sweep_llm_dependent_if_no_key()
         if self._current_settings().worker_scheduler_enabled:
             from library.tasks.handlers.periodic_tick import bootstrap_periodic_tick

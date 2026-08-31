@@ -90,15 +90,21 @@ export function FolderTree(props: Props) {
   const [reprocessingAll, setReprocessingAll] = useState(false);
   const [reprocessingFailed, setReprocessingFailed] = useState(false);
   const { t } = useI18n();
+  const loadGenRef = useRef(0);
 
   const load = useCallback(() => {
+    const gen = ++loadGenRef.current;
     folders.list(null).then(
       (r) => {
+        if (gen !== loadGenRef.current) return;
         setRoots(r.folders);
         setRootEntries(r.entries ?? []);
         setErr(null);
       },
-      (e) => setErr(e instanceof Error ? e.message : String(e)),
+      (e) => {
+        if (gen !== loadGenRef.current) return;
+        setErr(e instanceof Error ? e.message : String(e));
+      },
     );
   }, []);
 
@@ -353,19 +359,25 @@ function FolderRow(props: FolderRowProps) {
   const [reprocessingFolder, setReprocessingFolder] = useState(false);
   const [reprocessingFailedFolder, setReprocessingFailedFolder] = useState(false);
   const loadedRef = useRef(false);
+  const detailGenRef = useRef(0);
   const { t } = useI18n();
 
   const loadDetail = useCallback(
     (showSpinner = !loadedRef.current) => {
+      const gen = ++detailGenRef.current;
       if (showSpinner) setLoading(true);
       return folders.get(folder.id).then(
         (d) => {
+          if (gen !== detailGenRef.current) return;
           loadedRef.current = true;
           setChildren(d.children);
           setEntries(d.entries);
           setLoading(false);
         },
-        () => setLoading(false),
+        () => {
+          if (gen !== detailGenRef.current) return;
+          setLoading(false);
+        },
       );
     },
     [folder.id],

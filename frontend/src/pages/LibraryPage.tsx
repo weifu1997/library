@@ -32,6 +32,7 @@ export function LibraryPage() {
   const [selectedEntry, setSelectedEntry] = useState<FileEntrySummary | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [meta, setMeta] = useState<FileMetadata | null>(null);
+  const [metaError, setMetaError] = useState<string | null>(null);
   const [metaLoading, setMetaLoading] = useState(false);
   const [metaOpen, setMetaOpen] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -146,29 +147,40 @@ export function LibraryPage() {
     };
   }, [searchParams, setSearchParams]);
 
+  const metaGenRef = useRef(0);
+  const loadMeta = useCallback((entryId: string) => {
+    const gen = ++metaGenRef.current;
+    setMeta(null);
+    setMetaError(null);
+    setMetaLoading(true);
+    fileEntries
+      .metadata(entryId)
+      .then((m) => {
+        if (gen !== metaGenRef.current) return;
+        setMeta(m);
+        setMetaError(null);
+      })
+      .catch((e: unknown) => {
+        if (gen !== metaGenRef.current) return;
+        setMeta(null);
+        setMetaError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (gen === metaGenRef.current) setMetaLoading(false);
+      });
+  }, []);
+
   useEffect(() => {
     if (!selectedEntry) {
       setMeta(null);
+      setMetaError(null);
       return;
     }
-    setMeta(null);
-    let cancelled = false;
-    setMetaLoading(true);
-    fileEntries
-      .metadata(selectedEntry.id)
-      .then((m) => {
-        if (!cancelled) setMeta(m);
-      })
-      .catch(() => {
-        if (!cancelled) setMeta(null);
-      })
-      .finally(() => {
-        if (!cancelled) setMetaLoading(false);
-      });
+    loadMeta(selectedEntry.id);
     return () => {
-      cancelled = true;
+      metaGenRef.current += 1;
     };
-  }, [selectedEntry]);
+  }, [selectedEntry, loadMeta]);
 
   const selectFile = useCallback((entry: FileEntrySummary) => {
     setSelectedEntry(entry);
@@ -179,12 +191,14 @@ export function LibraryPage() {
     setSelectedFolder(folder);
     setSelectedEntry(null);
     setMeta(null);
+    setMetaError(null);
   }, []);
 
   const clearSelection = useCallback(() => {
     setSelectedFolder(null);
     setSelectedEntry(null);
     setMeta(null);
+    setMetaError(null);
   }, []);
 
   const handleEntryDeleted = useCallback(
@@ -298,9 +312,17 @@ export function LibraryPage() {
       {/* Right Meta Drawer */}
       <MetaPanel
         meta={meta}
+        error={metaError}
         loading={metaLoading}
         open={metaOpen}
         onToggle={() => setMetaOpen((o) => !o)}
+        onRetry={
+          selectedEntry
+            ? () => {
+                void loadMeta(selectedEntry.id);
+              }
+            : undefined
+        }
       />
 
       {/* Dialog Modals */}

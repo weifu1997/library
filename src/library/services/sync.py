@@ -37,6 +37,7 @@ from library.services.entries import (
     soft_delete_entry,
 )
 from library.services.folders import resolve_or_create_folder
+from library.services.reprocess import reprocess_file
 from library.services.scan import ScanReport
 from library.storage import MirrorStorage, get_storage
 from library.tasks.enqueue import enqueue
@@ -313,10 +314,12 @@ async def apply_modified(
     report: ScanReport,
 ) -> tuple[int, list[SyncFailure]]:
     """For entries whose disk file changed in place (same path, different
-    sha256), update file_row.sha256/size and re-queue ingest. The entry
-    keeps its identity (folder + display_name + entry_id stay the same)
-    so callers / agents holding the entry_id don't lose context — only
-    the indexed content gets refreshed. Returns (count_applied, failures).
+    sha256), update file_row.sha256/size and re-queue ingest via
+    reprocess_file (clears ingested_at, dedup_key=ingest_file:{file_id}).
+    The entry keeps its identity (folder + display_name + entry_id stay
+    the same) so callers / agents holding the entry_id don't lose
+    context — only the indexed content gets refreshed. Returns
+    (count_applied, failures).
     """
     factory = get_session_factory()
     n = 0
@@ -343,15 +346,8 @@ async def apply_modified(
                     continue
                 file_row.sha256 = new_sha
                 file_row.size_bytes = size
-                file_row.ingest_status = "pending"
-                file_row.summary = None
-                file_row.description = None
-                await enqueue(
-                    session, kind=KIND_INGEST_FILE,
-                    payload={
-                        "file_id": file_row.id,
-                        "entry_id": live_entry.id,
-                    },
+                await reprocess_file(
+                    session, file_row, scheduled_by="sync:modified",
                 )
                 await session.commit()
                 n += 1

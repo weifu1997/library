@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import importlib.util
 import json
+import logging
 import math
 import os
 import sqlite3
@@ -33,6 +34,8 @@ from library.repositories import entries as entries_repo
 from library.repositories import files as files_repo
 from library.semantic.embeddings import EmbeddingResult, get_embedding_client
 
+
+log = logging.getLogger(__name__)
 
 INDEX_VERSION = 2
 DEFAULT_INDEX_NAME = "default"
@@ -448,24 +451,31 @@ async def _build_semantic_index(
             if row.get("entry_id")
         })
         section_count = sum(bool(row.get("section_id")) for row in published_metadata)
-        manifest = {
-            "version": INDEX_VERSION,
-            "index_name": index_name,
-            "provider": settings.embedding_provider,
-            "model": model,
-            "dimensions": dimensions,
-            "entries": count,
-            "documents": document_count,
-            "section_entries": section_count,
-            "created_at_ms": int(time.time() * 1000),
-        }
+        manifest = _stamp_manifest_checksums(
+            {
+                "version": INDEX_VERSION,
+                "index_name": index_name,
+                "provider": settings.embedding_provider,
+                "model": model,
+                "dimensions": dimensions,
+                "entries": count,
+                "documents": document_count,
+                "section_entries": section_count,
+                "created_at_ms": int(time.time() * 1000),
+            },
+            entries_path=tmp_meta,
+            vectors_path=tmp_vec,
+        )
         manifest_tmp.write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-        tmp_meta.replace(out_dir / "entries.jsonl")
-        tmp_vec.replace(out_dir / "vectors.f32")
-        manifest_tmp.replace(out_dir / "manifest.json")
+        _publish_live_file_index(
+            out_dir,
+            meta_tmp=tmp_meta,
+            vec_tmp=tmp_vec,
+            manifest_tmp=manifest_tmp,
+        )
     except BaseException:
         # Failed build: unlink the per-PID tmp files so they don't leak. The
         # fixed-name resume tmps (resume=True) are left in place so an explicit
@@ -627,7 +637,6 @@ async def _refresh_semantic_index_for_file(
         )
 
     dimensions = int(manifest.get("dimensions") or 0)
-    entries_count = int(manifest.get("entries") or 0)
     if not (entries_path.exists() and vectors_path.exists()):
         # Manifest is valid (dimensions > 0) but the vector/metadata files are
         # gone: rebuild from scratch. _build_semantic_index (not the public
@@ -648,17 +657,44 @@ async def _refresh_semantic_index_for_file(
             total_tokens=built.total_tokens,
         )
 
-    metadata = _read_metadata(entries_path)
+    metadata_bytes = entries_path.read_bytes()
     raw_vectors = vectors_path.read_bytes()
+    try:
+        metadata = _parse_metadata_bytes(metadata_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError):
+        metadata = []
+    if not _file_index_payload_matches_manifest(
+        manifest,
+        metadata_count=len(metadata),
+        vectors_nbytes=len(raw_vectors),
+        entries_sha256=sha256(metadata_bytes).hexdigest(),
+        vectors_sha256=sha256(raw_vectors).hexdigest(),
+    ):
+        # Torn or corrupt file index: do not mix leftover rows into a new
+        # generation. Rebuild from the current DB snapshot instead.
+        built = await _build_semantic_index(
+            session,
+            index_name=index_name,
+            client=client,
+            progress_every=0,
+        )
+        return SemanticIndexRefreshResult(
+            index_name=index_name,
+            index_dir=built.index_dir,
+            entries_removed=0,
+            entries_refreshed=built.entries_indexed,
+            entries_total=built.entries_indexed,
+            total_tokens=built.total_tokens,
+        )
+
     vector_bytes = dimensions * 4
-    available = min(entries_count, len(metadata), len(raw_vectors) // vector_bytes)
     target_entry_ids = {entry.id for entry, _file in pairs} | set(entry_ids)
 
     kept_metadata: list[dict[str, Any]] = []
     kept_vectors = bytearray()
     reusable_vectors: dict[str, bytes] = {}
     removed = 0
-    for idx, row in enumerate(metadata[:available]):
+    for idx, row in enumerate(metadata):
         start = idx * vector_bytes
         vector = raw_vectors[start:start + vector_bytes]
         text_hash = str(row.get("text_hash") or "")
@@ -919,6 +955,11 @@ async def search_semantic_index_many(
     loaded = _load_semantic_index(index_name)
     if loaded is None:
         return [[] for _query in clean]
+    if (
+        loaded.entries_count != len(loaded.metadata)
+        or loaded.entries_count * loaded.dimensions != len(loaded.vectors)
+    ):
+        return [[] for _query in clean]
     return [
         _semantic_hits_from_scores(
             loaded.metadata,
@@ -1010,12 +1051,16 @@ async def best_semantic_sections(
     loaded = _load_semantic_index(index_name)
     if loaded is None or len(query_vector) != loaded.dimensions:
         return {}
+    if (
+        loaded.entries_count != len(loaded.metadata)
+        or loaded.entries_count * loaded.dimensions != len(loaded.vectors)
+    ):
+        return {}
 
     q = array("f", query_vector)
     sumprod = getattr(math, "sumprod", None)
     matches: dict[str, tuple[str, float]] = {}
-    available = min(loaded.entries_count, len(loaded.vectors) // loaded.dimensions)
-    for index, row in enumerate(loaded.metadata[:available]):
+    for index, row in enumerate(loaded.metadata):
         entry_id = str(row.get("entry_id") or "")
         section_id = str(row.get("section_id") or "")
         if entry_id not in scoped_ids or not section_id:
@@ -1159,6 +1204,75 @@ def _manifest_matches_settings(manifest: dict[str, Any], settings: Any) -> bool:
     return dimensions == int(settings.embedding_dimensions or 0)
 
 
+def _stamp_manifest_checksums(
+    manifest: dict[str, Any],
+    *,
+    entries_path: Path,
+    vectors_path: Path,
+) -> dict[str, Any]:
+    entries_bytes = entries_path.read_bytes()
+    vectors_bytes = vectors_path.read_bytes()
+    return {
+        **manifest,
+        "entries_sha256": sha256(entries_bytes).hexdigest(),
+        "vectors_sha256": sha256(vectors_bytes).hexdigest(),
+        "vector_bytes": len(vectors_bytes),
+    }
+
+
+def _file_index_payload_matches_manifest(
+    manifest: dict[str, Any],
+    *,
+    metadata_count: int,
+    vectors_nbytes: int,
+    entries_sha256: str,
+    vectors_sha256: str,
+) -> bool:
+    try:
+        dimensions = int(manifest.get("dimensions") or 0)
+        entries_count = int(manifest.get("entries") or 0)
+    except (TypeError, ValueError):
+        return False
+    if dimensions <= 0 or entries_count <= 0:
+        return False
+    if metadata_count != entries_count:
+        return False
+    expected_nbytes = entries_count * dimensions * 4
+    if vectors_nbytes != expected_nbytes:
+        return False
+    declared_nbytes = manifest.get("vector_bytes")
+    if declared_nbytes is not None:
+        try:
+            if int(declared_nbytes) != expected_nbytes:
+                return False
+        except (TypeError, ValueError):
+            return False
+    declared_entries = manifest.get("entries_sha256")
+    declared_vectors = manifest.get("vectors_sha256")
+    if declared_entries is None and declared_vectors is None:
+        # Legacy indexes published before checksums: count agreement only.
+        return True
+    return (
+        str(declared_entries or "") == entries_sha256
+        and str(declared_vectors or "") == vectors_sha256
+    )
+
+
+def _publish_live_file_index(
+    index_dir: Path,
+    *,
+    meta_tmp: Path,
+    vec_tmp: Path,
+    manifest_tmp: Path,
+) -> None:
+    # Manifest is replaced last so a crash between the first two replaces
+    # leaves the previous generation's checksums, which will not match the
+    # half-published files. Load then refuses the index instead of mixing rows.
+    meta_tmp.replace(index_dir / "entries.jsonl")
+    vec_tmp.replace(index_dir / "vectors.f32")
+    manifest_tmp.replace(index_dir / "manifest.json")
+
+
 def _replace_file_index(
     index_dir: Path,
     *,
@@ -1176,13 +1290,21 @@ def _replace_file_index(
         for row in metadata:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
     vec_tmp.write_bytes(vectors)
+    published = _stamp_manifest_checksums(
+        manifest,
+        entries_path=meta_tmp,
+        vectors_path=vec_tmp,
+    )
     manifest_tmp.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(published, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    meta_tmp.replace(index_dir / "entries.jsonl")
-    vec_tmp.replace(index_dir / "vectors.f32")
-    manifest_tmp.replace(index_dir / "manifest.json")
+    _publish_live_file_index(
+        index_dir,
+        meta_tmp=meta_tmp,
+        vec_tmp=vec_tmp,
+        manifest_tmp=manifest_tmp,
+    )
 
 
 def _sqlite_vec_index_path(index_name: str = DEFAULT_INDEX_NAME) -> Path:
@@ -1304,9 +1426,13 @@ def _write_sqlite_vec_index(
     metadata = _read_metadata(entries_path)
     raw_vectors = vectors_path.read_bytes()
     vector_bytes = dimensions * 4
-    available = min(entries_count, len(metadata), len(raw_vectors) // vector_bytes)
-    if available <= 0:
+    if (
+        entries_count <= 0
+        or len(metadata) != entries_count
+        or len(raw_vectors) != entries_count * vector_bytes
+    ):
         return
+    available = entries_count
 
     db_path = index_dir / SQLITE_VEC_INDEX_FILENAME
     tmp_path = index_dir / f"{SQLITE_VEC_INDEX_FILENAME}.{os.getpid()}.tmp"
@@ -1484,20 +1610,38 @@ def _load_semantic_index_cached(
     manifest_path = idx_dir / "manifest.json"
     entries_path = idx_dir / "entries.jsonl"
     vectors_path = idx_dir / "vectors.f32"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    dimensions = int(manifest.get("dimensions") or 0)
-    entries_count = int(manifest.get("entries") or 0)
-    if dimensions <= 0 or entries_count <= 0:
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(manifest, dict):
+            return None
+        dimensions = int(manifest.get("dimensions") or 0)
+        entries_count = int(manifest.get("entries") or 0)
+        if dimensions <= 0 or entries_count <= 0:
+            return None
+        entries_bytes = entries_path.read_bytes()
+        vectors_bytes = vectors_path.read_bytes()
+        metadata = _parse_metadata_bytes(entries_bytes)
+        if not _file_index_payload_matches_manifest(
+            manifest,
+            metadata_count=len(metadata),
+            vectors_nbytes=len(vectors_bytes),
+            entries_sha256=sha256(entries_bytes).hexdigest(),
+            vectors_sha256=sha256(vectors_bytes).hexdigest(),
+        ):
+            log.warning(
+                "semantic index %s payload does not match manifest; refusing search",
+                index_name,
+            )
+            return None
+        vectors = _vector_array_from_bytes(vectors_bytes)
+        return _LoadedSemanticIndex(
+            metadata=metadata,
+            vectors=vectors,
+            dimensions=dimensions,
+            entries_count=entries_count,
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError):
         return None
-    metadata = _read_metadata(entries_path)
-    vectors = _read_vector_array(vectors_path)
-    entries_count = min(entries_count, len(metadata), len(vectors) // dimensions)
-    return _LoadedSemanticIndex(
-        metadata=metadata,
-        vectors=vectors,
-        dimensions=dimensions,
-        entries_count=entries_count,
-    )
 
 
 def _semantic_hits_from_scores(
@@ -1807,13 +1951,16 @@ def _stringify(value: Any) -> str:
     return str(value)
 
 
-def _read_metadata(path: Path) -> list[dict[str, Any]]:
+def _parse_metadata_bytes(data: bytes) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    with path.open("r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                out.append(json.loads(line))
+    for line in data.decode("utf-8").splitlines():
+        if line.strip():
+            out.append(json.loads(line))
     return out
+
+
+def _read_metadata(path: Path) -> list[dict[str, Any]]:
+    return _parse_metadata_bytes(path.read_bytes())
 
 
 def _score_vectors(
@@ -1831,12 +1978,16 @@ def _score_vectors(
     )
 
 
-def _read_vector_array(path: Path) -> array:
-    data = array("f")
-    data.frombytes(path.read_bytes())
+def _vector_array_from_bytes(data: bytes) -> array:
+    vectors = array("f")
+    vectors.frombytes(data)
     if sys.byteorder != "little":
-        data.byteswap()
-    return data
+        vectors.byteswap()
+    return vectors
+
+
+def _read_vector_array(path: Path) -> array:
+    return _vector_array_from_bytes(path.read_bytes())
 
 
 def _score_loaded_vectors(
@@ -1850,11 +2001,12 @@ def _score_loaded_vectors(
     # equal lengths); return no hits like the sqlite-vec path does.
     if dimensions <= 0 or len(qvec) != dimensions:
         return []
+    if entries_count <= 0 or entries_count * dimensions != len(data):
+        return []
     scores: list[tuple[int, float]] = []
-    available = min(entries_count, len(data) // dimensions)
     q = array("f", qvec)
     sumprod = getattr(math, "sumprod", None)
-    for idx in range(available):
+    for idx in range(entries_count):
         start = idx * dimensions
         vector = data[start:start + dimensions]
         if sumprod is not None:

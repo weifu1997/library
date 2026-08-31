@@ -27,6 +27,35 @@ def eval_root() -> Path:
     return Path(get_settings().library_home).expanduser() / "eval"
 
 
+def safe_eval_dataset_name(name: str) -> str:
+    """Reject path separators and `..` so eval data cannot escape eval/."""
+    cleaned = (name or "").strip()
+    if not cleaned or cleaned != name.strip():
+        raise ValueError("eval dataset name must be a non-empty path segment")
+    if cleaned in {".", ".."} or "/" in cleaned or "\\" in cleaned or ".." in cleaned:
+        raise ValueError("eval dataset name must not contain path separators or '..'")
+    root = eval_root().expanduser().resolve()
+    target = (root / cleaned).resolve()
+    try:
+        target.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("eval dataset name escapes LIBRARY_HOME/eval") from exc
+    return cleaned
+
+
+def refuse_eval_write_to_live_library(*, write_library: bool) -> None:
+    """ACCESS-M1: do not ingest eval docs into a production LIBRARY_HOME."""
+    if write_library:
+        return
+    home_name = Path(get_settings().library_home).expanduser().resolve().name.lower()
+    if "eval" in home_name:
+        return
+    raise RuntimeError(
+        "refusing to import eval documents into the live library; "
+        "pass --write-library or set LIBRARY_HOME to an eval-specific directory"
+    )
+
+
 async def import_beir_dataset(
     *,
     name: str,
@@ -37,9 +66,12 @@ async def import_beir_dataset(
     progress_every: int = 25,
     concurrency: int = 1,
     resume: bool = False,
+    write_library: bool = True,
 ) -> EvalImportResult:
     """Import a local BEIR-style dataset and synchronously ingest documents."""
     _ensure_ingest_profile()
+    refuse_eval_write_to_live_library(write_library=write_library)
+    name = safe_eval_dataset_name(name)
     source_dir = source_dir.expanduser().resolve()
     corpus_path = source_dir / "corpus.jsonl"
     queries_path = source_dir / "queries.jsonl"

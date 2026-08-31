@@ -1,7 +1,9 @@
 """Session HTTP response models."""
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
+
+from pydantic import Field
 
 from library.schemas.base import StrictModel
 
@@ -82,6 +84,29 @@ class TurnAttachment(StrictModel):
     media_type: str
 
 
+class VegaLiteArtifact(StrictModel):
+    kind: Literal["vega_lite"]
+    chart_id: str
+    title: str | None = None
+    caption: str | None = None
+    spec: dict[str, Any]
+
+
+class DataExportArtifact(StrictModel):
+    kind: Literal["data_export"]
+    format: Literal["csv"]
+    filename: str
+    row_count: int
+    truncated: bool | None = None
+    columns: list[str] | None = None
+
+
+UserArtifact = Annotated[
+    VegaLiteArtifact | DataExportArtifact,
+    Field(discriminator="kind"),
+]
+
+
 class TurnMetrics(StrictModel):
     tokens_in: int
     tokens_out: int
@@ -114,6 +139,7 @@ class ReplayedTurn(StrictModel):
     error: str | None
     plan_text: str | None
     tool_calls: list[ReplayedToolCall]
+    artifacts: list[UserArtifact]
     metrics: TurnMetrics
 
 

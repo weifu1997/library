@@ -4,6 +4,7 @@ Used by:
   - POST /v1/files/{file_id}/reprocess        (user-driven, single)
   - POST /v1/files/reprocess                  (user-driven, bulk)
   - periodic_tick._dispatch_reprocess_low_quality  (self-heal, low-summary)
+  - sync.apply_modified                       (Finder in-place edit)
 
 The mental model: "AI got smarter, redo this." The handler does all the
 real work — reprocess just unblocks its write-once gate by clearing

@@ -517,6 +517,49 @@ async def test_put_rejects_bad_provider() -> None:
             print("[6] PUT rejects unknown provider with 422")
 
 
+async def test_put_merge_refuses_unreadable_overlay() -> None:
+    """SET-M1: truncated overlay must not be replaced by a one-key merge."""
+    _ensure_test_env()
+    overlay_file = _TEST_ROOT / "config_overlay.json"
+    overlay_file.write_text('{"llm_chat_tps": 7, "llm_chat_model":', encoding="utf-8")
+    transport = ASGITransport(app=app)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.put(
+                "/v1/settings/llm",
+                json={"patch": {"llm_default_tps": 3}},
+            )
+            assert r.status_code == 422, r.text
+            assert "unreadable" in r.text.lower()
+    disk = overlay_file.read_text(encoding="utf-8")
+    assert "llm_default_tps" not in disk
+    assert disk.startswith('{"llm_chat_tps"')
+    print("[6b] PUT merge refuses unreadable overlay")
+
+
+async def test_put_rejects_masked_api_key() -> None:
+    """SET-M2: GET mask must not persist as the real key."""
+    _ensure_test_env()
+    overlay_file = _TEST_ROOT / "config_overlay.json"
+    overlay_file.write_text(
+        '{"llm_default_api_key": "sk-real-secret-XXXX"}',
+        encoding="utf-8",
+    )
+    transport = ASGITransport(app=app)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.put(
+                "/v1/settings/llm",
+                json={"patch": {"llm_default_api_key": "sk-***XX"}},
+            )
+            assert r.status_code == 422, r.text
+            assert "masked" in r.text.lower() or "***" in r.text
+    disk = overlay_file.read_text(encoding="utf-8")
+    assert "sk-real-secret-XXXX" in disk
+    assert "sk-***XX" not in disk
+    print("[6c] PUT rejects masked API key")
+
+
 async def test_put_backup_round_trip() -> None:
     """Backup fields persist to the overlay, mask on the way out, and
     resolve per-profile (chat inherits the default's backup provider/key;
@@ -840,6 +883,8 @@ async def main() -> None:
     await test_put_clear_with_none()
     await test_put_rejects_unknown_field()
     await test_put_rejects_bad_provider()
+    await test_put_merge_refuses_unreadable_overlay()
+    await test_put_rejects_masked_api_key()
     await test_put_backup_round_trip()
     await test_put_rejects_bad_backup_provider()
     await test_put_backup_clear_with_null()

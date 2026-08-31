@@ -179,6 +179,20 @@ async def main():
 
     r = await _call("query_sql", {
         "entry_ids": [seeded["e_csv"]],
+        "sql": "SELECT REPLACE(name, '-', '_') AS n FROM t1",
+    })
+    assert r["ok"] is True, r
+    print("[4b] SELECT REPLACE allowed")
+
+    r = await _call("query_sql", {
+        "entry_ids": [seeded["e_csv"]],
+        "sql": "SELECT * FROM t1 WHERE name LIKE '%DROP TABLE%'",
+    })
+    assert r["ok"] is True, r
+    print("[4c] LIKE '%DROP%' allowed")
+
+    r = await _call("query_sql", {
+        "entry_ids": [seeded["e_csv"]],
         "sql": "SELECT * FROM t1; DELETE FROM t1",
     })
     assert r["ok"] is False

@@ -979,6 +979,38 @@ def _ensure_tasks_active_dedup_unique(bind) -> None:
     ))
 
 
+def _ensure_folders_live_parent_name_unique(bind) -> None:
+    """Replace folders (parent_id, name) unique with a live-only partial index.
+
+    Soft-deleted folders used to occupy the unique key, so recreating the
+    same nested name after DELETE returned IntegrityError → HTTP 500.
+    """
+    inspector = sa.inspect(bind)
+    if "folders" not in inspector.get_table_names():
+        return
+
+    indexes = inspector.get_indexes("folders")
+    has_live_unique = any(
+        idx["name"] == "uq_folders_live_parent_name" and idx.get("unique", False)
+        for idx in indexes
+    )
+    if has_live_unique:
+        return
+
+    dialect = bind.dialect.name
+    if dialect == "sqlite":
+        bind.execute(sa.text("DROP INDEX IF EXISTS uq_folders_parent_name"))
+    else:
+        bind.execute(sa.text(
+            "ALTER TABLE folders DROP CONSTRAINT IF EXISTS uq_folders_parent_name"
+        ))
+
+    bind.execute(sa.text(
+        "CREATE UNIQUE INDEX uq_folders_live_parent_name "
+        "ON folders (parent_id, name) WHERE deleted_at IS NULL"
+    ))
+
+
 def bootstrap_baseline_sync(bind) -> None:
     """v1 baseline — `Base.metadata.create_all` plus the `_inbox` seed.
 
@@ -1033,6 +1065,7 @@ POST_BASELINE_SHIMS: tuple[tuple[str, Callable[[Any], None]], ...] = (
     ("0014_files_kind_check", _relax_files_kind_check),
     ("0015_agent_events", _ensure_agent_events),
     ("0016_scale_safety_indexes", _ensure_scale_safety_indexes),
+    ("0017_folders_live_parent_name_unique", _ensure_folders_live_parent_name_unique),
 )
 
 ALEMBIC_HEAD_REVISION = POST_BASELINE_SHIMS[-1][0]

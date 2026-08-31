@@ -3417,7 +3417,11 @@ async def _dispatch_tool_calls(
                     tool_call_id=tc.id, content=result_text,
                 )
                 guard.remember(key, result_text, preview=preview)
-                if stats is not None and tc.name != "finish_research":
+                if (
+                    stats is not None
+                    and tc.name != "finish_research"
+                    and result_ok
+                ):
                     stats.successful_new_results += 1
                 yield AgentEvent(
                     event_type="tool_result",
@@ -3425,7 +3429,7 @@ async def _dispatch_tool_calls(
                         "tool_call_id": public_ids[idx],
                         "tool_index": idx,
                         "turn": turn,
-                        "name": tc.name, "ok": True, "preview": preview,
+                        "name": tc.name, "ok": result_ok, "preview": preview,
                         "duration_ms": duration_ms,
                     }, ensure_ascii=False),
                 )

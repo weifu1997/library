@@ -252,7 +252,12 @@ async def optional_bearer_auth(request: Request, call_next):
         return await call_next(request)
     auth = request.headers.get("authorization", "")
     prefix = "Bearer "
-    if not auth.startswith(prefix) or not compare_digest(auth[len(prefix):], token):
+    presented = auth[len(prefix):] if auth.startswith(prefix) else ""
+    # compare_digest on str requires ASCII; encode so a non-ASCII
+    # LIBRARY_API_TOKEN cannot TypeError into a 500 on every request.
+    if not auth.startswith(prefix) or not compare_digest(
+        presented.encode("utf-8"), token.encode("utf-8"),
+    ):
         return JSONResponse(
             {"detail": "missing or invalid bearer token"},
             status_code=401,
@@ -374,14 +379,14 @@ async def host_allowlist(request: Request, call_next):
     if trusted is None or request.url.path in PUBLIC_PROBE_PATHS:
         return await call_next(request)
     host = _host_without_port(request.headers.get("host", ""))
-    if host and host not in trusted:
+    if not host or host not in trusted:
         log.warning(
             "rejected request with untrusted Host %r (path=%s client=%s); "
             "set LIBRARY_TRUSTED_HOSTS to allow it",
             host, request.url.path, _client_host(request),
         )
         return JSONResponse(
-            {"detail": f"untrusted Host header: {host}"},
+            {"detail": f"untrusted Host header: {host or '(missing)'}"},
             status_code=421,
         )
     return await call_next(request)

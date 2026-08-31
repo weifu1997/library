@@ -160,6 +160,11 @@ export interface ReplayedTurn {
   error: string | null;
   plan_text: string | null;
   tool_calls: ReplayedToolCall[];
+  /** User-visible side-channel payloads recovered from persisted
+   *  tool_calls[*].result.__user_only__ (charts, CSV exports). Absent on
+   *  legacy transcripts. Never contains the raw tool result or filesystem
+   *  paths. */
+  artifacts?: UserArtifact[];
   /** Pasted chat images stored for this turn, re-served for UI display
    *  only. Empty (or absent on legacy transcripts) when the turn had no
    *  stored images. These are NEVER re-sent to the LLM — the runtime keeps
@@ -314,6 +319,32 @@ export interface ToolResultEventData {
   result?: unknown;
   ok?: boolean;
   duration_ms?: number;
+}
+
+/** Vega-Lite chart or CSV export shown to the user, never to the model. */
+export type UserArtifact =
+  | {
+      kind: "vega_lite";
+      chart_id: string;
+      title?: string;
+      caption?: string;
+      spec: Record<string, unknown>;
+    }
+  | {
+      kind: "data_export";
+      format: "csv";
+      filename: string;
+      row_count: number;
+      truncated?: boolean;
+      columns?: string[];
+    };
+
+export interface UserArtifactEventData {
+  tool_call_id?: string;
+  tool_index?: number;
+  turn?: number;
+  tool?: string;
+  payload?: unknown;
 }
 
 export interface AnswerEventData {

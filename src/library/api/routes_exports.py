@@ -109,9 +109,17 @@ async def export_conversation(
             for zip_path, meta_dict in plan_meta:
                 zf.writestr(zip_path,
                             json.dumps(meta_dict, ensure_ascii=False, indent=2))
+            uncompressed = 0
+            max_bytes = 200 * 1024 * 1024
             for zip_path, storage_key in plan_files:
                 body = bytearray()
                 async for chunk in storage.get(storage_key):
+                    uncompressed += len(chunk)
+                    if uncompressed > max_bytes:
+                        raise HTTPException(
+                            status_code=413,
+                            detail="export exceeds 200MB uncompressed citation cap",
+                        )
                     body.extend(chunk)
                 zf.writestr(zip_path, bytes(body))
         buf.seek(0)
