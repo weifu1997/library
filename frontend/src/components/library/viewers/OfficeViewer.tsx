@@ -351,6 +351,11 @@ function DocxScrollView({ url, name, downloadUrl, quote, block, onScrolled }: {
     },
   });
 
+  // The zoom object is rebuilt every render, so effects route setZoom
+  // through a stable latest-ref instead of depending on it.
+  const setZoomRef = useRef<typeof zoom.setZoom>(() => {});
+  setZoomRef.current = zoom.setZoom;
+
   const setManualZoom = (value: number) => {
     setFitMode("none");
     zoom.setZoom(roundDocxRenderZoom(value));
@@ -482,7 +487,7 @@ function DocxScrollView({ url, name, downloadUrl, quote, block, onScrolled }: {
       docRef.current?.destroy();
       docRef.current = null;
     };
-  }, [url]);
+  }, [t.viewer, url]);
 
   useEffect(() => {
     setPageInput(pageCount > 0 ? String(currentPage + 1) : "");
@@ -495,7 +500,7 @@ function DocxScrollView({ url, name, downloadUrl, quote, block, onScrolled }: {
     let frame: number | null = null;
     const sync = () => {
       frame = null;
-      zoom.setZoom(docxFitWidthZoom(root));
+      setZoomRef.current(docxFitWidthZoom(root));
     };
     const schedule = () => {
       if (frame != null) return;
@@ -591,7 +596,7 @@ function DocxScrollView({ url, name, downloadUrl, quote, block, onScrolled }: {
       cancelled = true;
       window.cancelAnimationFrame(handle);
     };
-  }, [ready, pageCount, renderRequestZoom]);
+  }, [ready, pageCount, renderRequestZoom, zoom.zoomRef]);
 
   const canPrev = ready && currentPage > 0;
   const canNext = ready && pageCount > 0 && currentPage < pageCount - 1;
@@ -905,6 +910,8 @@ function OoxmlView({
     },
     onWheelZoom: () => setFitMode("none"),
   });
+  const setZoomRef = useRef<typeof zoom.setZoom>(() => {});
+  setZoomRef.current = zoom.setZoom;
   const pptxQuoteSlide = useMemo<number | null | undefined>(() => {
     if (format !== "pptx" || !quote) return null;
     if (!pptxSlideSearch) return undefined;
@@ -962,8 +969,7 @@ function OoxmlView({
   }, [
     format,
     onScrolled,
-    position.current,
-    position.total,
+    position,
     pptxLocatorReady,
     pptxTargetSlide,
     quote,
@@ -1005,7 +1011,7 @@ function OoxmlView({
       if (!cancelled) onScrolled?.();
     })();
     return () => { cancelled = true; };
-  }, [cell, format, onScrolled, position.current, position.total, quote, ready, row, sheet, sheetNames]);
+  }, [cell, format, onScrolled, position, quote, ready, row, sheet, sheetNames]);
 
   const setManualZoom = (value: number) => {
     setFitMode("none");
@@ -1087,6 +1093,11 @@ function OoxmlView({
     setPptxSlideSearch(null);
     thumbnailCanvasRefs.current = [];
     thumbnailButtonRefs.current = [];
+
+    // Capture the host/canvas at effect-run time so the cleanup clears the
+    // nodes this effect instance owns, not whatever the refs point to later.
+    const hostEl = hostRef.current;
+    const canvasEl = canvasRef.current;
 
     const reportError = (error: unknown) => {
       reportedError = true;
@@ -1186,19 +1197,17 @@ function OoxmlView({
       } catch {
         /* Best-effort cleanup for third-party viewer teardown. */
       }
-      const host = hostRef.current;
-      const canvas = canvasRef.current;
       if (format === "xlsx") {
-        host?.replaceChildren();
-      } else if (host && canvas && !host.contains(canvas)) {
-        host.appendChild(canvas);
+        hostEl?.replaceChildren();
+      } else if (hostEl && canvasEl && !hostEl.contains(canvasEl)) {
+        hostEl.appendChild(canvasEl);
       }
     };
-  }, [format, url]);
+  }, [format, t.viewer, url, zoom.zoomRef]);
 
   useEffect(() => {
     setPositionInput(position.total > 0 ? String(position.current + 1) : "");
-  }, [position.current, position.total]);
+  }, [position]);
 
   useEffect(() => {
     if (fitMode !== "width") return;
@@ -1207,7 +1216,7 @@ function OoxmlView({
     let frame: number | null = null;
     const sync = () => {
       frame = null;
-      zoom.setZoom(ooxmlFitWidthZoom(root));
+      setZoomRef.current(ooxmlFitWidthZoom(root));
     };
     const schedule = () => {
       if (frame != null) return;
@@ -1257,7 +1266,7 @@ function OoxmlView({
   useEffect(() => {
     if (format !== "pptx") return;
     thumbnailButtonRefs.current[position.current]?.scrollIntoView({ block: "nearest" });
-  }, [format, position.current]);
+  }, [format, position]);
 
   const canPrev = ready && position.total > 0 && position.current > 0;
   const canNext = ready && position.total > 0 && position.current < position.total - 1;

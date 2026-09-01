@@ -126,6 +126,10 @@ export function EpubView({ url, name, downloadUrl, quote, page, onScrolled }: {
   const [ready, setReady] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState(100);
+  // Latest-ref so the book-init effect can apply the initial font size
+  // without recreating the whole rendition on every font-size change.
+  const fontSizeRef = useRef(fontSize);
+  fontSizeRef.current = fontSize;
   const [pageInput, setPageInput] = useState("");
   const [location, setLocation] = useState<EpubProgress>({
     atStart: true,
@@ -206,7 +210,7 @@ export function EpubView({ url, name, downloadUrl, quote, page, onScrolled }: {
         });
         bookRef.current = book;
         renditionRef.current = rendition;
-        rendition.themes.fontSize(`${fontSize}%`);
+        rendition.themes.fontSize(`${fontSizeRef.current}%`);
         rendition.on("rendered", markReady);
         rendition.on("displayed", markReady);
         rendition.on("relocated", (loc: EpubLocation) => {
@@ -245,7 +249,7 @@ export function EpubView({ url, name, downloadUrl, quote, page, onScrolled }: {
       }
       renditionRef.current = null;
       bookRef.current = null;
-      hostRef.current?.replaceChildren();
+      host?.replaceChildren();
     };
   }, [epubSrc, updateLocation]);
 
