@@ -181,13 +181,8 @@ library> /upload ~/Downloads/notes /
 
 ### 已经存在同名文件
 
-```
-library> /on-conflict rename     # 自动加 (1) (2)
-library> /on-conflict skip       # 跳过
-library> /on-conflict error      # 报错(默认)
-```
-
-设置只对当前 session 生效。
+默认 `default_on_conflict=rename`:同名时自动加 `(1)` `(2)` 重命名。
+API 上传可显式传 `?on_conflict=error` / `?on_conflict=skip` 覆盖。
 
 ### 在 library 之外改了文件
 
@@ -211,7 +206,7 @@ library> /ingest /papers/edited.md
 ### 一次性问答(不进 REPL)
 
 ```bash
-marg ask "我收藏的扩散模型论文里关于 score-based 方法的有哪些?"
+library ask "我收藏的扩散模型论文里关于 score-based 方法的有哪些?"
 ```
 
 直接在终端打印答案,不开 session。适合快速查询。
@@ -219,7 +214,7 @@ marg ask "我收藏的扩散模型论文里关于 score-based 方法的有哪些
 ### 进入 chat session(多轮)
 
 ```bash
-marg chat
+library chat
    或在 REPL 里: library> /new
 ```
 
@@ -229,13 +224,10 @@ marg chat
 
 ```bash
 # 单文件 markdown(含引用列表)
-marg export <conv_id> -o answer.md
+library export <conv_id> answer.md
 
 # zip bundle(含引用原文片段)
-marg export <conv_id> --bundle -o report.zip
-
-# 整个 session 的所有对话
-marg export <session_id> --all --bundle -o session.zip
+library export <conv_id> report.zip
 ```
 
 `<conv_id>` 在每轮答案末尾的 `[...]` 行里能看到。也可以用 `$LAST`
@@ -379,14 +371,14 @@ alembic upgrade head
    "重新 ingest 一遍"。要保留历史的话,自己写个脚本从 SQLite dump
    出来 INSERT 进 Postgres。
 
-### 从 mirror / local 存储迁到 S3
+### 在 local / mirror 存储间迁移
 
 ```bash
-library storage migrate --to s3
+library storage migrate --from local --to mirror
 ```
 
-会把所有 `files.storage_key` 重写指向 S3 对象,物理文件批量 PUT。
-跑之前 `.env` 里 S3 配置必须先填好。
+会把所有 `files.storage_key` 重写指向目标后端,物理文件批量迁移。
+用 `--dry-run` 先看迁移计划再执行。
 
 ---
 
@@ -409,8 +401,8 @@ uvicorn library.main:app --host 0.0.0.0 --port 8000
 library --server http://A.lan:8000
 ```
 
-或在 B 机的 `~/.library/.env` 里写 `LIBRARY_SERVER=http://A.lan:8000`,
-之后直接 `library` 即可。
+或在 B 机的 `$LIBRARY_HOME/.env`(默认 `~/LibraryData/.env`)里写
+`LIBRARY_SERVER=http://A.lan:8000`,之后直接 `library` 即可。
 
 ### WebDAV 快照同步
 
@@ -455,15 +447,11 @@ library> /tend
 被自动降级了:
 
 ```
-library> /search <keyword>
-   ↳ 默认只搜 active。没搜到再加 --include-archived 看全集
+library> /search <keyword>     # 只搜 active;无 --include-archived 开关
 ```
 
-恢复一个被自动归档的 entry:
-
-```
-library> /restore <entry_id>
-```
+被自动归档的 entry 没有独立的 `/restore` 命令;恢复通过
+`PATCH /file-entries/{id}/lifecycle` 把状态改回 `active` / `manual_active`。
 
 ---
 

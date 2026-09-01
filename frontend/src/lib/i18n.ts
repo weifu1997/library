@@ -183,11 +183,35 @@ const en = {
     exportRows: (n: number) => `${n} row${n === 1 ? "" : "s"}`,
     downloadCsv: "Download CSV",
     unknownArtifact: "Artifact",
+    suggestions: [
+      {
+        title: "Summarize core knowledge",
+        desc: "Key points from recently ingested documents",
+        prompt: "Please summarize the key points of the core documents in the knowledge base.",
+      },
+      {
+        title: "Dig into technical details",
+        desc: "Explore a specific algorithm, architecture, or configuration",
+        prompt: "Please search for content related to system architecture and data flow design.",
+      },
+      {
+        title: "Connect related concepts",
+        desc: "Discover cross-references and links between documents",
+        prompt: "Analyze the major cross-domain related concepts in the current knowledge base.",
+      },
+    ],
   },
   search: {
     placeholder: "Search by name, summary, or tag...",
     empty: "Type to search the library.",
+    emptyBody:
+      "Search all knowledge points in the library by keyword, filename, or a specific tag.",
     noMatches: "No matches.",
+    noMatchesHint: "Try different keywords or shorten your search.",
+    foundResults: (n: number) =>
+      `${n} matching result${n === 1 ? "" : "s"}`,
+    clear: "Clear search",
+    sampleQueries: ["PDF", "architecture", "design", "API", "docs", "knowledge base"],
   },
   overview: {
     title: "Overview",
@@ -1040,11 +1064,33 @@ const zh: I18nStrings = {
     exportRows: (n: number) => `${n} 行`,
     downloadCsv: "下载 CSV",
     unknownArtifact: "产物",
+    suggestions: [
+      {
+        title: "概括核心知识",
+        desc: "总结近期入库的重点文档与核心论点",
+        prompt: "请帮我总结知识库中核心文档的要点。",
+      },
+      {
+        title: "检索技术细节",
+        desc: "针对特定算法、架构或配置进行深挖",
+        prompt: "请检索关于系统架构与数据流设计的相关内容。",
+      },
+      {
+        title: "洞察关联概念",
+        desc: "发现不同文档间的交叉引用与关联关系",
+        prompt: "分析当前知识库中跨领域的主要关联概念。",
+      },
+    ],
   },
   search: {
     placeholder: "按名称、摘要或标签搜索...",
     empty: "输入内容以搜索资料库。",
+    emptyBody: "输入关键词、文件名或特定标签检索资料库中的全部知识点。",
     noMatches: "没有匹配结果。",
+    noMatchesHint: "请尝试其他关键词或缩短搜索词。",
+    foundResults: (n: number) => `找到 ${n} 条相关结果`,
+    clear: "清空搜索",
+    sampleQueries: ["PDF", "架构", "设计", "API", "文档", "知识库"],
   },
   overview: {
     title: "概览",

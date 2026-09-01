@@ -233,7 +233,7 @@ Raft 把 Paxos 拆成三个相对独立的子问题……
 
 ## 架构
 
-**14 张表,4 层**:
+**16 张表,4 层**:
 
 ```
 audit_events                — 事件流(90 天滚动)
@@ -243,14 +243,16 @@ catalogs / views / tags /   — AI 内部:图书馆员的工作知识
   entry_relations / journal
 folders / file_entries /    — 用户可见
   files
-tasks / task_outcomes       — 基础设施
+tasks / task_outcomes /     — 基础设施
+  agent_events
 ```
 
-**任务队列 + ReAct 工具 + 8 条 ingest pipeline**:
+**任务队列 + ReAct 工具 + 10 条 ingest pipeline**:
 
 - text / pdf(含扫描件 OCR via VLM)/ image(VLM 缩放)
 - docx / spreadsheet / log(含 logrotate 变种)
 - archive(zip / tar.* / 7z / rar / .gz / .bz2 / .xz / iso / cab,50+ 种 via py7zz)
+- email(.eml)/ markitdown(.xls / .epub / .msg 等通用回退)/ pptx(.pptx / .pptm)
 
 ### 混合召回
 
@@ -367,7 +369,7 @@ GET  /v1/conversations/{id}/events     按 SSE 游标续播
 POST /v1/conversations/{id}/cancel     主动停止后台 turn
 POST /v1/sessions/{id}/close
 GET  /v1/conversations/{id}/export     导出对话 zip
-GET  /health                           liveness probe(无版本)
+GET  /health                           返回 status / version / storage_backend
 GET  /live                             仅进程存活
 GET  /ready                            数据库与存储就绪探针
 ```
@@ -519,7 +521,7 @@ library serve --host 0.0.0.0 --port 8000
 library --server http://server.lan:8000
 # 如果 server 设置了 LIBRARY_API_TOKEN:
 library --server http://server.lan:8000 --api-token "$LIBRARY_API_TOKEN"
-# 或写入持久配置: LIBRARY_SERVER=http://server.lan:8000 -> ~/.library/.env
+# 或写入持久配置: LIBRARY_SERVER=http://server.lan:8000 -> $LIBRARY_HOME/.env
 ```
 
 ### 多设备同步

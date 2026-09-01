@@ -56,7 +56,9 @@ async def read_catalog(
     ctx: ToolContext,
     args: Mapping[str, Any],
 ) -> dict[str, Any]:
-    cat_id = args["id"]
+    cat_id = args.get("id")
+    if cat_id is None:
+        return {"error": "missing required argument 'id'"}
     children_limit = min(int(args.get("children_limit") or 50), 200)
     children_offset = max(0, int(args.get("children_offset") or 0))
     entries_limit = min(int(args.get("entries_limit") or 20), 100)

@@ -142,7 +142,7 @@ Ollama 可以执行 ingest，但前提是模型上下文能容纳当前文件分
 | Language | GUI 界面语言。不会翻译你的文档内容。 | `Auto` 或中文。 |
 | Theme | 浅色、深色或跟随系统。 | `System`。 |
 | Default conflict policy | 上传同名文件时怎么处理。 | `rename`，自动加后缀，避免覆盖旧文件。 |
-| Agent token budget | 每次规划和回答允许模型输出的最大 token，界面中通常显示为 `plan / execute`。 | 默认 `1024 / 2048`。如果答案经常被截断，优先提高 execute。 |
+| Agent token budget | 每次规划和回答允许模型输出的最大 token，界面中通常显示为 `plan / execute`。 | 默认 `2048 / 4096`。如果答案经常被截断，优先提高 execute。 |
 | Agent execute turn budget | 一次问题最多允许智能体调用工具、读取资料的轮数。 | 默认 `15`。本地模型可降到 `8-12`；复杂研究问题可适当提高。 |
 | Read result compression | 读取大文件时先压缩内容，再交给聊天模型。 | 开启。 |
 | Concurrent ingest tasks | 后台同时分析多少个文件任务。 | 普通电脑 `3-5`；本地模型 `1-2`；稳定云 API 可用 `10`。 |

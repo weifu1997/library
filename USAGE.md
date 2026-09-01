@@ -83,7 +83,7 @@ Long research answers are continued server-side if the final answer hits the
 model token limit. The GUI receives one merged `answer` event.
 
 ```ini
-AGENT_EXECUTE_MAX_TOKENS=2048
+AGENT_EXECUTE_MAX_TOKENS=4096   # default
 AGENT_FINAL_ANSWER_CONTINUE_TURNS=3
 AGENT_FINAL_ANSWER_MAX_CHARS=120000
 ```
@@ -344,11 +344,13 @@ library mcp
 library-mcp
 ```
 
-Only read-only retrieval tools are exposed: `recall_knowledge`, `read_files`,
-`search_metadata`, `search_journal`, `read_entries_metadata`, `list_folder`,
-`list_catalogs`, `read_catalog`, `resolve_tag`, and `materialize_view`.
-Write-side tools and artifact generators are intentionally absent from the MCP
-surface. Configure the MCP client with the same `LIBRARY_HOME`, database,
+The MCP surface is 10 read-only retrieval tools — `recall_knowledge`,
+`read_files`, `search_metadata`, `search_journal`, `read_entries_metadata`,
+`list_folder`, `list_catalogs`, `read_catalog`, `resolve_tag`, and
+`materialize_view` — plus 7 workflow tools: `ask_library`, `search_files`,
+`get_file_metadata`, `upload_file`, `download_file`, `download_folder`, and
+`export_conversation`. SQL execution and archive analysis stay internal.
+Configure the MCP client with the same `LIBRARY_HOME`, database,
 storage, and optional provider environment variables you use for the CLI.
 
 ## 8. Asking Effective Questions
@@ -539,7 +541,7 @@ PDF ingest keeps the original file, but the ingest-time LLM index is bounded:
 | Chunk size | 40 pages, then smaller if needed | Each chunk is shrunk until its rendered prompt is under 80 KB when possible. |
 | Oversize single chunk/page | 80 KB rendered context | If a chunk cannot be reduced further, only that prompt chunk is truncated and coverage records `prompt_text_cap` / `truncated_chunks`. |
 | Scanned-PDF detection | <50 text chars/page on average | With a vision profile, ingest falls back to OCR. Without vision, the file is marked as needing OCR rather than indexed as empty text. |
-| OCR ingest cap | `OCR_MAX_PAGES` when configured | By default OCR processes all pages; if a positive cap is configured, later OCR pages are omitted and coverage records `ocr_page_cap`. |
+| OCR ingest cap | `OCR_MAX_PAGES` (default 300) | OCR is capped at 300 pages by default; later OCR pages are omitted and coverage records `ocr_page_cap`. |
 
 Embedded PDF image captions are optional enrichment and only run when a vision
 profile is configured and the PDF is not in OCR mode:

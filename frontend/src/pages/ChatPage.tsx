@@ -619,11 +619,13 @@ function ChatEmpty({
   llmReady: boolean | null;
   onSelectPrompt?: (prompt: string) => void;
 }) {
-  const suggestions = [
-    { title: "概括核心知识", desc: "总结近期入库的重点文档与核心论点", icon: BookOpen, prompt: "请帮我总结知识库中核心文档的要点。" },
-    { title: "检索技术细节", desc: "针对特定算法、架构或配置进行深挖", icon: Search, prompt: "请检索关于系统架构与数据流设计的相关内容。" },
-    { title: "洞察关联概念", desc: "发现不同文档间的交叉引用与关联关系", icon: Brain, prompt: "分析当前知识库中跨领域的主要关联概念。" },
-  ];
+  // Card copy lives in i18n (chat.suggestions); icons stay component-side,
+  // matched by position.
+  const suggestionIcons = [BookOpen, Search, Brain];
+  const suggestions = t.chat.suggestions.map((s, idx) => ({
+    ...s,
+    icon: suggestionIcons[idx] ?? Sparkles,
+  }));
 
   return (
     <div className="flex h-full min-h-[50vh] flex-col items-center justify-center text-center animate-fade-in px-4 py-8">

@@ -57,7 +57,9 @@ async def materialize_view(
     ctx: ToolContext,
     args: Mapping[str, Any],
 ) -> dict[str, Any]:
-    view_id = args["id"]
+    view_id = args.get("id")
+    if view_id is None:
+        return {"error": "missing required argument 'id'"}
     limit = min(int(args.get("limit") or 50), 500)
     offset = max(0, int(args.get("offset") or 0))
 

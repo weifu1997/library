@@ -101,7 +101,7 @@ def _mask(secret: str | None) -> str | None:
         return None
     if len(secret) <= 6:
         return "***"
-    return f"{secret[:3]}***{secret[-2:]}"
+    return f"****{secret[-4:]}"
 
 
 def _backup_payload(

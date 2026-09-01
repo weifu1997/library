@@ -578,7 +578,7 @@ semantic recall, the agent runtime, and the CLI/MCP surfaces.
 - `read_files` now accepts `compress: false` for exact reopen reads of omitted
   ranges.
 - Runtime settings for read result compression, including a Settings-page
-  toggle and `.env` defaults via `READ_COMPRESSION_*`.
+  toggle and `.env` defaults via `COMPRESSION_*`.
 - Broader text-pipeline routing for common code/config/data extensions such as
   `.json`, `.yaml`, `.toml`, `.xml`, `.html`, `.csv`, `.py`, `.js`, `.ts`,
   `.go`, `.rs`, `.java`, `.sql`, and shell scripts.

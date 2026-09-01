@@ -310,7 +310,6 @@ function DocxScrollView({ url, name, downloadUrl, quote, block, onScrolled }: {
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const rasterZoomRef = useRef(1);
   const docxZoomingRef = useRef(false);
-  const quoteRef = useRef<string | null>(quote);
   const [ready, setReady] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [renderedPageCount, setRenderedPageCount] = useState(0);
@@ -419,10 +418,6 @@ function DocxScrollView({ url, name, downloadUrl, quote, block, onScrolled }: {
       scrollDocxPage(pageRefs.current, pageCount - 1);
     }
   };
-
-  useEffect(() => {
-    quoteRef.current = quote;
-  }, [quote]);
 
   const initialRenderComplete = pageCount > 0 && renderedPageCount >= pageCount;
   const quoteState = useQuoteJump(
@@ -566,10 +561,11 @@ function DocxScrollView({ url, name, downloadUrl, quote, block, onScrolled }: {
             );
             if (!rendered) return;
             const completedThrough = i + 1;
+            // Progress only. renderKey deliberately stays untouched per page —
+            // useQuoteJump keys on `docx:${url}:${renderKey}` and bumping it
+            // here would re-run the quote scan on EVERY page (render storm,
+            // VW-4). It is bumped once at completion below.
             setRenderedPageCount((prev) => Math.max(prev, completedThrough));
-            if (quoteRef.current || completedThrough === 1 || completedThrough === pageCount) {
-              setRenderKey((n) => n + 1);
-            }
             if (completedThrough < pageCount) {
               await waitForNextFrame();
             }

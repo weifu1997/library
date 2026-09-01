@@ -51,7 +51,7 @@ export function SearchPage() {
     inputRef.current?.focus();
   };
 
-  const sampleQueries = ["PDF", "架构", "设计", "API", "文档", "知识库"];
+  const sampleQueries = t.search.sampleQueries;
 
   return (
     <div className="flex h-full flex-col select-none bg-bg-base">
@@ -69,6 +69,7 @@ export function SearchPage() {
           {q && (
             <button
               onClick={clearSearch}
+              aria-label={t.search.clear}
               className="flex h-7 w-7 items-center justify-center rounded-lg text-fg-subtle hover:bg-bg-muted hover:text-fg-base active:scale-95 transition-all"
               type="button"
             >
@@ -99,7 +100,7 @@ export function SearchPage() {
               </div>
               <p className="text-sm font-bold text-fg-base">{t.search.empty}</p>
               <p className="mt-1.5 max-w-sm text-xs text-fg-muted leading-relaxed">
-                输入关键词、文件名或特定标签检索资料库中的全部知识点。
+                {t.search.emptyBody}
               </p>
 
               {/* Sample Queries Chips */}
@@ -126,7 +127,7 @@ export function SearchPage() {
                 <Sparkles size={24} strokeWidth={1.8} />
               </div>
               <p className="text-sm font-bold text-fg-base">{t.search.noMatches}</p>
-              <p className="mt-1.5 text-xs text-fg-muted">请尝试其他关键词或缩短搜索词。</p>
+              <p className="mt-1.5 text-xs text-fg-muted">{t.search.noMatchesHint}</p>
             </div>
           )}
 
@@ -134,7 +135,7 @@ export function SearchPage() {
           {results && results.length > 0 && (
             <div className="space-y-3 animate-fade-in">
               <div className="text-xs font-semibold text-fg-muted px-1">
-                找到 {results.length} 条相关结果
+                {t.search.foundResults(results.length)}
               </div>
               {results.map((e) => (
                 <Link

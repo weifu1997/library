@@ -1,0 +1,10 @@
+frontend/src/components/library/FileViewer.tsx
+frontend/src/components/library/FileViewerViews.tsx
+frontend/src/components/library/viewers/BinaryViewer.tsx
+frontend/src/components/library/viewers/EmailViewer.tsx
+frontend/src/components/library/viewers/EpubViewer.tsx
+frontend/src/components/library/viewers/ImageViewer.tsx
+frontend/src/components/library/viewers/OfficeViewer.tsx
+frontend/src/components/library/viewers/PdfViewer.tsx
+frontend/src/components/library/viewers/TextViewers.tsx
+frontend/src/components/library/viewers/ViewerShared.tsx

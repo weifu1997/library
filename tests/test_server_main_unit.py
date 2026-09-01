@@ -102,13 +102,12 @@ def test_server_main_reads_home_env_when_cwd_has_no_env(tmp_path, monkeypatch) -
 
 
 @pytest.mark.asyncio
-async def test_health_exposes_build_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_health_surface(monkeypatch: pytest.MonkeyPatch) -> None:
     from library.config import get_settings
     from library.main import health
 
-    monkeypatch.setenv("APP_ENV", "staging")
-    monkeypatch.setenv("BUILD_SHA", "abc123")
-    monkeypatch.setenv("BUILD_ID", "build-42")
+    # AP-12: /health exposes status/version/storage_backend only — the
+    # deployment-identity fields (git_sha/build_id/environment) are dropped.
     get_settings.cache_clear()
     try:
         storage_backend = get_settings().storage_backend
@@ -119,8 +118,5 @@ async def test_health_exposes_build_identity(monkeypatch: pytest.MonkeyPatch) ->
     assert payload == {
         "status": "ok",
         "version": __version__,
-        "git_sha": "abc123",
-        "build_id": "build-42",
-        "environment": "staging",
         "storage_backend": storage_backend,
     }

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import { BackendGate } from "@/components/BackendGate";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
 import { StatusBar } from "@/components/StatusBar";
@@ -45,7 +46,11 @@ export default function App() {
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <TopBar />
             <main className="min-h-0 flex-1 overflow-hidden">
-              <Suspense fallback={<ViewerLoading />}>
+              {/* A lazy chunk failing to load or a page throwing mid-render
+                  must not blank the pane — ErrorBoundary shows a reload
+                  affordance instead. */}
+              <ErrorBoundary>
+                <Suspense fallback={<ViewerLoading />}>
                 <Routes>
                   <Route path="/" element={<Navigate to="/chat" replace />} />
                   <Route path="/library/*" element={<LibraryPage />} />
@@ -59,7 +64,8 @@ export default function App() {
                       in-answer "#foo" anchor) must not blank the pane. */}
                   <Route path="*" element={<Navigate to="/chat" replace />} />
                 </Routes>
-              </Suspense>
+                </Suspense>
+              </ErrorBoundary>
             </main>
           </div>
         </div>

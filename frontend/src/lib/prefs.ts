@@ -24,22 +24,39 @@ const KEY_POLL = "library.prefs.status_poll_ms";
 const KEY_COMPACT = "library.prefs.compact_sidebar";
 const KEY_LANGUAGE = "library.prefs.language";
 
+/** Read a storage key, tolerating environments where even property access
+ *  on `localStorage` throws (sandboxed iframes, strict private modes). */
+function safeGet(key: string): string | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort write. A failed persist must not break the in-memory state —
+ *  the caller sets the store after this regardless. */
+function safeSet(key: string, value: string): void {
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem(key, value);
+  } catch {
+    /* storage unavailable — preference still applies for this session */
+  }
+}
+
 function readPollMs(): number {
-  if (typeof localStorage === "undefined") return 4000;
-  const raw = localStorage.getItem(KEY_POLL);
+  const raw = safeGet(KEY_POLL);
   const n = raw ? parseInt(raw, 10) : NaN;
   if (!Number.isFinite(n)) return 4000;
   return Math.min(60000, Math.max(1000, n));
 }
 
 function readCompact(): boolean {
-  if (typeof localStorage === "undefined") return false;
-  return localStorage.getItem(KEY_COMPACT) === "1";
+  return safeGet(KEY_COMPACT) === "1";
 }
 
 function readLanguage(): LanguagePreference {
-  if (typeof localStorage === "undefined") return "auto";
-  const raw = localStorage.getItem(KEY_LANGUAGE);
+  const raw = safeGet(KEY_LANGUAGE);
   return raw === "en" || raw === "zh" || raw === "auto" ? raw : "auto";
 }
 
@@ -49,15 +66,15 @@ export const usePrefs = create<PrefsState>((set) => ({
   language: readLanguage(),
   setStatusPollMs: (v) => {
     const clamped = Math.min(60000, Math.max(1000, Math.round(v)));
-    localStorage.setItem(KEY_POLL, String(clamped));
+    safeSet(KEY_POLL, String(clamped));
     set({ statusPollMs: clamped });
   },
   setCompactSidebar: (v) => {
-    localStorage.setItem(KEY_COMPACT, v ? "1" : "0");
+    safeSet(KEY_COMPACT, v ? "1" : "0");
     set({ compactSidebar: v });
   },
   setLanguage: (v) => {
-    localStorage.setItem(KEY_LANGUAGE, v);
+    safeSet(KEY_LANGUAGE, v);
     set({ language: v });
   },
 }));

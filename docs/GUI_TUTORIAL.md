@@ -140,7 +140,7 @@ endpoint. Configure local model URLs under **LLM profiles**.
 | Language | UI language. It does not translate documents. | Auto, or a fixed language when needed. |
 | Theme | Light, dark, or system appearance. | System. |
 | Default conflict policy | What happens when an uploaded file has the same name as an existing file. | `rename`, so existing files are kept. |
-| Agent token budget | Maximum model output tokens for planning and execution steps. | Keep `1024 / 2048`; raise execute first if answers are cut off. |
+| Agent token budget | Maximum model output tokens for planning and execution steps. | Default `2048 / 4096`; raise execute first if answers are cut off. |
 | Agent execute turn budget | Maximum tool-using investigation rounds per question. | `15`; use `8-12` for local models. |
 | Read result compression | Compresses very large file reads before sending them to the chat model. | Enabled. |
 | Concurrent ingest tasks | Number of background file-analysis tasks at once. | `3-5` for typical computers, `1-2` for local models, `10` for stable cloud APIs. |

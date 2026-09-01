@@ -119,9 +119,19 @@ async function consumeResponse(
   let cursor = initial.cursor;
   let terminal = false;
 
+  // Cursor-less frames carry no dedup key of their own (the only one is the
+  // pre-conversation error frame in routes_chat.py — it is terminal and has
+  // no eventCursor). Guard against a duplicate delivery with an exact
+  // type+data match; cursor-bearing frames are already deduped by cursor.
+  const seenCursorless = new Set<string>();
   const publish = (ev: ChatEvent | null) => {
     if (!ev) return;
     if (ev.eventCursor && ev.eventCursor <= cursor) return;
+    if (!ev.eventCursor) {
+      const sig = `${ev.type}:${ev.data}`;
+      if (seenCursorless.has(sig)) return;
+      seenCursorless.add(sig);
+    }
     if (ev.eventCursor) cursor = ev.eventCursor;
     if (ev.type === "conversation" && typeof ev.data === "string") {
       conversationId = ev.data;

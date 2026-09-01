@@ -26,8 +26,8 @@ library> 帮我对比 Raft 和 Paxos
 
 ## 几个细节
 
-- 文件路径有歧义时（`/repos/library` 没扩展名也没尾斜杠），
-  CLI 会要求 `--name` 显式指定
+- 文件路径有歧义时（`/repos/library` 没扩展名也没尾斜杠），上传会返回
+  `ambiguous_remote_path` 错误：补尾斜杠按文件夹处理，带扩展名按文件处理
 - agent 的回答里 `[^a]` 角标对应文件引用，含 entry_id + section_id
   + reason
 - `/export` 不带参数时自动导出最近一次对话（含引用的文件）

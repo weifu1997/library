@@ -35,6 +35,22 @@ async def hard_delete_by_id(db: AsyncSession, file_id: str) -> None:
     await db.execute(delete(File).where(File.id == file_id))
 
 
+async def exists_by_storage_key(db: AsyncSession, storage_key: str) -> bool:
+    """True if any file row still references the storage object.
+
+    Used by purge_deleted_files AFTER its DB commit as the TOCTOU re-check:
+    a concurrent restore (or content-dedup upload) may have re-registered a
+    file row for the same object between the commit and the physical delete.
+    `storage_key` is UNIQUE on files, so this query is precise.
+    """
+    row = (
+        await db.execute(
+            select(File.id).where(File.storage_key == storage_key).limit(1)
+        )
+    ).scalar_one_or_none()
+    return row is not None
+
+
 async def list_live_storage_keys(
     db: AsyncSession,
 ) -> list[tuple[str, str, str]]:

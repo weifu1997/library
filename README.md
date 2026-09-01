@@ -177,6 +177,9 @@ include them.
 - `spreadsheet`: CSV, TSV, JSON, XLSX, Parquet and related table formats.
 - `log`: logs and logrotate variants.
 - `archive`: zip, tar, 7z, rar, gz, bz2, xz, iso, cab and other py7zz-supported containers.
+- `email`: RFC 822 / MIME `.eml` messages.
+- `markitdown`: generic fallback for `.xls`, `.epub`, `.msg` and other formats without a dedicated local pipeline.
+- `pptx`: PowerPoint `.pptx` / `.pptm` presentations.
 
 ## Retrieval Evaluation
 

@@ -46,7 +46,9 @@ async def resolve_tag(
     ctx: ToolContext,
     args: Mapping[str, Any],
 ) -> dict[str, Any]:
-    name = args["name"]
+    name = args.get("name")
+    if name is None:
+        return {"error": "missing required argument 'name'"}
     facet = args.get("facet")
 
     direct = await tags_repo.find_by_name(db, name, facet=facet)

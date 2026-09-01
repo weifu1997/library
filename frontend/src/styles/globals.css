@@ -21,7 +21,7 @@
   /* Foregrounds */
   --fg-base: 15 23 42;         /* slate-900 */
   --fg-muted: 71 85 105;       /* slate-600 */
-  --fg-subtle: 148 163 184;    /* slate-400 */
+  --fg-subtle: 100 116 139;    /* slate-500 — ≥4.5:1 on --bg-base white */
   --fg-accent: 79 70 229;
 
   /* Borders */

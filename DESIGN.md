@@ -311,6 +311,9 @@ Ingest resolves a pipeline by MIME, extension, and filename pattern:
 - `spreadsheet`
 - `log`
 - `archive`
+- `email`
+- `markitdown`
+- `pptx`
 
 Pipeline output:
 
@@ -340,9 +343,9 @@ Vision is optional. If configured:
 
 - image ingest can ask a vision model for descriptions;
 - PDF ingest can describe embedded figures;
-- scanned PDFs can fall back to full per-page OCR. A deployment may still
-  configure an explicit OCR page cap, but the default is uncapped so stored
-  OCR text does not silently lose later pages.
+- scanned PDFs can fall back to full per-page OCR. OCR is bounded by
+  `OCR_MAX_PAGES` (default 300) so one oversized scan cannot stall ingest;
+  pages past the cap are skipped and coverage records `ocr_page_cap`.
 
 If vision is absent, scanned PDFs fail with an actionable "needs OCR" state rather than pretending empty text is valid.
 
@@ -427,17 +430,18 @@ Important retrieval tools:
   model-authored SQL.
 - `analyze_container`: inspect archive members without fully flattening every possible nested item into the main library.
 
-### 5.1 MCP Read-Only Surface
+### 5.1 MCP Surface
 
 `library mcp` / `library-mcp` runs a stdio MCP server for external
-agents. It reuses the same registered tool schemas and handlers, but exposes
-only read-only retrieval tools: `recall_knowledge`, `read_files`,
+agents. It reuses the same registered tool schemas and handlers. The surface
+is 10 read-only retrieval tools — `recall_knowledge`, `read_files`,
 `search_metadata`, `search_journal`, `read_entries_metadata`, `list_folder`,
-`list_catalogs`, `read_catalog`, `resolve_tag`, and `materialize_view`.
-Write-side tools, artifact generators, logs, SQL execution, and archive
-analysis remain internal to the Library agent/API surface unless they are
-explicitly added later. MCP calls use synthetic `mcp-*` tool contexts and do
-not write conversation history or journal memory.
+`list_catalogs`, `read_catalog`, `resolve_tag`, and `materialize_view` —
+plus 7 workflow tools: `ask_library`, `search_files`, `get_file_metadata`,
+`upload_file`, `download_file`, `download_folder`, and `export_conversation`.
+SQL execution and archive analysis stay internal to the Library agent/API
+surface. MCP calls use synthetic `mcp-*` tool contexts and do not write
+conversation history or journal memory.
 
 ### 5.2 Optional Semantic Recall and Rerank
 

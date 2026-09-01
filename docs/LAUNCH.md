@@ -162,7 +162,7 @@ journal 和可选语义召回缩小范围,再读取原文窗口,最后输出带�
 - 把一个文件夹整理成带引用的研究简报。
 - 在本地保存资料,不想把私有文件交给云端知识库。
 
-当前有 Windows/macOS/Linux 桌面包,也有 Python CLI。
+当前有浏览器 Web UI(由后端直接托管),也有 Python CLI。
 
 仓库: https://github.com/weifu1997/library
 

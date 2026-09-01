@@ -302,19 +302,30 @@ eval build-semantic-index --concurrency N --resume
 
 ## 8. Evaluation and Validation
 
-`library eval` has three layers:
+`library eval` provides these subcommands:
 
 ```text
+import-beir
+  -> import a local BEIR-style dataset and synchronously ingest corpus docs
+
+build-semantic-index
+  -> build a local semantic index for an imported eval dataset
+
 run
   -> candidate-pool metrics: hit@k, candidate_recall@k, nDCG, MRR
+
+load-run
+  -> concurrent retrieval latency and quality checks
+
+ablation-run
+  -> retrieval component ablations
 
 answer / answer-run
   -> bounded retrieval + bounded source reads + one final-answer LLM call
   -> evidence hit, citation hit, optional label accuracy
 
 compare-report
-  -> one-shot RAG report
-  -> full ReAct report workflow
+  -> one-shot RAG report vs full ReAct report workflow
   -> blind pairwise judge, with gold labels prioritized when available
 ```
 

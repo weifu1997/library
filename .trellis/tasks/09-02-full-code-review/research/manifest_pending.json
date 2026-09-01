@@ -1,0 +1,2642 @@
+[
+  {
+    "path": "src/library/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/__main__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/_regex_subprocess.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/cache_metrics.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/citation_manifest.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/compression_adapter.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/conversation_compaction.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/read_compression.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/runtime.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/stable_context.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/text_query.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tool_display.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tool_locks.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tool_scheduler.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/analyze_container.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/finish_research.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/generate_chart.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/list_catalogs.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/list_folder.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/materialize_view.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/query_log.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/query_sql.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/read_catalog.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/read_entries_metadata.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/read_files.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/recall_knowledge.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/resolve_tag.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/search_journal.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/tools/search_metadata.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/agent/types.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/http_headers.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/pagination.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_agent.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_chat.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_exports.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_file_entries.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_files.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_folders.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_mcp.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_semantic_index.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_settings.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_stats.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_tasks.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_tend.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_upload.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_user_files.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/api/routes_webdav_sync.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/capacity.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/citations.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/cli/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/cli/__main__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/cli/client.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/cli/commands.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/cli/eval_cmd.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/cli/init_cmd.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/cli/oneshot.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/cli/render.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/cli/repl.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/cli/storage_cmd.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/config.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/bootstrap.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/cli.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/engine.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/fts.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/models/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/models/ai_recall.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/models/ai_structural.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/models/audit.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/models/base.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/models/enums.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/models/task_outcomes.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/models/tasks.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/models/user_visible.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/db/session.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/core.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/datasets.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/metrics.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/probe_utils.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/probes.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/prompts.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/reporting.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/retrieval.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/types.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/eval/utils.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/llm/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/llm/anthropic_adapter.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/llm/base.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/llm/factory.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/llm/model_controls.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/llm/openai_adapter.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/llm/prompt_cache.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/llm/tagged_response.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/llm/types.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/main.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/mcp_server.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/model_rate_limit.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/openapi_export.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/_long_index.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/_text_indexer.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/archive.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/base.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/document_vision.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/docx.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/email.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/git_metadata.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/image.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/log.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/markitdown.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/pdf.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/pdf_text.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/pptx.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/registry.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/spreadsheet.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/pipelines/text.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/provider_clients.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/provider_http.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/agent_events.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/audit_events.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/catalogs.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/conversations.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/entries.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/entry_relations.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/entry_tags.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/files.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/folders.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/journal.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/sessions.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/tags.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/task_outcomes.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/tasks.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/repositories/views.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/base.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/chat.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/errors.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/folders.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/sessions.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/settings.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/stats.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/tasks.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/upload.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/user_files.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/schemas/webdav.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/semantic/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/semantic/embeddings.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/semantic/index.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/semantic/rerank.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/server_discovery.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/server_main.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/attachments.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/chat_artifacts.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/config_overlay.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/entries.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/exports.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/folders.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/ingest_status.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/knowledge_pack.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/recommend.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/relation_vetting.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/reprocess.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/scan.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/sync.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/upload.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/user_files.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/webdav_sync.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/services/worker_lifecycle.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/storage/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/storage/base.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/storage/decompress.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/storage/local.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/storage/mirror.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/storage/s3.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/storage/sanitize.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/enqueue.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/_mining_helpers.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/bulk_reprocess_files.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/delete_storage_object.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/enrich_tags.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/ingest_file.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/mine_citation_graph.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/mine_relations.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/mine_session_cooccurrence.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/mine_tag_overlap.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/normalize_tags.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/periodic_tick.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/propose_views.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/prune.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/purge_deleted_files.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/rebuild_semantic_index.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/recover_stuck_tasks.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/reflect_turn.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/refresh_entry_extra.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/refresh_semantic_file.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/restructure_catalogs.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/restructure_catalogs_apply.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/suggest_lifecycle.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/summarize_session.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/tag_quality.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/vet_relations.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/handlers/webdav_publish.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/kinds.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/maintenance_budget.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/runner.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/tasks/usage.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/upload_limits.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/utils/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/utils/hashing.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/utils/ids.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/vendor/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/vendor/headroom/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/vendor/headroom/transforms/__init__.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/vendor/headroom/transforms/adaptive_sizer.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/vendor/headroom/transforms/error_detection.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/vendor/headroom/transforms/log_compressor.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/vendor/headroom/transforms/search_compressor.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/vendor/headroom/transforms/smart_crusher.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/vendor/headroom/transforms/text_crusher.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "src/library/worker.py",
+    "category": "backend_py",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/env.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0001_initial.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0002_additive_columns.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0003_file_entries_folder_id_nullable.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0004_repair_dangling_file_entries_fks.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0005_sessions_end_reason_check.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0006_conversations_session_turn_unique.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0007_tasks_active_dedup_unique.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0008_query_performance_indexes.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0009_entry_metadata_fts.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0010_entry_metadata_fts_description.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0011_postgres_metadata_fts.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0012_journal_invalidation.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0013_reconcile_dead_ingest_files.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0014_files_kind_check.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0015_agent_events.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0016_scale_safety_indexes.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic/versions/0017_folders_live_parent_name_unique.py",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "alembic.ini",
+    "category": "alembic",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/App.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/api/chatStream.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/api/client.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/ActivityPopover.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/BackendGate.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/CodeBlock.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/LlmProfileEditor.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/MarkdownView.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/SessionList.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/Sidebar.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/StatusBar.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/TopBar.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/TurnView.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/Dialogs.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/FileViewer.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/FileViewerViews.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/FolderTree.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/MetaPanel.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/viewers/BinaryViewer.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/viewers/EmailViewer.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/viewers/EpubViewer.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/viewers/ImageViewer.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/viewers/OfficeViewer.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/viewers/PdfViewer.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/viewers/TextViewers.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/components/library/viewers/ViewerShared.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/hooks/useTemporaryValue.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/lib/appVersion.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/lib/chatSession.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/lib/i18n.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/lib/markdown.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/lib/prefs.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/lib/theme.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/lib/userArtifact.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/lib/utils.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/main.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/pages/AboutPage.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/pages/ChatPage.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/pages/HelpPage.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/pages/LibraryPage.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/pages/OverviewPage.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/pages/SearchPage.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/pages/SettingsPage.tsx",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/styles/globals.css",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/types/api.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/types/generated/openapi.d.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/types/generated/usage.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/types/vendor.d.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/src/vite-env.d.ts",
+    "category": "frontend_src",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/vite.config.ts",
+    "category": "frontend_config",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/package.json",
+    "category": "frontend_config",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/package-lock.json",
+    "category": "frontend_config",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/tsconfig.json",
+    "category": "frontend_config",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/eslint.config.js",
+    "category": "frontend_config",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/postcss.config.js",
+    "category": "frontend_config",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/tailwind.config.js",
+    "category": "frontend_config",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/index.html",
+    "category": "frontend_config",
+    "status": "pending"
+  },
+  {
+    "path": "frontend/.gitignore",
+    "category": "frontend_config",
+    "status": "pending"
+  },
+  {
+    "path": "tests/conftest.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_access_eval_mcp_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_agent_citation_manifest.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_agent_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_agent_tools_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_archive_coverage_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_archive_image_drilldown_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_bulk_reprocess_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_chat_attachments_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_chat_cancel_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_chat_concurrency_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_chat_quick_mode_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_chat_user_artifact_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_citation_locator.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_citation_office_locator_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_cli_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_cli_mcp_regressions_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_cli_oneshot_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_cli_render_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_cli_upgrade_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_compression_adapter_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_compression_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_config_validation_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_container_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_conversation_compaction_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_cors_middleware_order_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_delete_storage_toctou_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_discover_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_dispatcher_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_document_vision_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_duckdb_tools_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_email_pipeline_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_enrich_tags_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_entry_metadata_fts_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_env_example_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_eval_beir_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_eval_load_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_eval_ranking_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_export_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_file_entry_path_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_folder_live_unique_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_folder_zip_cap_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_folders_ingest_status_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_generate_chart_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_git_metadata_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_git_repo_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_gui_search_multiword_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_host_allowlist_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_image_pipeline_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_image_pipeline_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_import_cycles_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_ingest_coverage_surface_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_ingest_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_ingest_file_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_ingest_status_reconciliation.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_journal_validity_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_lazy_relation_vetting_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_lifecycle_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_lifecycle_switch_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_llm_failover_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_llm_models_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_llm_reasoning_controls_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_llm_retry_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_long_document_indexing_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_low_quality_reprocess_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_maintenance_budget_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_markitdown_pipeline_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_mcp_server_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_mcp_server_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_migration_downgrade_policy_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_mine_citation_graph_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_mine_session_cooccurrence_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_mine_tag_overlap_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_mirror_consistency_regressions_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_mirror_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_model_limits_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_multimodal_chat_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_normalize_tags_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_office_pipelines_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_office_size_caps_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_openapi_contract.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_pdf_ocr_cap_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_pdf_ocr_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_pdf_ocr_uncapped_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_pdf_pipeline_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_pdf_text_read_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_pdf_vision_limits_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_pdf_with_images_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_periodic_coverage_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_pipeline_offloop_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_pipeline_registry_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_propose_views_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_provider_resilience_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_publish_selected_scope_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_purge_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_rar_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_read_compression_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_read_files_contract_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_read_files_diagnostics_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_read_segment_vlm.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_recall_knowledge_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_reflect_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_reflect_turn_invalidation_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_refresh_entry_extra_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_related_prefill_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_reprocess_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_restructure_catalogs_cycle_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_restructure_catalogs_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_runner_no_llm_key_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_runner_recover_on_start_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_runtime_guards_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_runtime_observability_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_runtime_tool_truncation_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_scale_safety_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_scan_sync_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_search_and_misc_regressions_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_search_journal_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_search_metadata_ranking_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_semantic_index_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_semantic_rebuild_resume_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_server_discovery_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_server_main_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_session_delete_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_session_messages_display_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_session_messages_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_session_resume_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_sessions_list_preview_fallback_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_settings_routes_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_shared_text_indexer_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_sqlite_performance_tuning_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_stats_overview.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_storage_migrate_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_summarize_session_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_supplemental_formats_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_sync_failure_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_sync_modified_reingest_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_tagged_response_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_task_dedup_migration_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_task_delivery_fencing_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_task_runner_concurrency_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_task_throughput_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_tend_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_text_heading_lookup_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_tool_argument_repair_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_tool_locks_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_tool_result_preview_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_tool_scheduler_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_upload_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_upload_reliability_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_upload_sanitize_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_user_files_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_user_mgmt_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_vet_relations_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_vet_relations_failure_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_webdav_conflict_guard_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_webdav_mediums_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_webdav_sync_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_worker_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_worker_lifecycle_unit.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/test_worker_web_toggle_e2e.py",
+    "category": "tests_py",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_folder_live_unique_11477_56b379fa/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_folder_live_unique_11714_45e0704a/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_folder_live_unique_11934_f76ce00b/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_folder_live_unique_12773_617ace55/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_folder_live_unique_19132_2b603ffd/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_11477_e423bbb4/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_12773_e3c5e111/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_13055_c239192c/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_13102_ae78f2e5/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_13157_984fea62/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_13197_e98fd269/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_16435_38f0d7a1/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_18778_15c8bc38/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_19132_41e33d4b/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_64480_35a15111/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_6475_c1ab0a79/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_6489_947e61ff/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "tests/_host_allow_66828_d6faa6f4/library.db",
+    "category": "tests_other",
+    "status": "pending"
+  },
+  {
+    "path": "AGENTS.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "CHANGELOG.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "DESIGN.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "LICENSE",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "README.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "README.zh-CN.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "USAGE.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "USAGE.zh-CN.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "docs/GUI_TUTORIAL.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "docs/GUI_TUTORIAL.zh-CN.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "docs/LAUNCH.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "docs/UPGRADE-PLAN.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "docs/images/library-promo-en.png",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "docs/images/library-promo.png",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "docs/images/social-preview-en.jpg",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "docs/images/social-preview-zh-CN.jpg",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "openapi/openapi.json",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "samples/architecture.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "samples/employees.csv",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "samples/quickstart.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "samples/raft-paxos.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "samples/release-notes.md",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "samples/seed.py",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "samples/server.log",
+    "category": "docs",
+    "status": "pending"
+  },
+  {
+    "path": "scripts/UPSTREAM.md",
+    "category": "scripts",
+    "status": "pending"
+  },
+  {
+    "path": "skills/README.md",
+    "category": "skills",
+    "status": "pending"
+  },
+  {
+    "path": "skills/discover-and-curate/SKILL.md",
+    "category": "skills",
+    "status": "pending"
+  },
+  {
+    "path": "skills/ingest-vault/SKILL.md",
+    "category": "skills",
+    "status": "pending"
+  },
+  {
+    "path": "skills/research-with-library/SKILL.md",
+    "category": "skills",
+    "status": "pending"
+  },
+  {
+    "path": ".github/workflows/ci.yml",
+    "category": "ci",
+    "status": "pending"
+  },
+  {
+    "path": "pyproject.toml",
+    "category": "config",
+    "status": "pending"
+  },
+  {
+    "path": "uv.lock",
+    "category": "config",
+    "status": "pending"
+  },
+  {
+    "path": ".env.example",
+    "category": "config",
+    "status": "pending"
+  },
+  {
+    "path": ".gitignore",
+    "category": "config",
+    "status": "pending"
+  },
+  {
+    "path": ".gitattributes",
+    "category": "config",
+    "status": "pending"
+  },
+  {
+    "path": ".trellis/spec/backend/database-guidelines.md",
+    "category": "trellis_spec",
+    "status": "pending"
+  },
+  {
+    "path": ".trellis/spec/backend/directory-structure.md",
+    "category": "trellis_spec",
+    "status": "pending"
+  },
+  {
+    "path": ".trellis/spec/backend/error-handling.md",
+    "category": "trellis_spec",
+    "status": "pending"
+  },
+  {
+    "path": ".trellis/spec/backend/index.md",
+    "category": "trellis_spec",
+    "status": "pending"
+  },
+  {
+    "path": ".trellis/spec/backend/logging-guidelines.md",
+    "category": "trellis_spec",
+    "status": "pending"
+  },
+  {
+    "path": ".trellis/spec/backend/quality-guidelines.md",
+    "category": "trellis_spec",
+    "status": "pending"
+  },
+  {
+    "path": ".trellis/spec/backend/webdav-sync.md",
+    "category": "trellis_spec",
+    "status": "pending"
+  },
+  {
+    "path": ".trellis/spec/guides/code-reuse-thinking-guide.md",
+    "category": "trellis_spec",
+    "status": "pending"
+  },
+  {
+    "path": ".trellis/spec/guides/cross-layer-thinking-guide.md",
+    "category": "trellis_spec",
+    "status": "pending"
+  },
+  {
+    "path": ".trellis/spec/guides/index.md",
+    "category": "trellis_spec",
+    "status": "pending"
+  }
+]

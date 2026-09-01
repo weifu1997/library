@@ -240,6 +240,18 @@ def _validate_sql(sql: str) -> str | None:
     return None
 
 
+def _validate_column_name(name: str) -> str | None:
+    """Reject hostile column names so they never become queryable identifiers.
+
+    A header like `x"; SELECT 1 --` referenced by the model would sit inside
+    a quoted DuckDB identifier whose embedded `;`/`--` could splice a second
+    statement. Names containing `"`, `;`, or control/newline chars are
+    rejected at load time (AT-2)."""
+    if '"' in name or ";" in name or any(ord(ch) < 32 for ch in name):
+        return f"column name {name!r} is not queryable"
+    return None
+
+
 def _ext_for(display_name: str | None, original_ext: str | None, mime: str | None) -> str:
     if original_ext:
         e = original_ext.lstrip(".").lower()
@@ -336,6 +348,15 @@ def _run_duckdb(
                 "WHERE table_name = ?",
                 [table],
             ).fetchall()
+            for c in cols:
+                if _validate_column_name(c[0]) is None:
+                    continue
+                return {
+                    "ok": False,
+                    "error": (
+                        f"column name '{c[0]}' in {table} is not queryable"
+                    ),
+                }
             row_count = conn.execute(
                 f'SELECT COUNT(*) FROM "{table}"'
             ).fetchone()[0]
@@ -351,6 +372,20 @@ def _run_duckdb(
 
         _lock_external_access(conn)
         rewritten, fixes = _reconcile_columns(sql, all_cols)
+        if rewritten != sql:
+            # Reconciliation re-quotes identifiers from the data files. Their
+            # names were validated at load time, but a header like `x"; SELECT
+            # 1 --` could still reach a quoted identifier; re-run the read-only
+            # gate on the rewritten statement so no second statement can be
+            # spliced (AT-2).
+            err = _validate_sql(rewritten)
+            if err:
+                return {
+                    "ok": False,
+                    "error": f"reconciled SQL failed validation: {err}",
+                    "tables": tables,
+                    "rewritten_sql": rewritten,
+                }
         try:
             cur = conn.execute(rewritten)
         except Exception as exc:
@@ -426,11 +461,16 @@ def _run_duckdb(
             result["rows"] = flat_rows[:keep]
             result["row_count"] = keep
             result["truncated"] = True
-            result["has_more"] = True
-            result["next_offset"] = offset + keep
+            # Page-advance honesty: `flat_rows` is the full fetched page, so
+            # the next offset moves past ALL of it (the dropped tail is never
+            # re-delivered) and `has_more` reflects whether that page was
+            # actually full (no phantom "more" when the result was small).
+            result["has_more"] = len(flat_rows) >= MAX_RESULT_ROWS
+            if result["has_more"]:
+                result["next_offset"] = offset + len(flat_rows)
             result["truncation_reason"] = (
                 f"result body exceeded {MAX_RESULT_CHARS} chars; "
-                f"kept first {keep} rows"
+                f"kept first {keep} rows; page advanced by {len(flat_rows)} rows"
             )
         return result
     finally:

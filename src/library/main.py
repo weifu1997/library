@@ -457,9 +457,6 @@ async def health() -> dict[str, str]:
     return {
         "status": "ok",
         "version": __version__,
-        "git_sha": s.build_sha,
-        "build_id": s.build_id,
-        "environment": s.app_env,
         "storage_backend": s.storage_backend,
     }
 

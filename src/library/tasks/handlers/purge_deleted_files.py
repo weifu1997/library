@@ -155,8 +155,28 @@ async def handle_purge_deleted_files(payload: Mapping[str, Any]) -> None:
         await session.commit()
 
     # Storage delete is best-effort and runs AFTER commit so a transient S3
-    # outage cannot block DB cleanup.
+    # outage cannot block DB cleanup. Between that commit and the physical
+    # delete, a concurrent restore may have re-registered a file row for the
+    # same object (or a content-dedup upload re-referenced it) — re-check so
+    # we never delete an object that is live again (TOCTOU, TQ-2).
     for file_id, key in pending_storage_deletes:
+        if await _storage_object_referenced(key):
+            log.info(
+                "purge_deleted_files: skip storage delete for %s — object re-referenced",
+                key,
+            )
+            async with session_scope() as session:
+                await audit_events_repo.append(
+                    session,
+                    kind="storage_delete_skipped",
+                    payload={
+                        "file_id": file_id,
+                        "storage_key": key,
+                        "reason": "object_referenced_after_commit",
+                    },
+                )
+                await session.commit()
+            continue
         await _delete_storage_object(storage, file_id=file_id, key=key)
 
     if entries_purged or files_purged:
@@ -181,6 +201,16 @@ async def _delete_storage_object(
                 await session.commit()
         except Exception:
             log.exception("could not even audit storage delete failure")
+
+
+async def _storage_object_referenced(storage_key: str) -> bool:
+    """Fresh-transaction check that some file row still references the object.
+
+    Runs AFTER the purge commit, so it sees concurrent writes: if a restore
+    re-registered the object, we must not delete it.
+    """
+    async with session_scope() as session:
+        return await files_repo.exists_by_storage_key(session, storage_key)
 
 
 def _storage_delete_payload(*, storage_key: str, file_id: str) -> dict[str, Any]:

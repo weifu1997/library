@@ -151,7 +151,7 @@ async def get_tend(
 
     progress: list[dict[str, Any]] = []
     state_counts = {"pending": 0, "running": 0, "done": 0, "error": 0,
-                    "skipped": 0, "missing": 0}
+                    "skipped": 0, "missing": 0, "dead": 0}
     for d in dispatched:
         kind = d.get("kind")
         tid = d.get("task_id")
@@ -186,6 +186,7 @@ async def get_tend(
     settled = (
         state_counts["done"] + state_counts["error"]
         + state_counts["skipped"] + state_counts["missing"]
+        + state_counts["dead"]
     )
     return {
         "tend_run_id": run_id,

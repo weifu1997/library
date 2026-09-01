@@ -130,7 +130,9 @@ async def analyze_container(
     ctx: ToolContext,
     args: Mapping[str, Any],
 ) -> dict[str, Any]:
-    raw_id = args["container_entry_id"]
+    raw_id = args.get("container_entry_id")
+    if raw_id is None:
+        return {"error": "missing required argument 'container_entry_id'"}
     container_id, err = await entries_repo.resolve_entry_id_prefix(db, raw_id)
     if err is not None:
         return {"error": err, "entry_id": raw_id}

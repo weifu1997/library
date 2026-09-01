@@ -22,19 +22,66 @@ def _release_values(**extras: object) -> dict[str, object]:
 
 
 async def find_pending_or_running_by_dedup(
-    db: AsyncSession, dedup_key: str,
+    db: AsyncSession, dedup_key: str, *, now: datetime | None = None,
 ) -> Task | None:
-    """Used by enqueue's dedup short-circuit."""
+    """Used by enqueue's dedup short-circuit.
+
+    Pending rows always hold the key. A running row holds it only while its
+    lease is still live — an expired-lease running row means the owner is
+    presumed dead, so a successor may take over. This mirrors
+    `has_inflight_for_kind`, keeping the two "is this kind busy" checks in
+    agreement (otherwise periodic dispatch can stall or falsely report
+    dispatched for a crashed worker's stale row).
+    """
+    cutoff = now if now is not None else datetime.now(timezone.utc)
     return (
         await db.execute(
             select(Task).where(
                 Task.dedup_key == dedup_key,
-                Task.status.in_(("pending", "running")),
+                or_(
+                    Task.status == "pending",
+                    and_(
+                        Task.status == "running",
+                        or_(
+                            Task.lease_expires_at.is_(None),
+                            Task.lease_expires_at >= cutoff,
+                        ),
+                    ),
+                ),
             )
             .order_by(Task.created_at.asc())
             .limit(1)
         )
     ).scalar_one_or_none()
+
+
+async def reclaim_expired_running_for_dedup(
+    db: AsyncSession, dedup_key: str, *, now: datetime,
+) -> bool:
+    """Mark an expired-lease running row dead so a new enqueue can take over
+    its dedup slot.
+
+    Called from enqueue's INSERT-conflict path when the pre-read found no
+    live dedup hold but the partial unique index still matches a stale
+    running row. Clearing `locked_by`/`lease_expires_at` is the fencing
+    release: a straggler worker's `mark_done`/`mark_dead` (guarded by
+    `locked_by == worker`) will then no-op, so the reclaimed row cannot be
+    completed or double-killed by its old owner.
+    """
+    result = await db.execute(
+        update(Task).where(
+            Task.dedup_key == dedup_key,
+            Task.status == "running",
+            Task.lease_expires_at.isnot(None),
+            Task.lease_expires_at < now,
+        ).values(_release_values(
+            status="dead",
+            finished_at=now,
+            last_error="lease expired; reclaimed by enqueue",
+            last_heartbeat_at=None,
+        ))
+    )
+    return bool(result.rowcount or 0)
 
 
 async def claim_pending_ids(
@@ -45,9 +92,16 @@ async def claim_pending_ids(
     exclude_kinds: Sequence[str] = (),
 ) -> list[str]:
     """Pick the next pending task ids, ordered by `(priority, scheduled_at)`.
-    The caller turns these into `running`. Postgres uses FOR UPDATE SKIP
-    LOCKED so concurrent workers don't step on each other; SQLite has no
-    FOR UPDATE so the caller is expected to be the only worker."""
+
+    Rows are selected pending-first — a task is only claimed once it is
+    actually pending (running rows are never re-picked). Postgres uses FOR
+    UPDATE SKIP LOCKED so concurrent workers don't step on each other;
+    SQLite has no FOR UPDATE so the caller is expected to be the only
+    worker. The selected ids are then transitioned to `running` by
+    `mark_running`, whose CAS (`WHERE status = 'pending' ... RETURNING`)
+    drops any row a rival already claimed, and whose owner-token
+    (`locked_by`) + lease write is what `mark_done`/`mark_dead` later fence
+    against."""
     stmt = (
         select(Task.id)
         .where(Task.status == "pending", Task.scheduled_at <= now)

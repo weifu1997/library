@@ -127,10 +127,16 @@ async def generate_chart(
     ctx: ToolContext,
     args: Mapping[str, Any],
 ) -> dict[str, Any]:
-    mark: str = args["mark"]
-    encoding: Mapping[str, Any] = args["encoding"]
-    rows: list[Mapping[str, Any]] = list(args["data"])
-    caption: str = args["caption"].strip()
+    if any(args.get(a) is None for a in ("mark", "encoding", "data", "caption")):
+        missing = next(
+            a for a in ("mark", "encoding", "data", "caption")
+            if args.get(a) is None
+        )
+        return {"ok": False, "error": f"missing required argument '{missing}'"}
+    mark: str = args.get("mark")
+    encoding: Mapping[str, Any] = args.get("encoding")
+    rows: list[Mapping[str, Any]] = list(args.get("data"))
+    caption: str = args.get("caption").strip()
     title: str | None = args.get("title")
 
     # --- sanitise data ------------------------------------------------------

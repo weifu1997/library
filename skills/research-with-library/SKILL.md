@@ -23,7 +23,8 @@ the full conversation loop including export.
 
 - Files are already ingested. If `/check` shows `new` items, point the
   user at `ingest-vault` first.
-- An LLM profile is configured (`LIBRARY_LLM_CHAT_*`). Without it,
+- An LLM profile is configured (`LLM_CHAT_*`, e.g. `LLM_CHAT_MODEL`,
+  `LLM_CHAT_API_KEY`; the default profile uses `LLM_DEFAULT_*`). Without it,
   the agent can't run.
 
 ## Workflow

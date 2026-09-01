@@ -424,9 +424,6 @@ def test_embedded_mode_starts_lifespan_and_exits_cleanly() -> None:
     assert out["health"] == {
         "status": "ok",
         "version": __version__,
-        "git_sha": "unknown",
-        "build_id": "local",
-        "environment": "dev",
         "storage_backend": "local",
     }
     assert isinstance(out["folders"], dict)

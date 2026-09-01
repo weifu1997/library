@@ -29,14 +29,26 @@ function applyTheme(mode: ThemeMode): "light" | "dark" {
   return effective;
 }
 
+function readStoredMode(): ThemeMode {
+  try {
+    if (typeof localStorage === "undefined") return "system";
+    const raw = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
+    return raw === "light" || raw === "dark" || raw === "system" ? raw : "system";
+  } catch {
+    // storage unavailable (sandboxed iframe / strict private mode) — default.
+    return "system";
+  }
+}
+
 export const useTheme = create<ThemeState>((set, get) => ({
-  mode:
-    (typeof localStorage !== "undefined"
-      && (localStorage.getItem(STORAGE_KEY) as ThemeMode | null))
-    || "system",
+  mode: readStoredMode(),
   effective: "light",
   setMode: (m) => {
-    if (typeof localStorage !== "undefined") localStorage.setItem(STORAGE_KEY, m);
+    try {
+      if (typeof localStorage !== "undefined") localStorage.setItem(STORAGE_KEY, m);
+    } catch {
+      /* persist failure must not break the in-memory theme toggle */
+    }
     set({ mode: m, effective: applyTheme(m) });
   },
   init: () => {

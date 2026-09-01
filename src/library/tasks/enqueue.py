@@ -29,7 +29,7 @@ async def enqueue(
     now = datetime.now(timezone.utc)
     if dedup_key is not None:
         existing = await tasks_repo.find_pending_or_running_by_dedup(
-            session, dedup_key,
+            session, dedup_key, now=now,
         )
         if existing is not None:
             return existing
@@ -64,8 +64,21 @@ async def enqueue(
         )
         result = await session.execute(stmt)
         if (result.rowcount or 0) == 0:
+            # Conflicted with a pending/running row holding the dedup key. If
+            # that row is an expired-lease running row, the owner is presumed
+            # dead — reclaim its slot (mark dead) so this fresh row can take
+            # over, then retry the insert. Otherwise a live row won the race:
+            # return it as the canonical dedup result.
+            reclaimed = await tasks_repo.reclaim_expired_running_for_dedup(
+                session, dedup_key, now=now,
+            )
+            if reclaimed:
+                result = await session.execute(stmt)
+                if (result.rowcount or 0) != 0:
+                    await session.flush()
+                    return await session.get(Task, task_id)
             return await tasks_repo.find_pending_or_running_by_dedup(
-                session, dedup_key,
+                session, dedup_key, now=now,
             )
         await session.flush()
         return await session.get(Task, task_id)
