@@ -6,7 +6,7 @@ Four endpoints, all under `/v1/settings`:
                       secrets); the GUI uses this to render the
                       "server status" panel on the Settings page.
   GET  /llm         — per-profile resolution (chat / reflect / ingest /
-                      vision / audio) with api_keys masked.
+                      vision) with api_keys masked. Audio is not overlay-writable.
   PUT  /llm         — write a subset of LLM fields plus a few runtime
                       knobs to the overlay file. Returns the post-write
                       view so the GUI can refresh without a second GET.
@@ -147,13 +147,14 @@ def _backup_payload(
     response_model=ServerSettingsResponse,
     responses=OPTIONAL_AUTH_RESPONSES,
 )
-def server_settings() -> dict[str, Any]:
+async def server_settings() -> dict[str, Any]:
     """Read-only snapshot. GUI renders this in a "Server status" card.
 
     No secrets, no DSNs, no S3 keys — just identifiers and toggles a
     user might want to verify. The shape is intentionally flat so the
     GUI can render it with a simple key/value list."""
     s = get_settings()
+    worker_running = await worker_lifecycle.status_running()
     return {
         "app_env": s.app_env,
         "library_home": s.library_home,
@@ -168,7 +169,7 @@ def server_settings() -> dict[str, Any]:
         "readiness_timeout_seconds": s.readiness_timeout_seconds,
         "storage_backend": s.storage_backend,
         "worker_enabled": s.worker_enabled,
-        "worker_running": worker_lifecycle.is_running(),
+        "worker_running": worker_running,
         "worker_scheduler_enabled": s.worker_scheduler_enabled,
         "worker_batch_size": s.worker_batch_size,
         "worker_retry_base_seconds": s.worker_retry_base_seconds,

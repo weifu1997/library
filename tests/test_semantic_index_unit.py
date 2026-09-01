@@ -663,6 +663,47 @@ async def test_semantic_refresh_enqueues_rebuild_for_incompatible_index(
         await engine.dispose()
 
 
+def test_semantic_index_dir_stays_under_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from library.config import get_settings
+    from library.semantic.index import semantic_index_root
+
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+    try:
+        root = semantic_index_root().resolve()
+        for name in ("..", "../foo", "foo/bar", "foo\\bar", ".", ""):
+            path = semantic_index_dir(name)
+            assert path == (root / "default").resolve()
+            path.relative_to(root)
+    finally:
+        get_settings.cache_clear()  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_sqlite_vec_required_fails_closed_before_embed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from library.config import get_settings
+    from library.semantic import index as idx
+
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("SEMANTIC_INDEX_BACKEND", "sqlite-vec")
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+    reject = _RejectEmbeddingClient()
+    try:
+        monkeypatch.setattr(idx, "sqlite_vec_available", lambda: False)
+        with pytest.raises(RuntimeError, match="sqlite-vec is not installed"):
+            await idx._build_semantic_index(
+                None,  # type: ignore[arg-type]
+                client=reject,
+            )
+        assert reject.calls == 0
+    finally:
+        get_settings.cache_clear()  # type: ignore[attr-defined]
+
+
 def test_embedding_client_does_not_reuse_vision_key() -> None:
     settings = Settings(
         embedding_provider="openai-compatible",

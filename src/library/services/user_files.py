@@ -236,6 +236,7 @@ async def get_user_metadata(
 _COVERAGE_BOOL_FIELDS = ("indexed_partial", "ocr_used")
 _COVERAGE_INT_FIELDS = (
     "total_pages", "indexed_pages", "ocr_pages_done", "ocr_failed_pages",
+    "text_page_failures", "total_units", "indexed_units",
 )
 
 

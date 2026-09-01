@@ -123,6 +123,24 @@ async def test_spreadsheet_read_uses_full_rows_not_ingest_sample() -> None:
 
 
 @pytest.mark.asyncio
+async def test_spreadsheet_read_marks_truncated_past_read_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from library.pipelines import spreadsheet as ss
+
+    monkeypatch.setattr(ss, "MAX_READ_ROWS_PER_SHEET", 50)
+    result = await SpreadsheetPipeline().read_segment(
+        file_row=SimpleNamespace(storage_key="file-key"),
+        args={"pattern": "needle-after-row-cap", "context_lines": 0},
+        storage=_MemoryStorage(_xlsx_with_late_needle()),
+    )
+
+    assert "needle-after-row-cap" not in (result.text or "")
+    assert result.extras.get("truncated") is True
+    assert "sheet_row_cap" in (result.extras.get("partial_reasons") or [])
+
+
+@pytest.mark.asyncio
 async def test_docx_heading_and_line_reads_use_complete_extracted_text() -> None:
     pipeline = DocxPipeline()
     row = SimpleNamespace(storage_key="file-key", description=None)

@@ -92,8 +92,17 @@ async def lifespan(app: FastAPI):
         if settings.worker_enabled:
             # Keep the in-process runner on live settings so GUI changes to
             # WORKER_BATCH_SIZE affect new task claims without a restart.
-            await worker_lifecycle.start()
-            log.info("task runner started in-process")
+            # start() no-ops when another process already holds a fresh claim.
+            started = await worker_lifecycle.start()
+            if started:
+                log.info("task runner started in-process")
+            elif worker_lifecycle.is_running():
+                log.info("task runner already running in-process")
+            else:
+                log.info(
+                    "task runner not started in-process; another worker "
+                    "already holds a fresh queue claim"
+                )
     except Exception:
         log.exception("backend startup failed")
         raise
@@ -309,7 +318,7 @@ async def request_diagnostics(request: Request, call_next):
     return response
 
 
-LOCAL_HOST_NAMES = frozenset({"localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"})
+LOCAL_HOST_NAMES = frozenset({"localhost", "127.0.0.1", "::1", "[::1]"})
 # The in-process clients (CLI repl/oneshot, MCP server) drive the ASGI app
 # through httpx's ASGITransport, which still requires a base URL; they use
 # `http://embedded`. Those requests never touch a socket, so no rebinding

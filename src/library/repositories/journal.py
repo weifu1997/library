@@ -254,6 +254,52 @@ async def mark_invalidated(
     return changed
 
 
+async def invalidate_for_deleted_entries(
+    db: AsyncSession,
+    entry_ids: Sequence[str],
+    *,
+    at: datetime,
+    reason: str = "entry_deleted",
+) -> int:
+    """Hide live journal notes that mention any of the deleted entries.
+
+    Soft-delete has no journal row to point `invalidated_by_id` at, so that
+    FK stays NULL. Overlap is evaluated in Python, matching
+    ``list_active_related_recent``.
+    """
+    wanted = {str(entry_id) for entry_id in entry_ids if entry_id}
+    if not wanted:
+        return 0
+    rows = (
+        await db.execute(
+            select(Journal).where(Journal.invalidated_at.is_(None))
+        )
+    ).scalars().all()
+    invalidations: dict[str, str] = {}
+    for row in rows:
+        row_ids = {str(entry_id) for entry_id in row.entry_ids or [] if entry_id}
+        if wanted.intersection(row_ids):
+            invalidations[row.id] = reason
+    if not invalidations:
+        return 0
+    changed = 0
+    for journal_id, item_reason in invalidations.items():
+        result = await db.execute(
+            update(Journal)
+            .where(
+                Journal.id == journal_id,
+                Journal.invalidated_at.is_(None),
+            )
+            .values(
+                invalidated_at=at,
+                invalidated_by_id=None,
+                invalidated_reason=(item_reason or "").strip() or None,
+            )
+        )
+        changed += int(result.rowcount or 0)
+    return changed
+
+
 async def reflect_per_session_with_max(
     db: AsyncSession,
     *,

@@ -99,6 +99,102 @@ async def test_recall_knowledge_skips_semantic_without_embedding_key(
 
 
 @pytest.mark.asyncio
+async def test_recall_degrades_when_semantic_index_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    import library.agent.tools.recall_knowledge as module
+    from library.config import get_settings
+
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "true")
+    monkeypatch.setenv("EMBEDDING_API_KEY", "sk-test")
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+
+    async def fake_search_metadata(db, ctx, args):  # noqa: ANN001
+        return {"count": 0, "entries": []}
+
+    async def fake_search_journal(db, args, *, match):  # noqa: ANN001
+        return {"count": 0, "notes": []}
+
+    async def fake_expansion(db, anchor_entry_ids, *, limit):  # noqa: ANN001
+        return []
+
+    async def missing_index(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise RuntimeError("index_missing")
+
+    monkeypatch.setattr(module, "search_metadata", fake_search_metadata)
+    monkeypatch.setattr(module, "run_search_journal", fake_search_journal)
+    monkeypatch.setattr(module, "_one_hop_expansion_ids", fake_expansion)
+    monkeypatch.setattr(module, "semantic_entry_rows", missing_index)
+    monkeypatch.setattr(module, "semantic_recall_configured", lambda: True)
+
+    try:
+        result = await module.recall_knowledge(
+            None,
+            ToolContext(session_id="s", conversation_id="c"),
+            {"text": "query"},
+        )
+    finally:
+        get_settings.cache_clear()  # type: ignore[attr-defined]
+
+    degraded = result["trace"]["degraded"]
+    assert any(
+        item.get("stage") == "semantic" and "index_missing" in str(item.get("error") or "")
+        for item in degraded
+    )
+    assert "semantic" not in result["trace"]
+
+
+@pytest.mark.asyncio
+async def test_recall_degrades_when_semantic_index_is_incompatible(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    import library.agent.tools.recall_knowledge as module
+    from library.config import get_settings
+
+    monkeypatch.setenv("LIBRARY_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("SEMANTIC_RECALL_ENABLED", "true")
+    monkeypatch.setenv("EMBEDDING_API_KEY", "sk-test")
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+
+    async def fake_search_metadata(db, ctx, args):  # noqa: ANN001
+        return {"count": 0, "entries": []}
+
+    async def fake_search_journal(db, args, *, match):  # noqa: ANN001
+        return {"count": 0, "notes": []}
+
+    async def fake_expansion(db, anchor_entry_ids, *, limit):  # noqa: ANN001
+        return []
+
+    async def incompatible(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise RuntimeError("index_incompatible")
+
+    monkeypatch.setattr(module, "search_metadata", fake_search_metadata)
+    monkeypatch.setattr(module, "run_search_journal", fake_search_journal)
+    monkeypatch.setattr(module, "_one_hop_expansion_ids", fake_expansion)
+    monkeypatch.setattr(module, "semantic_entry_rows", incompatible)
+    monkeypatch.setattr(module, "semantic_recall_configured", lambda: True)
+
+    try:
+        result = await module.recall_knowledge(
+            None,
+            ToolContext(session_id="s", conversation_id="c"),
+            {"text": "query"},
+        )
+    finally:
+        get_settings.cache_clear()  # type: ignore[attr-defined]
+
+    degraded = result["trace"]["degraded"]
+    assert any(
+        item.get("stage") == "semantic"
+        and "index_incompatible" in str(item.get("error") or "")
+        for item in degraded
+    )
+
+
+@pytest.mark.asyncio
 async def test_recall_backfills_only_confident_lexical_sections(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -1,6 +1,8 @@
 """OpenAPI / response-model contract checks for the MVP allowlist."""
 from __future__ import annotations
 
+import pytest
+
 from fastapi.routing import APIRoute
 from pydantic import BaseModel
 
@@ -196,8 +198,9 @@ def test_exported_spec_has_no_secret_values() -> None:
     assert_no_secrets(render(_spec()))
 
 
-def test_server_settings_keyset_matches_model() -> None:
-    payload = server_settings()
+@pytest.mark.asyncio
+async def test_server_settings_keyset_matches_model() -> None:
+    payload = await server_settings()
     assert set(payload) == set(ServerSettingsResponse.model_fields)
     model = ServerSettingsResponse.model_validate(payload)
     dumped = model.model_dump(mode="json")

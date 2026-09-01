@@ -232,8 +232,10 @@ async def upload(
         )
         folder = await resolve_or_create_folder(session, folder_segments)
         resolved_folder_id = folder.id if folder is not None else None
+        from library.services.entries import _build_folder_display_path
         folder_display_path = (
-            "/" + "/".join(folder_segments) if folder_segments else None
+            await _build_folder_display_path(session, folder.id)
+            if folder is not None else None
         )
     desired_name = (derived_name or fallback_name).strip()
     if not desired_name:

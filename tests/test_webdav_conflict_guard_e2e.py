@@ -846,7 +846,7 @@ async def test_webdav_import_rejects_folder_cycle(
         ))
         await session.commit()
 
-    snapshot_id = "cyc10ecyc10ecyc1"
+    snapshot_id = "a1b2c3d4e5f60718"
     snap_root = _snapshot_root(snapshot_id)
     # Newer than the local rows so the remote side wins the conflict guard.
     now_iso = datetime(2026, 6, 1, tzinfo=timezone.utc).isoformat()
@@ -947,7 +947,7 @@ async def test_webdav_import_rejects_catalog_cycle(
         ))
         await session.commit()
 
-    snapshot_id = "catcyc10ecatcyc1"
+    snapshot_id = "b2c3d4e5f6071829"
     snap_root = _snapshot_root(snapshot_id)
     now_iso = datetime(2026, 6, 1, tzinfo=timezone.utc).isoformat()
     catalogs = [

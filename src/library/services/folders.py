@@ -23,7 +23,9 @@ from library.db.models import File, Folder
 from library.repositories import audit_events as audit_events_repo
 from library.repositories import entries as entries_repo
 from library.repositories import folders as folders_repo
+from library.repositories import journal as journal_repo
 from library.storage import MirrorStorage, get_storage
+from library.storage.sanitize import sanitize_name
 from library.utils.ids import new_id
 
 def _utcnow() -> datetime:
@@ -86,7 +88,10 @@ def split_remote_path(
         return [], display_name_override
 
     trailing_slash = s.endswith("/")
-    parts = [p for p in s.strip("/").split("/") if p]
+    parts = [
+        p for p in s.strip("/").split("/")
+        if p and p not in {".", ".."}
+    ]
     if not parts:
         return [], display_name_override
 
@@ -107,7 +112,7 @@ def parse_remote_folder(remote: str) -> list[str]:
     s = (remote or "").strip()
     if not s or s == "/":
         return []
-    return [p for p in s.strip("/").split("/") if p]
+    return [p for p in s.strip("/").split("/") if p and p not in {".", ".."}]
 
 async def resolve_or_create_folder(
     db: AsyncSession, segments: list[str]
@@ -128,6 +133,7 @@ async def _find_or_create_child(
     db: AsyncSession, parent: Folder | None, name: str
 ) -> Folder:
     parent_id = parent.id if parent is not None else None
+    name = sanitize_name(name)
     existing = await folders_repo.find_child_by_name(
         db, parent_id=parent_id, name=name,
     )
@@ -387,6 +393,13 @@ async def soft_delete_folder(
         e.deleted_at = now
         e.purge_after = purge_at
         e.updated_at = now
+    if entries:
+        await journal_repo.invalidate_for_deleted_entries(
+            db,
+            [e.id for e in entries],
+            at=now,
+            reason="entry_deleted",
+        )
 
     await audit_events_repo.append(db, kind="folder_soft_deleted", payload={
         "folder_id": f.id,

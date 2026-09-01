@@ -11,7 +11,7 @@ import asyncio
 import io
 import re
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from library.citations import normalize_quote_match_text, quote_matches_source_text
@@ -28,6 +28,7 @@ class PdfTextRange:
     page_labels: list[str]
     page_start: int
     total_pages: int
+    failed_pages: list[int] = field(default_factory=list)
 
 
 _TEXT_CACHE: OrderedDict[str, PdfTextRange] = OrderedDict()
@@ -76,17 +77,21 @@ def extract_pdf_text_range(
     start = max(1, min(int(page_start), total))
     end = total if page_end is None else max(start, min(int(page_end), total))
     pages: list[str] = []
-    for page in reader.pages[start - 1:end]:
+    failed_pages: list[int] = []
+    for offset, page in enumerate(reader.pages[start - 1:end]):
+        page_no = start + offset
         try:
             pages.append(_extract_page_text(page))
         except Exception:  # noqa: BLE001
             pages.append("")
+            failed_pages.append(page_no)
     labels = _labels_from_reader(reader, total)[start - 1:end]
     return PdfTextRange(
         pages=pages,
         page_labels=labels,
         page_start=start,
         total_pages=total,
+        failed_pages=failed_pages,
     )
 
 

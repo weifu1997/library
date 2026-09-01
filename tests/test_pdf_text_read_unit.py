@@ -4,6 +4,8 @@ import asyncio
 import io
 from types import SimpleNamespace
 
+import pytest
+
 from library.pipelines.pdf import PdfPipeline
 from library.pipelines.pdf_text import (
     extract_pdf_page_labels,
@@ -186,6 +188,29 @@ def test_pdf_layout_extraction_keeps_table_row_headers_with_cells() -> None:
     )
     assert seg.error is None
     assert "H8830 | Message | Driver not connected." in seg.text
+
+
+def test_extract_pdf_text_range_records_failed_pages(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import library.pipelines.pdf_text as pdf_text
+
+    pdf_bytes = _build_text_pdf(3)
+    original = pdf_text._extract_page_text
+    calls = {"n": 0}
+
+    def boom(page):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("bad content stream")
+        return original(page)
+
+    monkeypatch.setattr(pdf_text, "_extract_page_text", boom)
+    doc = extract_pdf_text_range(pdf_bytes, page_start=1, page_end=3)
+    assert doc.pages[1] == ""
+    assert doc.failed_pages == [2]
+    assert "Unique token p001" in doc.pages[0]
+    assert "Unique token p003" in doc.pages[2]
 
 
 def test_pdf_default_read_is_windowed_for_long_documents() -> None:

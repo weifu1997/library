@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from library.db.models import File, FileEntry, Folder
 from library.repositories import audit_events as audit_events_repo
+from library.repositories import journal as journal_repo
 from library.services.upload import (
     DisplayNameConflictError,
     _existing_entry_with_name,
@@ -251,6 +252,9 @@ async def soft_delete_entry(
     entry.deleted_at = now
     entry.purge_after = now + timedelta(seconds=max(0, purge_after_seconds))
     entry.updated_at = now
+    await journal_repo.invalidate_for_deleted_entries(
+        db, [entry.id], at=now, reason="entry_deleted",
+    )
     await audit_events_repo.append(db, kind="entry_soft_deleted", payload={
         "entry_id": entry.id,
         "folder_id": entry.folder_id,

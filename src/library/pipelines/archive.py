@@ -26,7 +26,10 @@ import os
 from typing import Any
 
 from library.agent.compression_adapter import maybe_compress_archive_peeks
-from library.pipelines._long_index import ingest_output_tokens
+from library.pipelines._long_index import (
+    build_retrieval_extra,
+    ingest_output_tokens,
+)
 from library.llm import (
     ChatRequest, cacheable_prompt_messages, get_chat_client,
 )
@@ -258,6 +261,10 @@ class ArchivePipeline(Pipeline):
             "key_files": key_files,
             "git_metadata": git_meta_dict,
             "member_peeks": [_description_peek(p) for p in peeks],
+            "coverage": _archive_coverage(
+                file_count=int(payload["file_count"] or 0),
+                peeks=peeks,
+            ),
         }
         description_text = tagged.get("description", "").strip()
         if description_text:
@@ -274,7 +281,11 @@ class ArchivePipeline(Pipeline):
             summary=summary,
             description=description,
             kind="container",
-            extra=remaining_extra,
+            extra=build_retrieval_extra(
+                sections=[],
+                coverage=description["coverage"],
+                base_extra=remaining_extra,
+            ),
             entry_extra=tagged.get("entry_extra", "").strip() or None,
             entry_catalog_path=parse_path(tagged.get("catalog_path", "")) or None,
             entry_tags=[
@@ -528,6 +539,31 @@ async def _peek_member(session, member) -> dict[str, Any]:
         "path": path,
         "kind": inner.name,
         "preview": text[:PEEK_PER_MEMBER_CHARS] or "[empty]",
+    }
+
+
+def _peek_preview_failed(peek: dict[str, Any]) -> bool:
+    preview = str(peek.get("preview") or "")
+    return "[peek failed" in preview or "[read failed" in preview
+
+
+def _archive_coverage(
+    *, file_count: int, peeks: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Sampled-archive coverage so UI/agent can tell a peek is not the whole zip."""
+    peek_failures = sum(1 for peek in peeks if _peek_preview_failed(peek))
+    reasons: list[str] = []
+    if len(peeks) < file_count:
+        reasons.append("archive_peek_cap")
+    if peek_failures:
+        reasons.append("archive_peek_failures")
+    return {
+        "unit": "members",
+        "total_units": file_count,
+        "indexed_units": len(peeks),
+        "indexed_partial": bool(reasons),
+        "partial_reasons": reasons,
+        "peek_failures": peek_failures,
     }
 
 

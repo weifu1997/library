@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from library.eval.core import (
     _eval_entry_sort_key,
     _merge_eval_entries,
@@ -35,6 +37,25 @@ def test_eval_hybrid_merge_uses_rrf_overlap() -> None:
     assert ranked[0]["entry_id"] == "both"
     assert ranked[0]["lexical_rank"] == 2
     assert ranked[0]["semantic_rank"] == 2
+
+
+@pytest.mark.asyncio
+async def test_eval_semantic_recall_treats_missing_index_as_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import library.eval.retrieval as module
+
+    async def missing_index(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        raise RuntimeError("index_missing")
+
+    monkeypatch.setattr(module, "semantic_entry_rows", missing_index)
+    ranked = await module._retrieve_entries(
+        None,  # type: ignore[arg-type]
+        retriever="semantic_recall",
+        query="q",
+        limit=5,
+    )
+    assert ranked == []
 
 
 def test_eval_evidence_selection_uses_quotas_then_fills() -> None:

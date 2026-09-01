@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 
 from library.tasks.runner import TaskRunner
 
@@ -33,10 +34,17 @@ def _get_lock() -> asyncio.Lock:
 
 
 async def start() -> bool:
-    """Start the in-process runner. No-op (returns False) if already running."""
+    """Start the in-process runner. No-op (returns False) if already running
+    or if another process already holds a fresh queue claim."""
     global _runner
     async with _get_lock():
         if _runner is not None and _runner.is_running:
+            return False
+        if await queue_claimed():
+            log.info(
+                "skipping in-process task runner; another worker already holds "
+                "a fresh queue claim"
+            )
             return False
         runner = TaskRunner()
         await runner.start()
@@ -67,6 +75,33 @@ def is_running() -> bool:
     """True while this process's runner is alive and polling."""
     runner = _runner
     return runner is not None and runner.is_running
+
+
+def _fresh_claim_cutoff() -> datetime:
+    from library.config import get_settings
+
+    seconds = max(1, int(get_settings().worker_heartbeat_seconds or 20))
+    return datetime.now(timezone.utc) - timedelta(seconds=seconds * 3)
+
+
+async def queue_claimed() -> bool:
+    """True when a running task has a recent heartbeat from some worker."""
+    from library.db.session import session_scope
+    from library.repositories import tasks as tasks_repo
+
+    try:
+        async with session_scope() as session:
+            return await tasks_repo.has_fresh_claim(
+                session, since=_fresh_claim_cutoff(),
+            )
+    except Exception:
+        log.exception("failed to inspect queue claim heartbeat")
+        return False
+
+
+async def status_running() -> bool:
+    """True if this process's runner is up, or a daemon still holds a claim."""
+    return is_running() or await queue_claimed()
 
 
 async def reset() -> None:

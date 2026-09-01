@@ -74,6 +74,28 @@ async def handle_delete_storage_object(payload: Mapping[str, Any]) -> None:
             return
 
     storage = _storage_from_payload(payload)
+    async with session_scope() as session:
+        referenced = (
+            await session.execute(
+                select(File.id).where(File.storage_key == storage_key).limit(1)
+            )
+        ).scalar_one_or_none()
+        if referenced is not None:
+            await record_outcome(
+                session,
+                task_kind=KIND_DELETE_STORAGE_OBJECT,
+                object_kind="storage_object",
+                object_id=target_id,
+                task_run_id=str(payload.get("_task_id") or "") or None,
+                outcome="noop",
+                detail={
+                    "storage_key": storage_key,
+                    "reason": "file_reference_present",
+                },
+            )
+            await session.commit()
+            return
+
     await storage.delete(storage_key)
 
     async with session_scope() as session:

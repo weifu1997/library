@@ -481,6 +481,8 @@ def _metadata_only_image_result(
         "coverage": {
             "source_mode": "image_metadata_only",
             "reason": reason,
+            "indexed_partial": True,
+            "partial_reasons": [reason],
             "mime_type": ctx.mime_type,
             "original_ext": ctx.original_ext,
             "size_bytes": ctx.size_bytes,

@@ -504,7 +504,15 @@ async def _retrieve_entries(
             enabled=bool(relation_expansion),
         )
     if retriever == "semantic_recall":
-        rows = await semantic_entry_rows(session, query, limit=limit)
+        try:
+            rows = await semantic_entry_rows(session, query, limit=limit)
+        except RuntimeError as exc:
+            # SEARCH-4: recall_knowledge records these as degraded. The eval
+            # semantic_recall retriever has no degraded channel; treat a missing
+            # or incompatible index as an empty ranking instead of aborting.
+            if str(exc) not in {"index_missing", "index_incompatible"}:
+                raise
+            rows = []
         ranked = [str(e["entry_id"]) for e in rows]
         return await _maybe_expand_ranked_ids(
             session,

@@ -91,6 +91,25 @@ def test_coverage_tolerates_records_predating_ocr_failed_pages() -> None:
     assert out["partial_reasons"] == ["text_page_cap"]
 
 
+def test_coverage_exposes_text_page_failures_and_archive_units() -> None:
+    out = _coverage_summary({
+        "coverage": {
+            "indexed_partial": True,
+            "partial_reasons": ["text_page_failures", "archive_peek_cap"],
+            "text_page_failures": 1,
+            "total_units": 20,
+            "indexed_units": 8,
+        },
+    })
+    assert out == {
+        "indexed_partial": True,
+        "partial_reasons": ["text_page_failures", "archive_peek_cap"],
+        "text_page_failures": 1,
+        "total_units": 20,
+        "indexed_units": 8,
+    }
+
+
 def test_coverage_partial_reasons_survives_empty_list() -> None:
     out = _coverage_summary({
         "coverage": {"indexed_partial": False, "partial_reasons": []},

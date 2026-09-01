@@ -98,6 +98,95 @@ Rules:
   status getter (`is_running()`) is separate from the *configured* intent
   (`worker_enabled`).
 
+### Runtime-configurable caps read live settings behind a sentinel
+
+A pipeline cap that an operator can tune at runtime (OCR page cap, etc.) must be
+read from live settings at call time, not frozen at import. Use a module-level
+sentinel as the default so tests can pin a specific value:
+
+```python
+_OCR_CAP_LIVE = object()
+OCR_MAX_PAGES: object = _OCR_CAP_LIVE        # test override target
+
+def _ocr_configured_page_cap() -> int:
+    if OCR_MAX_PAGES is not _OCR_CAP_LIVE:
+        return int(OCR_MAX_PAGES)            # test pin
+    return int(get_settings().ocr_max_pages)  # live value
+```
+
+Do not cache the settings read at module import — `settings.cache_clear()`
+after an env change must be honored.
+
+Regression: `tests/test_pdf_ocr_uncapped_unit.py`, `tests/test_pdf_ocr_cap_e2e.py`.
+
+### Reuse one document handle across batched reads
+
+When a pipeline processes a multi-page document in batches (OCR pages,
+spreadsheet row ranges), open the underlying document **once** in a single
+executor thread and reuse it across batches. Opening a fresh handle per batch is
+both slow and racy on large files.
+
+Regression: `tests/test_pdf_ocr_cap_e2e.py`.
+
+### Bounded reads report truncation instead of raising
+
+Large-workload caps (`spreadsheet.MAX_READ_ROWS_PER_SHEET = 10_000`, archive
+peek caps) must bound the read and surface `extras["truncated"]` (or the archive
+equivalent) rather than raising. A caller that needs "read everything" opts out
+by passing an explicit cap.
+
+Regression: `tests/test_read_files_contract_unit.py` (monkeypatches
+`MAX_READ_ROWS_PER_SHEET`), `tests/test_archive_coverage_unit.py`,
+`tests/test_ingest_coverage_surface_unit.py`.
+
+### Fail closed before embedding when the index backend is unavailable
+
+Semantic indexing must detect that the index backend is unavailable
+(sqlite-vec missing / index incompatible) **before** spending tokens on
+embeddings, and raise a typed `RuntimeError` ("index_missing" / "index_incompatible")
+so callers can degrade deliberately. `eval/retrieval.py` treats those as an
+empty retrieval result; search surfaces a degraded signal.
+
+Regression: `tests/test_semantic_index_unit.py`,
+`tests/test_eval_ranking_unit.py`.
+
+### Semantically-derived paths sanitize before use
+
+Any path derived from data (e.g. a semantic index directory name) is validated
+and falls back to the default instead of escaping its root (`..` / absolute
+segments rejected). Corrupt resume state must be tolerated (truncated/corrupt
+JSONL → restart cleanly), never crash the rebuild.
+
+Regression: `tests/test_semantic_index_unit.py`,
+`tests/test_semantic_rebuild_resume_unit.py`.
+
+### Bound user-uploaded archives and folders before expansion
+
+Uploads that expand into many bytes (folder ZIP download) must be capped at the
+boundary: `FOLDER_ZIP_MAX_UNCOMPRESSED_BYTES = 200 * 1024 * 1024` — over the cap
+raises 413, never streams unbounded output. Uploaded folder names are
+sanitized before use.
+
+Regression: `tests/test_folder_zip_cap_unit.py`, `tests/test_upload_sanitize_unit.py`.
+
+### Soft-delete invalidates derived read models
+
+Soft-deleting an entry must invalidate journal/derived entries referencing it in
+the same operation (`journal_repo.invalidate_for_deleted_entries`), not defer to
+a sweep. Otherwise reads of the deleted entry's journal survive the delete.
+
+Regression: `tests/test_journal_validity_e2e.py`.
+
+### Re-check references in the same scope before destructive I/O
+
+Destructive background work (deleting a storage object) must re-read the
+referencing rows in the same session/scope right before the side effect, to
+close the TOCTOU window where a re-ingest re-attaches a reference between the
+decision and the deletion. On a fresh reference, record a `noop` outcome instead
+of deleting.
+
+Regression: `tests/test_delete_storage_toctou_unit.py`.
+
 ---
 
 ## Testing Requirements

@@ -105,9 +105,12 @@ def _parse_head(git_dir: Path, meta: GitMetadata) -> None:
     m = _HEAD_REF_RE.match(content)
     if m:
         ref = m.group(1)
-        # ref is like "refs/heads/main"
+        # ref is like "refs/heads/main" or "refs/heads/feature/login"
         if ref.startswith("refs/heads/"):
-            meta.branch = ref[len("refs/heads/"):]
+            branch = _safe_branch_name(ref[len("refs/heads/"):])
+            if branch is None:
+                return
+            meta.branch = branch
     else:
         # Detached head: HEAD itself is a hash
         if re.match(r"^[0-9a-f]{40}$", content):
@@ -115,12 +118,37 @@ def _parse_head(git_dir: Path, meta: GitMetadata) -> None:
             meta.branch = None  # detached
 
 
+def _safe_branch_name(name: str) -> str | None:
+    """Return a branch name that is safe to join under ``git_dir/refs/heads``.
+
+    Nested names like ``feature/login`` are allowed (git stores them as
+    nested files). Path components ``.`` / ``..``, backslashes, NUL, and
+    absolute paths are rejected so a crafted ``HEAD`` cannot escape
+    ``.git/`` (INGEST-M1).
+    """
+    if not name or "\\" in name or "\x00" in name:
+        return None
+    path = Path(name)
+    if path.is_absolute() or not path.parts:
+        return None
+    if any(part in (".", "..") for part in path.parts):
+        return None
+    return name
+
+
 def _parse_branch_tip(git_dir: Path, meta: GitMetadata) -> None:
     if not meta.branch:
         return
-    ref_path = git_dir / "refs" / "heads" / meta.branch
-    if not ref_path.is_file():
-        # Possibly packed-refs — best-effort scan
+    git_root = git_dir.resolve()
+    ref_path = (git_dir / "refs" / "heads" / meta.branch)
+    try:
+        resolved = ref_path.resolve()
+    except OSError:
+        return
+    if not resolved.is_relative_to(git_root):
+        return
+    if not resolved.is_file():
+        # Possibly packed-refs — best-effort scan (string match, not a path)
         packed = git_dir / "packed-refs"
         if packed.is_file():
             try:
@@ -137,7 +165,7 @@ def _parse_branch_tip(git_dir: Path, meta: GitMetadata) -> None:
                 return
         return
     try:
-        meta.head_hash = ref_path.read_text(
+        meta.head_hash = resolved.read_text(
             encoding="utf-8", errors="replace"
         ).strip() or None
     except Exception:

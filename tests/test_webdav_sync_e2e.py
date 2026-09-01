@@ -249,7 +249,7 @@ async def _seed_source() -> dict[str, str | bytes]:
 
 async def _build_remote_pack() -> tuple[dict[str, bytes], dict[str, object]]:
     root = "/library-test"
-    snapshot_id = "2026-07-01T00-00-00Z"
+    snapshot_id = new_snapshot_id()
     factory = get_session_factory()
     async with factory() as session:
         pack = await build_knowledge_pack(

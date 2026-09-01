@@ -33,6 +33,26 @@ def test_ocr_ingest_default_is_uncapped() -> None:
         pdf_module.OCR_MAX_PAGES = original
 
 
+def test_ocr_cap_reads_live_settings(monkeypatch) -> None:
+    from library.config import get_settings
+
+    original = pdf_module.OCR_MAX_PAGES
+    try:
+        pdf_module.OCR_MAX_PAGES = pdf_module._OCR_CAP_LIVE
+        monkeypatch.setenv("OCR_MAX_PAGES", "7")
+        get_settings.cache_clear()  # type: ignore[attr-defined]
+        assert pdf_module._ocr_configured_page_cap() == 7
+        assert pdf_module._ocr_pages_to_process(20) == 7
+
+        monkeypatch.setenv("OCR_MAX_PAGES", "0")
+        get_settings.cache_clear()  # type: ignore[attr-defined]
+        assert pdf_module._ocr_configured_page_cap() is None
+        assert pdf_module._ocr_pages_to_process(20) == 20
+    finally:
+        pdf_module.OCR_MAX_PAGES = original
+        get_settings.cache_clear()  # type: ignore[attr-defined]
+
+
 def test_ocr_response_strips_reasoning_leak() -> None:
     leaked = (
         "The user wants the text from the image transcribed.\n"
@@ -75,8 +95,10 @@ def test_ocr_pdf_pages_batches_full_uncapped(monkeypatch) -> None:
         page_count: int,
         *,
         start_page: int = 0,
+        pdf=None,
     ) -> list[bytes]:
         assert pdf_bytes == b"pdf"
+        assert pdf is not None
         render_calls.append((start_page, page_count))
         return [b"jpeg"] * page_count
 
@@ -96,6 +118,7 @@ def test_ocr_pdf_pages_batches_full_uncapped(monkeypatch) -> None:
     try:
         pdf_module.OCR_MAX_PAGES = None
         pdf_module.OCR_RENDER_BATCH_PAGES = 20
+        _patch_ocr_pdf_document(monkeypatch)
         monkeypatch.setattr(pdf_module, "_render_pdf_pages_to_jpeg", fake_render)
         monkeypatch.setattr(pdf_module, "downscale_for_vlm", fake_downscale)
         monkeypatch.setattr(pdf_module, "get_chat_client", lambda profile: FakeVision())
@@ -110,6 +133,7 @@ def test_ocr_pdf_pages_batches_full_uncapped(monkeypatch) -> None:
             req.extra_body == {"thinking": {"type": "disabled"}}
             for req in requests
         )
+        assert _FakePdfDocument.constructions == 1
     finally:
         pdf_module.OCR_MAX_PAGES = original_cap
         pdf_module.OCR_RENDER_BATCH_PAGES = original_batch
@@ -166,10 +190,32 @@ class _FlakyVision:
         return SimpleNamespace(text=f"page {page_no} text")
 
 
+class _FakePdfDocument:
+    """Stand-in so AM-2's once-per-ingest PdfDocument open does not need
+    real PDF bytes in OCR unit tests."""
+
+    constructions = 0
+
+    def __init__(self, *args, **kwargs) -> None:
+        del args, kwargs
+        type(self).constructions += 1
+
+    def close(self) -> None:
+        return None
+
+
+def _patch_ocr_pdf_document(monkeypatch) -> None:
+    import pypdfium2
+
+    _FakePdfDocument.constructions = 0
+    monkeypatch.setattr(pypdfium2, "PdfDocument", _FakePdfDocument)
+
+
 def _patch_ocr_render(monkeypatch, vision) -> None:
+    _patch_ocr_pdf_document(monkeypatch)
     monkeypatch.setattr(
         pdf_module, "_render_pdf_pages_to_jpeg",
-        lambda pdf_bytes, page_count, *, start_page=0: [b"jpeg"] * page_count,
+        lambda pdf_bytes, page_count, *, start_page=0, pdf=None: [b"jpeg"] * page_count,
     )
     monkeypatch.setattr(
         pdf_module, "downscale_for_vlm",
@@ -263,6 +309,25 @@ def test_coverage_marks_partial_on_ocr_failures() -> None:
     assert "ocr_page_failures" in coverage["partial_reasons"]
     assert coverage["ocr_failed_pages"] == 14
     assert coverage["ocr_pages_done"] == 6
+
+
+def test_coverage_marks_partial_on_text_page_failures() -> None:
+    coverage = PdfPipeline._coverage(
+        total_pages=20,
+        indexed_pages=20,
+        chunk_count=1,
+        text_truncated=False,
+        ocr_used=False,
+        ocr_pages_done=0,
+        ocr_failed_pages=0,
+        partial_reasons=["text_page_failures"],
+        max_index_pages=None,
+        text_page_failures=1,
+    )
+
+    assert coverage["indexed_partial"] is True
+    assert "text_page_failures" in coverage["partial_reasons"]
+    assert coverage["text_page_failures"] == 1
 
 
 def test_coverage_unchanged_when_all_ocr_pages_succeed() -> None:

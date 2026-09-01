@@ -170,9 +170,13 @@ async def test_pdf_parse_and_extract_run_off_the_event_loop(monkeypatch, record_
     def fake_page_count(body: bytes) -> int:
         return 2
 
-    def fake_extract_text(body: bytes, *, max_pages=None) -> list[str]:
+    def fake_extract_text_range(body: bytes, *, page_start=1, page_end=None):
+        del body, page_start, page_end
         # Enough chars/page that the text layer is trusted (no OCR fallback).
-        return ["this page has a real text layer with plenty of characters"] * 2
+        return SimpleNamespace(
+            pages=["this page has a real text layer with plenty of characters"] * 2,
+            failed_pages=[],
+        )
 
     def fake_extract_images(body: bytes, *, max_pages=None):
         return []
@@ -181,7 +185,7 @@ async def test_pdf_parse_and_extract_run_off_the_event_loop(monkeypatch, record_
         return _FakeResult(coverage={})
 
     monkeypatch.setattr(PdfPipeline, "_page_count", staticmethod(fake_page_count))
-    monkeypatch.setattr(PdfPipeline, "_extract_text", staticmethod(fake_extract_text))
+    monkeypatch.setattr(pdf_module, "extract_pdf_text_range", fake_extract_text_range)
     monkeypatch.setattr(pdf_module, "extract_images", fake_extract_images)
     monkeypatch.setattr(pdf_module, "has_vision_profile", lambda *a, **k: True)
     monkeypatch.setattr(PdfPipeline, "_run_single_index", fake_single_index)
@@ -189,7 +193,7 @@ async def test_pdf_parse_and_extract_run_off_the_event_loop(monkeypatch, record_
     await PdfPipeline().run(ctx=_ctx("pdf"), storage=_ChunkStorage())
 
     # All three pure-CPU steps were offloaded (二.4 targets).
-    for fn in (fake_page_count, fake_extract_text, fake_extract_images):
+    for fn in (fake_page_count, fake_extract_text_range, fake_extract_images):
         assert fn in calls, f"{fn.__name__} was not offloaded"
         assert threads[fn] != loop_ident
 
@@ -222,7 +226,8 @@ async def test_scanned_pdf_caps_ocr_pages_and_flags_partial(monkeypatch):
 
     ocr_calls: list[int] = []
 
-    def fake_render(pdf_bytes, page_count, *, start_page=0):
+    def fake_render(pdf_bytes, page_count, *, start_page=0, pdf=None):
+        del pdf_bytes, pdf
         return [b"jpeg"] * page_count
 
     def fake_downscale(jpeg_bytes, *, max_long_edge):
@@ -240,10 +245,15 @@ async def test_scanned_pdf_caps_ocr_pages_and_flags_partial(monkeypatch):
         PdfPipeline, "_page_count", staticmethod(lambda body: total_pages),
     )
     monkeypatch.setattr(
-        PdfPipeline,
-        "_extract_text",
-        staticmethod(lambda body, *, max_pages=None: [""] * total_pages),
+        pdf_module,
+        "extract_pdf_text_range",
+        lambda body, *, page_start=1, page_end=None: SimpleNamespace(
+            pages=[""] * total_pages,
+            failed_pages=[],
+        ),
     )
+    import pypdfium2
+    monkeypatch.setattr(pypdfium2, "PdfDocument", lambda *a, **k: SimpleNamespace(close=lambda: None))
     monkeypatch.setattr(pdf_module, "_render_pdf_pages_to_jpeg", fake_render)
     monkeypatch.setattr(pdf_module, "downscale_for_vlm", fake_downscale)
     monkeypatch.setattr(pdf_module, "get_chat_client", lambda profile: FakeVision())

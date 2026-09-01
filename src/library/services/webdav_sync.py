@@ -40,6 +40,14 @@ from library.db.models import (
     TagAlias,
     View,
 )
+from library.db.models.enums import (
+    ENTRY_LIFECYCLES,
+    ENTRY_RELATION_SOURCE_KINDS,
+    ENTRY_TAG_SOURCES,
+    FILE_KINDS,
+    INGEST_STATUSES,
+    TAG_FACETS,
+)
 from library.db.session import session_scope
 from library.repositories import catalogs as catalogs_repo
 from library.repositories import folders as folders_repo
@@ -68,6 +76,9 @@ _METADATA_JSONL = (
     "journals.jsonl",
 )
 _OPTIONAL_METADATA_JSONL = {"sessions.jsonl", "conversations.jsonl", "journals.jsonl"}
+_BLOB_PATH_RE = re.compile(r"blobs/sha256/[0-9a-f]{2}/[0-9a-f]{64}")
+_LATEST_SNAPSHOT_RE = re.compile(r"snapshots/[0-9a-f]{16}/manifest\.json")
+
 _STATUS_HISTORY_FIELDS = {
     "last_pull_at",
     "last_pulled_snapshot_id",
@@ -316,7 +327,10 @@ async def sync_remote_status(settings: Settings | None = None) -> dict[str, Any]
                 "manifest": None,
             }
 
-        latest_snapshot = str(latest.get("latest_snapshot") or "")
+        latest_snapshot = _validated_latest_snapshot(
+            latest.get("latest_snapshot"),
+            required=False,
+        )
         manifest = None
         if latest_snapshot:
             manifest = await client.read_json(_join_remote(root, latest_snapshot))
@@ -354,7 +368,7 @@ async def sync_remote_status(settings: Settings | None = None) -> dict[str, Any]
         last.update({
             "last_remote_check_at": checked_at,
             "remote_status": "failed",
-            "remote_error": str(exc),
+            "remote_error": _redact_error(exc),
         })
         _write_status(s, last)
         raise
@@ -491,7 +505,7 @@ async def publish_snapshot(settings: Settings | None = None) -> dict[str, Any]:
             "uploaded_blobs": uploaded_blobs,
             "skipped_blobs": skipped_blobs,
             "uploaded_metadata_files": uploaded_metadata_files,
-            "error": str(exc),
+            "error": _redact_error(exc),
         }
         _write_status(s, failed)
         raise
@@ -564,7 +578,7 @@ async def upload_plan(settings: Settings | None = None) -> dict[str, Any]:
                 ),
                 folder_names,
             ),
-            "size_bytes": int(file_meta.get("size_bytes") or 0),
+            "size_bytes": _as_int(file_meta.get("size_bytes"), 0),
             "sha256": sha,
             "updated_at": entry.get("updated_at") or file_meta.get("updated_at"),
             "reason": "new" if remote_entry is None else "changed",
@@ -804,7 +818,7 @@ async def publish_selected(
             "uploaded_blobs": uploaded_blobs,
             "skipped_blobs": skipped_blobs,
             "uploaded_metadata_files": uploaded_metadata_files,
-            "error": str(exc),
+            "error": _redact_error(exc),
         }
         _write_status(s, failed)
         raise
@@ -873,7 +887,7 @@ async def download_plan(settings: Settings | None = None) -> dict[str, Any]:
                 remote["rows"].get("folders.jsonl", []),
                 folder_names,
             ),
-            "size_bytes": int(file_meta.get("size_bytes") or 0),
+            "size_bytes": _as_int(file_meta.get("size_bytes"), 0),
             "sha256": remote_sha,
             "updated_at": entry.get("updated_at") or file_meta.get("updated_at"),
             "reason": reason,
@@ -950,9 +964,9 @@ async def pull_latest_metadata(settings: Settings | None = None) -> dict[str, An
         latest = await client.read_json(_join_remote(root, "latest.json"))
         if latest is None:
             raise WebDavConfigError("remote latest.json not found")
-        latest_snapshot = str(latest.get("latest_snapshot") or "")
-        if not latest_snapshot:
-            raise WebDavConfigError("remote latest.json has no latest_snapshot")
+        latest_snapshot = _validated_latest_snapshot(
+            latest.get("latest_snapshot")
+        )
         snapshot_root = _parent_path(_join_remote(root, latest_snapshot))
         manifest = await client.read_json(_join_remote(root, latest_snapshot))
         if manifest is None:
@@ -1062,11 +1076,10 @@ async def hydrate_entry(entry_id: str, settings: Settings | None = None) -> dict
                     "hydrated": True,
                     "already_local": True,
                 }
-        remote_root = str(marker.get("remote_root") or _remote_root(s))
-        blob_path = str(marker.get("blob_path") or "")
-        if not blob_path:
-            raise WebDavConfigError("remote entry has no blob_path")
-        remote_blob = _join_remote(remote_root, blob_path)
+        # Ignore marker.remote_root: a hostile snapshot must not redirect
+        # hydrate outside the configured library remote path.
+        blob_path = _validated_blob_path(marker.get("blob_path"))
+        remote_blob = _join_remote(_remote_root(s), blob_path)
         folder_path = await _folder_path(session, entry.folder_id)
 
     client = WebDavClient(s)
@@ -1221,9 +1234,9 @@ async def _read_remote_snapshot(
             if allow_missing:
                 return _empty_snapshot()
             raise WebDavConfigError("remote latest.json not found")
-        latest_snapshot = str(latest.get("latest_snapshot") or "")
-        if not latest_snapshot:
-            raise WebDavConfigError("remote latest.json has no latest_snapshot")
+        latest_snapshot = _validated_latest_snapshot(
+            latest.get("latest_snapshot")
+        )
         snapshot_root = _parent_path(_join_remote(root, latest_snapshot))
         manifest = await client.read_json(_join_remote(root, latest_snapshot))
         if manifest is None:
@@ -1466,7 +1479,7 @@ def _manifest_for_rows(
         file_meta = entry.get("file") if isinstance(entry.get("file"), dict) else {}
         sha = str(file_meta.get("sha256") or "")
         if sha:
-            blob_stats[sha] = int(file_meta.get("size_bytes") or 0)
+            blob_stats[sha] = _as_int(file_meta.get("size_bytes"), 0)
     created_at = _now_iso()
     return {
         "format": "library-knowledge-pack",
@@ -1761,6 +1774,10 @@ async def _import_metadata(
             continue
         name = str(item.get("name") or "untitled")
         facet = str(item.get("facet") or "extra")
+        if facet not in TAG_FACETS:
+            log.warning("webdav import: skipping tag %s with illegal facet %r", tag_id, facet)
+            imported["conflicts"] += 1
+            continue
         key = _tag_import_key(name, facet)
         row = tags_by_id.get(tag_id)
         key_row = tags_by_key.get(key)
@@ -1778,15 +1795,15 @@ async def _import_metadata(
             row.name = name
         row.facet = facet
         row.alias_of = None
-        doc_count = int(item.get("doc_count") or 0)
-        reaffirm_count = int(item.get("reaffirm_count") or 0)
+        doc_count = _as_int(item.get("doc_count"), 0)
+        reaffirm_count = _as_int(item.get("reaffirm_count"), 0)
         last_used_at = _parse_dt(item.get("last_used_at"))
         last_reaffirmed_at = _parse_dt(item.get("last_reaffirmed_at"))
         if reused_by_key:
-            row.doc_count = max(int(row.doc_count or 0), doc_count)
+            row.doc_count = max(_as_int(row.doc_count, 0), doc_count)
             row.last_used_at = _max_dt(row.last_used_at, last_used_at)
             row.last_reaffirmed_at = _max_dt(row.last_reaffirmed_at, last_reaffirmed_at)
-            row.reaffirm_count = max(int(row.reaffirm_count or 0), reaffirm_count)
+            row.reaffirm_count = max(_as_int(row.reaffirm_count, 0), reaffirm_count)
         else:
             row.doc_count = doc_count
             row.last_used_at = last_used_at
@@ -1862,6 +1879,41 @@ async def _import_metadata(
         created_at = _parse_dt(file_meta.get("created_at")) or now
         existing_marker = _remote_marker(file_row.description) if file_row is not None else None
         remote_sha = str(file_meta.get("sha256") or "")
+        blob_path = file_meta.get("blob_path")
+        if blob_path not in (None, ""):
+            try:
+                blob_path = _validated_blob_path(blob_path)
+            except WebDavConfigError:
+                log.warning(
+                    "webdav import: skipping entry %s with illegal blob_path %r",
+                    entry_id, blob_path,
+                )
+                imported["conflicts"] += 1
+                continue
+        ingest_status = str(file_meta.get("ingest_status") or "done")
+        if ingest_status not in INGEST_STATUSES:
+            log.warning(
+                "webdav import: skipping entry %s with illegal ingest_status %r",
+                entry_id, ingest_status,
+            )
+            imported["conflicts"] += 1
+            continue
+        kind = file_meta.get("kind")
+        if kind not in (None, "") and str(kind) not in FILE_KINDS:
+            log.warning(
+                "webdav import: skipping entry %s with illegal kind %r",
+                entry_id, kind,
+            )
+            imported["conflicts"] += 1
+            continue
+        lifecycle = str(item.get("lifecycle") or "active")
+        if lifecycle not in ENTRY_LIFECYCLES:
+            log.warning(
+                "webdav import: skipping entry %s with illegal lifecycle %r",
+                entry_id, lifecycle,
+            )
+            imported["conflicts"] += 1
+            continue
         hydrated = False
         if file_row is not None:
             local_sha = str(file_row.sha256 or "")
@@ -1889,7 +1941,7 @@ async def _import_metadata(
             "remote_root": root,
             "library_id": manifest.get("library_id") or latest.get("library_id"),
             "snapshot_id": manifest.get("snapshot_id") or latest.get("snapshot_id"),
-            "blob_path": file_meta.get("blob_path"),
+            "blob_path": blob_path,
             "sha256": file_meta.get("sha256"),
             "hydrated": hydrated,
             "imported_at": _now_iso(),
@@ -1910,21 +1962,23 @@ async def _import_metadata(
                 id=file_id,
                 storage_key=storage_key,
                 sha256=str(file_meta.get("sha256") or ""),
-                size_bytes=int(file_meta.get("size_bytes") or 0),
+                size_bytes=_as_int(file_meta.get("size_bytes") or 0, 0),
                 created_at=created_at,
                 updated_at=_parse_dt(file_meta.get("updated_at")) or now,
             )
             session.add(file_row)
             imported["remote_files"] += 1
         file_row.sha256 = str(file_meta.get("sha256") or file_row.sha256)
-        file_row.size_bytes = int(file_meta.get("size_bytes") or file_row.size_bytes or 0)
+        file_row.size_bytes = _as_int(
+            file_meta.get("size_bytes") or file_row.size_bytes, 0
+        )
         file_row.mime_type = file_meta.get("mime_type")
         file_row.original_ext = file_meta.get("original_ext")
-        file_row.kind = file_meta.get("kind")
+        file_row.kind = None if kind in (None, "") else str(kind)
         file_row.summary = file_meta.get("summary")
         file_row.description = _description_with_remote(file_meta.get("description"), marker)
         file_row.extra = file_meta.get("extra")
-        file_row.ingest_status = str(file_meta.get("ingest_status") or "done")
+        file_row.ingest_status = ingest_status
         file_row.ingested_at = _parse_dt(file_meta.get("ingested_at"))
         file_row.deleted_at = None
         await session.flush()
@@ -1952,8 +2006,13 @@ async def _import_metadata(
             )
             entry_row.file_id = file_id
             entry_row.display_name = display_name
-            entry_row.lifecycle = str(item.get("lifecycle") or "active")
-            entry_row.catalog_id = item.get("catalog_id")
+            catalog_id = str(item.get("catalog_id") or "") or None
+            if catalog_id is not None:
+                catalog = await session.get(Catalog, catalog_id)
+                if catalog is None or catalog.deleted_at is not None:
+                    catalog_id = None
+            entry_row.lifecycle = lifecycle
+            entry_row.catalog_id = catalog_id
             entry_row.extra = item.get("extra")
             entry_row.deleted_at = None
             entry_row.purge_after = None
@@ -1978,13 +2037,21 @@ async def _import_metadata(
                 continue
             if not tags_by_id.get(tag_id) and await session.get(Tag, tag_id) is None:
                 continue
+            source = str(tag.get("source") or "ingest")
+            if source not in ENTRY_TAG_SOURCES:
+                log.warning(
+                    "webdav import: skipping entry_tag %s/%s with illegal source %r",
+                    entry_id, tag_id, source,
+                )
+                imported["conflicts"] += 1
+                continue
             session.add(EntryTag(
                 entry_id=entry_id,
                 tag_id=tag_id,
-                source=str(tag.get("source") or "ingest"),
+                source=source,
                 created_at=_parse_dt(tag.get("created_at")) or now,
                 last_reaffirmed_at=_parse_dt(tag.get("last_reaffirmed_at")),
-                reaffirm_count=int(tag.get("reaffirm_count") or 0),
+                reaffirm_count=_as_int(tag.get("reaffirm_count"), 0),
             ))
             attached_tag_ids.add(tag_id)
             imported["entry_tags"] += 1
@@ -1997,6 +2064,14 @@ async def _import_metadata(
         entry_a_id = str(item.get("entry_a_id") or "")
         entry_b_id = str(item.get("entry_b_id") or "")
         if not relation_id or not entry_a_id or not entry_b_id:
+            continue
+        source_kind = str(item.get("source_kind") or "")
+        if source_kind not in ENTRY_RELATION_SOURCE_KINDS:
+            log.warning(
+                "webdav import: skipping relation %s with illegal source_kind %r",
+                relation_id, source_kind,
+            )
+            imported["conflicts"] += 1
             continue
         row = await session.get(EntryRelation, relation_id)
         if row is None:
@@ -2014,13 +2089,16 @@ async def _import_metadata(
         row.entry_a_id = entry_a_id
         row.entry_b_id = entry_b_id
         row.note = str(item.get("note") or "")
-        row.source_kind = str(item.get("source_kind") or "mine_relations")
+        row.source_kind = source_kind
         row.last_observed_at = _parse_dt(item.get("last_observed_at")) or now
-        row.observation_count = int(item.get("observation_count") or 1)
+        row.observation_count = _as_int(item.get("observation_count") or 1, 1)
         row.vetted = item.get("vetted")
         row.vetted_reason = item.get("vetted_reason")
         row.vetted_at = _parse_dt(item.get("vetted_at"))
-        row.vetted_observation_count = item.get("vetted_observation_count")
+        vetted_observation_count = item.get("vetted_observation_count")
+        row.vetted_observation_count = (
+            None if vetted_observation_count is None else _as_int(vetted_observation_count, 0)
+        )
         row.created_at = _parse_dt(item.get("created_at")) or now
         imported["relations"] += 1
 
@@ -2195,14 +2273,18 @@ _URL_RE = re.compile(r"\b[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s'\"<>]+")
 _USERINFO_RE = re.compile(r"\S+:\S+@\S+")
 
 
+def _redact_text(text: str) -> str:
+    """Strip URLs and userinfo credentials from text that may be persisted."""
+    redacted = _URL_RE.sub("<url>", str(text))
+    redacted = _USERINFO_RE.sub("<redacted>", redacted)
+    return " ".join(redacted.split())[:200]
+
+
 def _redact_error(exc: Exception) -> str:
     """Per-entry error text is returned to clients and written to the status
     file; raw exception messages (e.g. httpx) can embed the WebDAV URL with
     userinfo credentials. Reduce to the class name plus a URL-free reason."""
-    text = str(exc)
-    text = _URL_RE.sub("<url>", text)
-    text = _USERINFO_RE.sub("<redacted>", text)
-    text = " ".join(text.split())[:200]
+    text = _redact_text(str(exc))
     name = exc.__class__.__name__
     return f"{name}: {text}" if text else name
 
@@ -2232,6 +2314,9 @@ def _write_status(settings: Settings, value: dict[str, Any]) -> None:
             },
             **value,
         }
+    for key in ("error", "remote_error"):
+        if value.get(key):
+            value[key] = _redact_text(str(value[key]))
     tmp_fd, tmp_name = tempfile.mkstemp(
         prefix=".webdav_status.",
         suffix=".json",
@@ -2493,6 +2578,42 @@ async def _folder_path(session, folder_id: str | None) -> str | None:
     return "/" + "/".join(reversed(parts)) if parts else None
 
 
+def _validated_blob_path(value: Any) -> str:
+    """Confine a snapshot blob_path to the content-addressed layout.
+
+    Untrusted snapshots (and the hydration marker they produce) must not be
+    able to point the WebDAV client at an arbitrary path under the same
+    credentials. Reject anything that is not ``blobs/sha256/<2-hex>/<64-hex>``.
+    """
+    blob_path = str(value or "").strip().replace("\\", "/").lstrip("/")
+    if not blob_path:
+        raise WebDavConfigError("remote entry has no blob_path")
+    if not _BLOB_PATH_RE.fullmatch(blob_path):
+        raise WebDavConfigError(
+            "remote blob_path must match blobs/sha256/<2-hex>/<64-hex>"
+        )
+    return blob_path
+
+
+def _validated_latest_snapshot(value: Any, *, required: bool = True) -> str:
+    """Confine latest_snapshot to ``snapshots/<16-hex>/manifest.json``.
+
+    ``required=False`` is for the remote-status probe: an empty pointer is
+    treated as "no snapshot yet" rather than a hard error. A non-empty
+    illegal pointer is always rejected so we never join it onto the root.
+    """
+    latest_snapshot = str(value or "").strip().replace("\\", "/").lstrip("/")
+    if not latest_snapshot:
+        if required:
+            raise WebDavConfigError("remote latest.json has no latest_snapshot")
+        return ""
+    if not _LATEST_SNAPSHOT_RE.fullmatch(latest_snapshot):
+        raise WebDavConfigError(
+            "remote latest_snapshot must match snapshots/<16-hex>/manifest.json"
+        )
+    return latest_snapshot
+
+
 def _join_remote(*parts: str) -> str:
     joined: list[str] = []
     for part in parts:
@@ -2508,7 +2629,10 @@ def _parent_path(path: str) -> str:
 
 
 def _split_path(path: str) -> list[str]:
-    return [part for part in str(path).replace("\\", "/").split("/") if part]
+    parts = [part for part in str(path).replace("\\", "/").split("/") if part]
+    if any(part in {".", ".."} for part in parts):
+        raise WebDavConfigError("remote path must not contain '.' or '..' segments")
+    return parts
 
 
 def _encode_path(path: str) -> str:

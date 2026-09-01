@@ -38,6 +38,7 @@ MAX_ROWS_PER_SHEET = 200
 MAX_TAIL_PEEK = 20
 MAX_CELL_CHARS = 200
 DEFAULT_MAX_CHARS = 8000
+MAX_READ_ROWS_PER_SHEET = 10_000
 
 
 @register_pipeline(
@@ -78,8 +79,10 @@ class SpreadsheetPipeline(Pipeline):
         args: dict[str, Any],
         storage: StorageBackend,
     ) -> SegmentResult:
-        body = await self._extract_read_text(storage, file_row.storage_key)
-        return self._slice(body, args)
+        buf = bytearray()
+        async for chunk in storage.get(file_row.storage_key):
+            buf.extend(chunk)
+        return self._slice_from_bytes(bytes(buf), args)
 
     async def read_segment_from_bytes(
         self,
@@ -90,12 +93,25 @@ class SpreadsheetPipeline(Pipeline):
     ) -> SegmentResult:
         """Bytes-first variant — used by ArchivePipeline for member peeks."""
         try:
-            text = self._render_read_from_bytes(body)
+            return self._slice_from_bytes(body, args)
         except Exception as exc:  # noqa: BLE001
             return SegmentResult(error=f"xlsx parse failed: {exc}")
-        return self._slice(text, args)
 
-    def _slice(self, body: str, args: dict[str, Any]) -> SegmentResult:
+    def _slice_from_bytes(self, body: bytes, args: dict[str, Any]) -> SegmentResult:
+        text, coverage = self._render_from_bytes_with_coverage(
+            body,
+            read_full=True,
+            read_row_cap=MAX_READ_ROWS_PER_SHEET,
+        )
+        return self._slice(text, args, coverage=coverage)
+
+    def _slice(
+        self,
+        body: str,
+        args: dict[str, Any],
+        *,
+        coverage: dict[str, Any] | None = None,
+    ) -> SegmentResult:
         """Resolve args against the rendered workbook.
 
         Field priority:
@@ -121,13 +137,16 @@ class SpreadsheetPipeline(Pipeline):
                         extras={"available_sheets": sheet_names},
                     )
                 scope_body = slab
-            return _ss_pattern_search(
-                body=scope_body, pattern=pattern,
-                context_lines=int(args.get("context_lines") or 2),
-                max_matches=int(args.get("max_matches") or 20),
-                match_offset=max(0, int(args.get("match_offset") or 0)),
-                heading_scope=heading_scope or None,
-                full_body=body,
+            return _apply_read_coverage(
+                _ss_pattern_search(
+                    body=scope_body, pattern=pattern,
+                    context_lines=int(args.get("context_lines") or 2),
+                    max_matches=int(args.get("max_matches") or 20),
+                    match_offset=max(0, int(args.get("match_offset") or 0)),
+                    heading_scope=heading_scope or None,
+                    full_body=body,
+                ),
+                coverage,
             )
 
         heading = (args.get("heading") or "").strip()
@@ -139,12 +158,15 @@ class SpreadsheetPipeline(Pipeline):
                     error=f"sheet/heading not found: {heading!r}",
                     extras={"available_sheets": sheet_names},
                 )
-            return _clamp_ss(
-                slab, offset, max_chars,
-                extras={"heading": heading},
+            return _apply_read_coverage(
+                _clamp_ss(
+                    slab, offset, max_chars,
+                    extras={"heading": heading},
+                ),
+                coverage,
             )
 
-        return _clamp_ss(body, offset, max_chars)
+        return _apply_read_coverage(_clamp_ss(body, offset, max_chars), coverage)
 
     @classmethod
     async def _extract_text(cls, storage: StorageBackend, key: str) -> str:
@@ -156,7 +178,12 @@ class SpreadsheetPipeline(Pipeline):
         buf = bytearray()
         async for chunk in storage.get(key):
             buf.extend(chunk)
-        return cls._render_read_from_bytes(bytes(buf))
+        text, _coverage = cls._render_from_bytes_with_coverage(
+            bytes(buf),
+            read_full=True,
+            read_row_cap=MAX_READ_ROWS_PER_SHEET,
+        )
+        return text
 
     @classmethod
     async def _extract_text_with_coverage(
@@ -184,6 +211,7 @@ class SpreadsheetPipeline(Pipeline):
         text, _coverage = SpreadsheetPipeline._render_from_bytes_with_coverage(
             body,
             read_full=True,
+            read_row_cap=MAX_READ_ROWS_PER_SHEET,
         )
         return text
 
@@ -192,6 +220,7 @@ class SpreadsheetPipeline(Pipeline):
         body: bytes,
         *,
         read_full: bool = False,
+        read_row_cap: int | None = None,
     ) -> tuple[str, dict[str, Any]]:
         try:
             import openpyxl  # type: ignore
@@ -206,12 +235,16 @@ class SpreadsheetPipeline(Pipeline):
             read_only=True,
         )
         try:
-            return _render_workbook(wb, read_full=read_full)
+            return _render_workbook(
+                wb, read_full=read_full, read_row_cap=read_row_cap,
+            )
         finally:
             wb.close()
 
 
-def _render_workbook(wb: Any, *, read_full: bool = False) -> tuple[str, dict[str, Any]]:
+def _render_workbook(
+    wb: Any, *, read_full: bool = False, read_row_cap: int | None = None,
+) -> tuple[str, dict[str, Any]]:
     parts: list[str] = []
     sheets: list[dict[str, Any]] = []
     total_rows_all = 0
@@ -220,18 +253,27 @@ def _render_workbook(wb: Any, *, read_full: bool = False) -> tuple[str, dict[str
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
         parts.append(f"# Sheet: {sheet_name}")
-        rows = list(
-            _iter_rows(
-                ws,
-                None if read_full else MAX_ROWS_PER_SHEET + MAX_TAIL_PEEK,
+        if read_full:
+            peek_limit = (read_row_cap + 1) if read_row_cap is not None else None
+        else:
+            peek_limit = MAX_ROWS_PER_SHEET + MAX_TAIL_PEEK
+        fetched = list(_iter_rows(ws, peek_limit))
+        total_rows_estimate = max(int(getattr(ws, "max_row", 0) or 0), len(fetched))
+        if read_full:
+            if read_row_cap is not None and len(fetched) > read_row_cap:
+                sheet_partial = True
+                rows = fetched[:read_row_cap]
+            else:
+                sheet_partial = False
+                rows = fetched
+            indexed_rows = len(rows)
+        else:
+            rows = fetched
+            indexed_rows = min(len(rows), MAX_ROWS_PER_SHEET)
+            sheet_partial = (
+                len(rows) > MAX_ROWS_PER_SHEET
+                or total_rows_estimate > MAX_ROWS_PER_SHEET
             )
-        )
-        total_rows_estimate = max(int(getattr(ws, "max_row", 0) or 0), len(rows))
-        indexed_rows = len(rows) if read_full else min(len(rows), MAX_ROWS_PER_SHEET)
-        sheet_partial = False if read_full else (
-            len(rows) > MAX_ROWS_PER_SHEET
-            or total_rows_estimate > MAX_ROWS_PER_SHEET
-        )
         total_rows_all += total_rows_estimate
         indexed_rows_all += indexed_rows
         any_partial = any_partial or sheet_partial
@@ -275,6 +317,8 @@ def _render_workbook(wb: Any, *, read_full: bool = False) -> tuple[str, dict[str
     }
     if not read_full:
         coverage["max_rows_per_sheet"] = MAX_ROWS_PER_SHEET
+    elif read_row_cap is not None:
+        coverage["max_rows_per_sheet"] = read_row_cap
     return "\n".join(parts).strip(), coverage
 
 
@@ -348,6 +392,23 @@ def _slice_by_heading(body: str, heading: str) -> str | None:
             end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
             return body[start:end].rstrip()
     return None
+
+
+def _apply_read_coverage(
+    result: SegmentResult,
+    coverage: dict[str, Any] | None,
+) -> SegmentResult:
+    if not coverage:
+        return result
+    if coverage.get("indexed_partial") or coverage.get("text_truncated"):
+        result.extras["truncated"] = True
+        reasons = coverage.get("partial_reasons")
+        if isinstance(reasons, list):
+            result.extras.setdefault(
+                "partial_reasons",
+                [r for r in reasons if isinstance(r, str)],
+            )
+    return result
 
 
 def _clamp_ss(

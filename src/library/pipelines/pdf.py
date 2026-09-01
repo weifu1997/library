@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import concurrent.futures
 import io
 import json
 import logging
@@ -26,6 +27,7 @@ import math
 import random
 import re
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 
 from library.agent.compression_adapter import (
@@ -84,13 +86,11 @@ PDF_TEXT_MAX_INDEX_PAGES = 400    # hard text-layer ingest budget
 PDF_SECTION_DIGEST_BYTES = 60_000 # cap the aggregate summary prompt
 MIN_TEXT_PER_PAGE_FOR_TEXT_LAYER = 50  # if every page yields fewer chars,
                                        # the doc is probably scanned
-# Per-document OCR page cap for scanned PDFs. Seeded from the configurable
-# `ocr_max_pages` setting (env OCR_MAX_PAGES) so the default is bounded rather
-# than fanning out one VLM call per page for arbitrarily long documents.
-# None/<=0 means OCR every page at ingest. Kept as a module-level constant
-# (rather than reading settings inside _ocr_configured_page_cap) so tests and
-# callers can override it directly.
-OCR_MAX_PAGES: int | None = get_settings().ocr_max_pages
+# Per-document OCR page cap. Tests may assign this attribute; production
+# reads live `get_settings().ocr_max_pages` so overlay/.env changes apply
+# without a process restart (AM-1).
+_OCR_CAP_LIVE = object()
+OCR_MAX_PAGES: object = _OCR_CAP_LIVE
 PDF_READ_MAX_PAGES_PER_CALL = 50
 PDF_PATTERN_UNSCOPED_MAX_PAGES = 200
 PDF_DEFAULT_READ_PAGES = 20
@@ -236,9 +236,14 @@ class PdfPipeline(Pipeline):
             # Keep CPU-heavy page parsing off the event loop.
             total_pages = await asyncio.to_thread(self._page_count, body)
             text_index_pages = min(total_pages, PDF_TEXT_MAX_INDEX_PAGES)
-            text_per_page = await asyncio.to_thread(
-                self._extract_text, body, max_pages=text_index_pages,
+            text_doc = await asyncio.to_thread(
+                extract_pdf_text_range,
+                body,
+                page_start=1,
+                page_end=text_index_pages,
             )
+            text_per_page = text_doc.pages
+            text_page_failures = list(text_doc.failed_pages)
 
         vlm_available = has_vision_profile()
 
@@ -252,6 +257,8 @@ class PdfPipeline(Pipeline):
         partial_reasons: list[str] = []
         if indexed_pages < total_pages:
             partial_reasons.append("text_page_cap")
+        if text_page_failures:
+            partial_reasons.append("text_page_failures")
         avg_chars = total_chars / max(indexed_pages, 1)
         if total_pages > 0 and avg_chars < MIN_TEXT_PER_PAGE_FOR_TEXT_LAYER:
             if not vlm_available:
@@ -323,6 +330,9 @@ class PdfPipeline(Pipeline):
                 described = await describe_images(images) if images else []
 
         with measure_stage("intelligence"):
+            text_page_failure_count = (
+                0 if ocr_used else len(text_page_failures)
+            )
             if self._needs_chunked_index(text_per_page[:indexed_pages], described):
                 return await self._run_chunked_index(
                     ctx=ctx,
@@ -334,6 +344,7 @@ class PdfPipeline(Pipeline):
                     ocr_pages_done=ocr_pages_done,
                     ocr_failed_pages=ocr_failed_pages,
                     partial_reasons=partial_reasons,
+                    text_page_failures=text_page_failure_count,
                     ocr_pages=ocr_pages_for_storage,
                     ocr_document_type=ocr_document_type,
                 )
@@ -348,6 +359,7 @@ class PdfPipeline(Pipeline):
                 ocr_pages_done=ocr_pages_done,
                 ocr_failed_pages=ocr_failed_pages,
                 partial_reasons=partial_reasons,
+                text_page_failures=text_page_failure_count,
                 ocr_pages=ocr_pages_for_storage,
                 ocr_document_type=ocr_document_type,
             )
@@ -387,6 +399,7 @@ class PdfPipeline(Pipeline):
         ocr_pages_done: int,
         ocr_failed_pages: int,
         partial_reasons: list[str],
+        text_page_failures: int = 0,
         ocr_pages: list[str] | None = None,
         ocr_document_type: str | None = None,
     ) -> PipelineResult:
@@ -402,6 +415,7 @@ class PdfPipeline(Pipeline):
             ocr_pages_done=ocr_pages_done,
             ocr_failed_pages=ocr_failed_pages,
             partial_reasons=partial_reasons,
+            text_page_failures=text_page_failures,
             max_index_pages=(
                 _ocr_configured_page_cap()
                 if ocr_used else PDF_TEXT_MAX_INDEX_PAGES
@@ -487,6 +501,7 @@ class PdfPipeline(Pipeline):
         ocr_pages_done: int,
         ocr_failed_pages: int,
         partial_reasons: list[str],
+        text_page_failures: int = 0,
         ocr_pages: list[str] | None = None,
         ocr_document_type: str | None = None,
     ) -> PipelineResult:
@@ -616,6 +631,7 @@ class PdfPipeline(Pipeline):
             ocr_pages_done=ocr_pages_done,
             ocr_failed_pages=ocr_failed_pages,
             partial_reasons=coverage_reasons,
+            text_page_failures=text_page_failures,
             max_index_pages=(
                 _ocr_configured_page_cap()
                 if ocr_used else PDF_TEXT_MAX_INDEX_PAGES
@@ -810,17 +826,21 @@ class PdfPipeline(Pipeline):
         ocr_failed_pages: int,
         partial_reasons: list[str],
         max_index_pages: int | None,
+        text_page_failures: int = 0,
     ) -> dict[str, Any]:
         reasons = list(dict.fromkeys(partial_reasons))
         if text_truncated and "prompt_text_cap" not in reasons:
             reasons.append("prompt_text_cap")
-        # Failed OCR pages and failed chunk LLM calls make the index
-        # incomplete even when the page *count* looks whole.
+        # Failed OCR pages, failed text-layer extracts, and failed chunk
+        # LLM calls make the index incomplete even when the page *count*
+        # looks whole.
         indexed_partial = (
             indexed_pages < total_pages
             or text_truncated
             or ocr_failed_pages > 0
+            or text_page_failures > 0
             or "chunk_index_failures" in reasons
+            or "text_page_failures" in reasons
         )
         coverage: dict[str, Any] = {
             "unit": "pages",
@@ -838,6 +858,8 @@ class PdfPipeline(Pipeline):
             coverage["ocr_used"] = True
             coverage["ocr_pages_done"] = ocr_pages_done
             coverage["ocr_failed_pages"] = ocr_failed_pages
+        if text_page_failures > 0:
+            coverage["text_page_failures"] = text_page_failures
         return coverage
 
     # ---- read_segment -----------------------------------------------------
@@ -1693,7 +1715,10 @@ def _ocr_total_pages(meta: dict[str, Any], *, fallback: int) -> int:
 
 
 def _ocr_configured_page_cap() -> int | None:
-    return _positive_int(OCR_MAX_PAGES)
+    override = OCR_MAX_PAGES
+    if override is not _OCR_CAP_LIVE:
+        return _positive_int(override)
+    return _positive_int(get_settings().ocr_max_pages)
 
 
 def _ocr_pages_to_process(total_pages: int) -> int:
@@ -1945,18 +1970,34 @@ async def _ocr_pdf_pages(pdf_bytes: bytes, total_pages: int) -> list[str | None]
             out[i] = text
             return
 
-    for start in range(0, pages_to_ocr, OCR_RENDER_BATCH_PAGES):
-        batch_count = min(OCR_RENDER_BATCH_PAGES, pages_to_ocr - start)
-        page_jpegs = await asyncio.to_thread(
-            _render_pdf_pages_to_jpeg,
-            pdf_bytes,
-            batch_count,
-            start_page=start,
-        )
-        await asyncio.gather(*(
-            _ocr_one(start + i, jpeg_bytes)
-            for i, jpeg_bytes in enumerate(page_jpegs)
-        ))
+    import pypdfium2 as pdfium
+
+    # pypdfium2 documents are not safe to hop between thread-pool workers.
+    # Keep open / render / close on one thread while still parsing once (AM-2).
+    loop = asyncio.get_running_loop()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pdf_pool:
+        pdf = await loop.run_in_executor(pdf_pool, pdfium.PdfDocument, pdf_bytes)
+        try:
+            for start in range(0, pages_to_ocr, OCR_RENDER_BATCH_PAGES):
+                batch_count = min(OCR_RENDER_BATCH_PAGES, pages_to_ocr - start)
+                page_jpegs = await loop.run_in_executor(
+                    pdf_pool,
+                    partial(
+                        _render_pdf_pages_to_jpeg,
+                        pdf_bytes,
+                        batch_count,
+                        start_page=start,
+                        pdf=pdf,
+                    ),
+                )
+                await asyncio.gather(*(
+                    _ocr_one(start + i, jpeg_bytes)
+                    for i, jpeg_bytes in enumerate(page_jpegs)
+                ))
+        finally:
+            close = getattr(pdf, "close", None)
+            if close:
+                await loop.run_in_executor(pdf_pool, close)
     # Pad pages past the cap with '' — those were deliberately not attempted,
     # which is a different thing from a failed attempt (None).
     while len(out) < total_pages:
@@ -1977,14 +2018,17 @@ def _render_pdf_pages_to_jpeg(
     *,
     start_page: int = 0,
     dpi: float = OCR_RENDER_DPI,
+    pdf: Any | None = None,
 ) -> list[bytes]:
     """Render `page_count` pages to JPEG bytes. Sync, intended to run
-    inside asyncio.to_thread. Mirrors WeKnora's PDFScannedParser shape:
-    pypdfium2 → PIL.Image → JPEG via Pillow."""
+    inside asyncio.to_thread. Pass an open `PdfDocument` to avoid
+    re-parsing the same bytes on every OCR batch (AM-2)."""
     import pypdfium2 as pdfium
 
     out: list[bytes] = []
-    pdf = pdfium.PdfDocument(pdf_bytes)
+    owned = pdf is None
+    if pdf is None:
+        pdf = pdfium.PdfDocument(pdf_bytes)
     try:
         start = max(0, start_page)
         end = min(start + page_count, len(pdf))
@@ -1997,9 +2041,10 @@ def _render_pdf_pages_to_jpeg(
                 if close:
                     close()
     finally:
-        close = getattr(pdf, "close", None)
-        if close:
-            close()
+        if owned:
+            close = getattr(pdf, "close", None)
+            if close:
+                close()
     return out
 
 

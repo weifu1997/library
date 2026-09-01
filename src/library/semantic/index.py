@@ -110,8 +110,19 @@ def semantic_index_root() -> Path:
 
 
 def semantic_index_dir(index_name: str = DEFAULT_INDEX_NAME) -> Path:
-    safe = "".join(c if c.isalnum() or c in "-_." else "_" for c in index_name)
-    return semantic_index_root() / (safe or DEFAULT_INDEX_NAME)
+    raw = str(index_name or "")
+    if raw in {".", ".."} or "/" in raw or "\\" in raw:
+        raw = DEFAULT_INDEX_NAME
+    safe = "".join(c if c.isalnum() or c in "-_." else "_" for c in raw)
+    if safe in {".", "..", ""}:
+        safe = DEFAULT_INDEX_NAME
+    root = semantic_index_root().resolve()
+    path = (root / safe).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError:
+        path = (root / DEFAULT_INDEX_NAME).resolve()
+    return path
 
 
 def semantic_recall_configured() -> bool:
@@ -300,6 +311,11 @@ async def _build_semantic_index(
     page_size: int | None = None,
 ) -> SemanticIndexBuildResult:
     settings = get_settings()
+    if settings.semantic_index_backend == "sqlite-vec" and not sqlite_vec_available():
+        raise RuntimeError(
+            "sqlite-vec is not installed; set SEMANTIC_INDEX_BACKEND=file "
+            "or auto, or install sqlite-vec before rebuilding"
+        )
     client = client or get_embedding_client(settings)
     batch_size = max(1, int(batch_size or settings.embedding_batch_size or 10))
     concurrency = max(1, int(concurrency or 1))
@@ -357,9 +373,9 @@ async def _build_semantic_index(
     # Per-PID tmp name regardless of resume: the manifest is written fresh at
     # the end of every build and is never part of resume state.
     manifest_tmp = out_dir / f"manifest.json.{os.getpid()}.tmp"
+    seen_record_ids: set[str] = set()
     try:
         with tmp_meta.open(text_mode, encoding="utf-8") as meta_f, tmp_vec.open(mode) as vec_f:
-            seen_record_ids: set[str] = set()
             async for record_page in _iter_semantic_input_pages(
                 session,
                 explicit_records=explicit_records,
@@ -418,11 +434,26 @@ async def _build_semantic_index(
                                 if explicit_records is not None else ""
                             )
                             print(f"  embedded {count}{total_hint} vectors")
-            if done_ids - seen_record_ids:
-                raise ValueError(
-                    "semantic resume state contains records that are no longer "
-                    "indexable; restart the rebuild without resume"
-                )
+        if done_ids - seen_record_ids:
+            log.warning(
+                "semantic resume state is stale; discarding tmp and starting over"
+            )
+            with contextlib.suppress(OSError):
+                tmp_meta.unlink()
+            with contextlib.suppress(OSError):
+                tmp_vec.unlink()
+            return await _build_semantic_index(
+                session,
+                index_name=index_name,
+                entry_ids=entry_ids,
+                batch_size=batch_size,
+                concurrency=concurrency,
+                resume=False,
+                resume_key=None,
+                client=client,
+                progress_every=progress_every,
+                page_size=page_size,
+            )
 
         if count <= 0:
             # Zero indexable entries: do NOT publish a dimensions=0 manifest.
@@ -872,7 +903,11 @@ def _resume_state(
     requested = set(requested_ids) if requested_ids is not None else None
     done_ids: set[str] = set()
     total_rows = 0
-    for row in _read_metadata(meta_path):
+    try:
+        rows = _read_metadata(meta_path)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError):
+        return 0, 0, set()
+    for row in rows:
         total_rows += 1
         if (
             str(row.get("embedding_provider") or "") != expected_provider
@@ -983,6 +1018,12 @@ async def semantic_entry_rows(
     limit: int = 100,
     client: EmbeddingClient | None = None,
 ) -> list[dict[str, Any]]:
+    settings = get_settings()
+    if not _semantic_index_exists(index_name):
+        raise RuntimeError("index_missing")
+    manifest = _read_manifest(semantic_index_dir(index_name) / "manifest.json")
+    if not manifest or not _manifest_matches_settings(manifest, settings):
+        raise RuntimeError("index_incompatible")
     hits = await search_semantic_index(
         query,
         index_name=index_name,

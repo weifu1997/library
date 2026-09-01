@@ -49,6 +49,11 @@ def fake_runner(monkeypatch: pytest.MonkeyPatch):
         return runner
 
     monkeypatch.setattr(wl, "TaskRunner", factory)
+
+    async def _no_claim() -> bool:
+        return False
+
+    monkeypatch.setattr(wl, "queue_claimed", _no_claim)
     yield instances
     # Direct assignment, not monkeypatch: monkeypatch would record the
     # (possibly running) runner as the value to restore, and its undo would
@@ -154,3 +159,67 @@ async def test_startup_guard_silent_when_nothing_pending(
     with caplog.at_level(logging.WARNING):
         await main._warn_if_worker_disabled_with_pending()
     assert "pending and will not be processed" not in caplog.text
+
+
+async def test_status_running_is_in_process_or_fresh_claim(
+    fake_runner, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    claimed = {"value": False}
+
+    async def fake_claimed() -> bool:
+        return claimed["value"]
+
+    monkeypatch.setattr(wl, "queue_claimed", fake_claimed)
+
+    assert wl.is_running() is False
+    assert await wl.status_running() is False
+
+    claimed["value"] = True
+    assert await wl.status_running() is True
+    assert wl.is_running() is False
+
+    claimed["value"] = False
+    assert await wl.start() is True
+    assert wl.is_running() is True
+    assert await wl.status_running() is True
+
+
+async def test_start_skips_when_queue_is_already_claimed(
+    fake_runner, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_claimed() -> bool:
+        return True
+
+    monkeypatch.setattr(wl, "queue_claimed", fake_claimed)
+    assert await wl.start() is False
+    assert fake_runner == []
+    assert wl.is_running() is False
+    assert await wl.status_running() is True
+
+
+async def test_start_proceeds_when_claim_is_absent(
+    fake_runner, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_claimed() -> bool:
+        return False
+
+    monkeypatch.setattr(wl, "queue_claimed", fake_claimed)
+    assert await wl.start() is True
+    assert len(fake_runner) == 1
+    assert wl.is_running() is True
+
+
+async def test_start_is_noop_when_this_process_already_runs(
+    fake_runner, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    claimed = {"value": False}
+
+    async def fake_claimed() -> bool:
+        return claimed["value"]
+
+    monkeypatch.setattr(wl, "queue_claimed", fake_claimed)
+    assert await wl.start() is True
+    claimed["value"] = True
+    assert await wl.start() is False
+    assert len(fake_runner) == 1
+    assert wl.is_running() is True

@@ -316,6 +316,7 @@ async def _single_chunk(body: bytes) -> AsyncIterator[bytes]:
 # ---- folder download → zip stream -----------------------------------------
 
 ZIP_CHUNK_SIZE = 64 * 1024
+FOLDER_ZIP_MAX_UNCOMPRESSED_BYTES = 200 * 1024 * 1024
 
 
 @router.get("/folders/{folder_id}/download")
@@ -346,29 +347,40 @@ async def folder_download(
                                    for zp, _entry, file_row in members]
 
     storage = get_storage()
-
-    async def _zip_stream() -> AsyncIterator[bytes]:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-            for zip_path, storage_key in plan:
-                body = bytearray()
-                async for chunk in storage.get(storage_key):
-                    body.extend(chunk)
-                zf.writestr(zip_path, bytes(body))
-        buf.seek(0)
-        while True:
-            chunk = buf.read(ZIP_CHUNK_SIZE)
-            if not chunk:
-                break
-            yield chunk
-
+    archive = await _build_folder_zip(storage, plan)
     headers = {
         "Content-Disposition": content_disposition("attachment", archive_name),
         "X-Folder-Id": folder_id,
         "X-Member-Count": str(len(plan)),
     }
     return StreamingResponse(
-        _zip_stream(),
+        _single_chunk(archive) if len(archive) <= ZIP_CHUNK_SIZE else _iter_chunks(archive),
         media_type="application/zip",
         headers=headers,
     )
+
+
+async def _build_folder_zip(
+    storage: Any,
+    plan: list[tuple[str, str]],
+) -> bytes:
+    buf = io.BytesIO()
+    uncompressed = 0
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for zip_path, storage_key in plan:
+            body = bytearray()
+            async for chunk in storage.get(storage_key):
+                uncompressed += len(chunk)
+                if uncompressed > FOLDER_ZIP_MAX_UNCOMPRESSED_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="folder download exceeds 200MB uncompressed cap",
+                    )
+                body.extend(chunk)
+            zf.writestr(zip_path, bytes(body))
+    return buf.getvalue()
+
+
+async def _iter_chunks(body: bytes) -> AsyncIterator[bytes]:
+    for start in range(0, len(body), ZIP_CHUNK_SIZE):
+        yield body[start:start + ZIP_CHUNK_SIZE]

@@ -177,6 +177,27 @@ async def reschedule_for_retry(
     return bool(result.rowcount or 0)
 
 
+async def has_fresh_claim(
+    db: AsyncSession,
+    *,
+    since: datetime,
+) -> bool:
+    """True when a running task has a heartbeat at or after ``since``."""
+    row = (
+        await db.execute(
+            select(Task.id)
+            .where(
+                Task.status == "running",
+                Task.locked_by.isnot(None),
+                Task.last_heartbeat_at.isnot(None),
+                Task.last_heartbeat_at >= since,
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    return row is not None
+
+
 async def heartbeat(
     db: AsyncSession,
     *,
