@@ -247,6 +247,7 @@ export function useViewportWheelZoom(
   const onWheelZoomRef = useRef(opts.onWheelZoom);
   const onZoomingChangeRef = useRef(opts.onZoomingChange);
   const onZoomSettledRef = useRef(opts.onZoomSettled);
+  const applyZoomValueRef = useRef<(next: number, anchor: ViewportZoomAnchor | null) => void>(() => {});
   const zoomRef = useRef(1);
   const zoomingRef = useRef(false);
   const zoomFrameRef = useRef<number | null>(null);
@@ -262,6 +263,7 @@ export function useViewportWheelZoom(
     onWheelZoomRef.current = opts.onWheelZoom;
     onZoomingChangeRef.current = opts.onZoomingChange;
     onZoomSettledRef.current = opts.onZoomSettled;
+    applyZoomValueRef.current = applyZoomValue;
   });
 
   useEffect(() => {
@@ -351,7 +353,7 @@ export function useViewportWheelZoom(
       const next = pendingZoomRef.current;
       const anchor = pendingAnchorRef.current;
       pendingAnchorRef.current = null;
-      applyZoomValue(next, anchor);
+      applyZoomValueRef.current(next, anchor);
     };
     const onWheel = (event: WheelEvent) => {
       if (!event.ctrlKey) return;

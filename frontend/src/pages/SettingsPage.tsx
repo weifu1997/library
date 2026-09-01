@@ -1249,12 +1249,13 @@ function ServerSection({ ctx }: { ctx: ServerCtx }) {
   // fetch on the off-transition is enough — the count is a hint ("tasks will
   // sit unprocessed"), not a live meter like StatusBar's polling.
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const workerDisabled = !!server && !server.worker_running;
   useEffect(() => {
-    let cancelled = false;
-    if (!server || server.worker_running) {
+    if (!workerDisabled) {
       setPendingCount(0);
       return;
     }
+    let cancelled = false;
     tasks
       .runningCount()
       .then((c) => {
@@ -1266,7 +1267,7 @@ function ServerSection({ ctx }: { ctx: ServerCtx }) {
     return () => {
       cancelled = true;
     };
-  }, [server?.worker_running, server?.worker_enabled]);
+  }, [workerDisabled]);
 
   if (err) {
     return (
